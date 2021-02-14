@@ -1,12 +1,17 @@
-# obisidian-
-◼️ A robust audio sending node for music bots.
+# Obsidian
 
-## why use obsidian
+> A robust and performant audio sending node meant for Discord Bots.
 
-- makes the **dream**work for your bot
-- never breaks
-- strong asf :weary:
-- and yes
+## Why Obsidian
+
+- Stable
+- Constantly being Maintained.
+- Closed Source
+
+## Contributors
+
+- **[@melike2d](https://github.com/melike2d)**
+- **[@sxmurai](https://github.com/sxmurai)**
 
 ---
 
