@@ -11,6 +11,7 @@ import obsidian.server.io.websocket.ObsidianCloseReasons.DECODE_ERROR
 import obsidian.server.io.websocket.ObsidianCloseReasons.INVALID_OPERATION
 import obsidian.server.util.buildJson
 import org.json.JSONObject
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import kotlin.reflect.full.*
 
@@ -18,7 +19,7 @@ typealias OperationHandler = suspend (json: JSONObject) -> Unit
 
 @Suppress("unused")
 class ObsidianClient(clientId: Long, private val session: DefaultWebSocketServerSession) {
-  val logger = LoggerFactory.getLogger(clientId.toString())
+  val logger: Logger = LoggerFactory.getLogger(clientId.toString())
 
   /**
    * The koe client for this Session
