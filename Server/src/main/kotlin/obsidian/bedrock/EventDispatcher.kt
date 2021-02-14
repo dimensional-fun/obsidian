@@ -4,9 +4,6 @@ import org.json.JSONObject
 import java.net.InetSocketAddress
 import java.util.HashSet
 
-
-
-
 class EventDispatcher {
   private var listeners = hashSetOf<BedrockEventListener>()
 
