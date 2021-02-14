@@ -1,0 +1,80 @@
+apply plugin: "kotlin"
+apply plugin: "application"
+apply plugin: "com.github.johnrengelman.shadow"
+
+description = "A robust and performant audio sending node meant for Discord Bots."
+
+mainClassName = "obsidian.server.Main"
+version "1.0.0"
+
+ext {
+  moduleName = "Server"
+}
+
+dependencies {
+  /* kotlin shit */
+  implementation "org.jetbrains.kotlin:kotlin-stdlib"
+  implementation "org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion"
+
+  /* audio */
+  implementation "com.sedmelluq:lavaplayer:$lavaplayerVersion"
+  implementation "com.sedmelluq:lavaplayer-ext-youtube-rotator:$lavaplayerIpRotatorConfig"
+
+  // filters
+  implementation "com.github.natanbc:lavadsp:$lavadspVersion"
+
+  // voice shit
+  implementation "io.netty:netty-transport-native-epoll:$nettyEpollVersion:linux-x86_64"
+
+  implementation "com.sedmelluq:udp-queue:1.1.0-linux64"
+
+  implementation "moe.kyokobot.koe:ext-udpqueue:$koeVersion"
+  implementation("moe.kyokobot.koe:core:$koeVersion") {
+    // This version of SLF4J does not recognise Logback 1.2.3
+    exclude group: "org.slf4j", module: "slf4j-api"
+  }
+
+  /* logging */
+  implementation "ch.qos.logback:logback-classic:$logbackVersion"
+  implementation "io.sentry:sentry:$sentryVersion"
+
+  /* config */
+  implementation "com.uchuhimo:konf:$konfVersion"
+  implementation "com.uchuhimo:konf-yaml:$konfVersion"
+
+  /* websocket/rest shit */
+  implementation "io.ktor:ktor-server-core:$ktorVersion"
+  implementation "io.ktor:ktor-server-netty:$ktorVersion"
+  implementation "io.ktor:ktor-network:$ktorVersion"
+  implementation "io.ktor:ktor-websockets:$ktorVersion"
+
+  /* random */
+  implementation "org.json:json:20200518"
+}
+
+shadowJar {
+  archiveBaseName.set("Obsidian")
+  archiveClassifier.set("")
+  archiveVersion.set("")
+}
+
+jar {
+  manifest {
+    attributes "Main-Class": mainClassName
+  }
+}
+
+compileJava.options.encoding = "UTF-8"
+
+compileKotlin {
+  sourceCompatibility = JavaVersion.VERSION_11
+  targetCompatibility = JavaVersion.VERSION_11
+
+  kotlinOptions {
+    jvmTarget = "11"
+    freeCompilerArgs += "-Xopt-in=kotlin.ExperimentalStdlibApi"
+    freeCompilerArgs += "-Xinline-classes"
+    freeCompilerArgs += "-Xcoroutines=enable"
+  }
+}
+
