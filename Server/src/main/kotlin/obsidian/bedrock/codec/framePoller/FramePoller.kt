@@ -4,7 +4,7 @@ interface FramePoller {
   /**
    * Used to check whether this FramePoller is currently polling.
    */
-  fun isPolling(): Boolean
+  val polling: Boolean
 
   /**
    * Used to start polling.

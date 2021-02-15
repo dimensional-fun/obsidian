@@ -20,8 +20,8 @@ interface ConnectionHandler<R> {
   fun connect(): CompletionStage<R>
 
   fun sendFrame(codec: Codec, timestamp: Int, data: ByteBuf, start: Int) {
-    sendFrame(codec.payloadType, codec, timestamp, data, start)
+    sendFrame(codec.payloadType, timestamp, data, start, false)
   }
 
-  fun sendFrame(payloadType: Byte, codec: Codec, timestamp: Int, data: ByteBuf, start: Int)
+  fun sendFrame(payloadType: Byte, timestamp: Int, data: ByteBuf, start: Int, extension: Boolean)
 }

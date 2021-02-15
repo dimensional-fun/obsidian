@@ -1,8 +1,8 @@
 package obsidian.bedrock.codec.framePoller
 
-import moe.kyokobot.koe.internal.handler.DiscordUDPConnection
 import obsidian.bedrock.MediaConnection
 import obsidian.bedrock.codec.OpusCodec
+import obsidian.bedrock.handler.DiscordUDPConnection
 import obsidian.bedrock.media.IntReference
 import java.net.InetSocketAddress
 import java.util.concurrent.TimeUnit
@@ -16,7 +16,7 @@ class UdpQueueOpusFramePoller(
 
   override fun start() {
     if (polling) {
-      throw IllegalStateException("Polling already started!");
+      throw IllegalStateException("Polling already started!")
     }
 
     polling = true

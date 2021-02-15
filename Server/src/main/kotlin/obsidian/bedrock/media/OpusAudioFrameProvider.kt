@@ -1,36 +1,27 @@
 package obsidian.bedrock.media
 
 import io.netty.buffer.ByteBuf
-import moe.kyokobot.koe.codec.OpusCodec
-import moe.kyokobot.koe.gateway.SpeakingFlags
-import moe.kyokobot.koe.media.IntReference
+import obsidian.bedrock.BedrockEventAdapter
 import obsidian.bedrock.MediaConnection
 import obsidian.bedrock.codec.Codec
-import moe.kyokobot.koe.KoeEventAdapter
-import obsidian.bedrock.BedrockEventAdapter
-import obsidian.bedrock.media.OpusAudioFrameProvider.Op12HackListener
-
-
-
-
+import obsidian.bedrock.codec.OpusCodec
+import obsidian.bedrock.gateway.SpeakingFlags
 
 abstract class OpusAudioFrameProvider(val connection: MediaConnection) : MediaFrameProvider {
   override var frameInterval = OpusCodec.FRAME_DURATION
 
-  var speakingMask = SpeakingFlags.NORMAL
-    private set
-
-  private val hackListener: Op12HackListener =
-    Op12HackListener().also(connection::registerListener)
-
+  private var speakingMask = SpeakingFlags.NORMAL
   private var counter = 0
   private var lastProvide = false
   private var lastSpeaking = false
   private var lastFramePolled: Long = 0
   private var speaking = false
 
+  private val hackListener: Op12HackListener =
+    Op12HackListener().also(connection.eventDispatcher::register)
+
   override fun dispose() {
-    connection.unregisterListener(this.hackListener);
+    connection.eventDispatcher.unregister(hackListener);
   }
 
   override fun canSendFrame(codec: Codec): Boolean {
@@ -103,7 +94,7 @@ abstract class OpusAudioFrameProvider(val connection: MediaConnection) : MediaFr
   }
 
   inner class Op12HackListener : BedrockEventAdapter() {
-    override fun userConnected(id: String?, audioSSRC: Int, videoSSRC: Int, rtxSSRC: Int) {
+    override suspend fun userConnected(id: String?, audioSSRC: Int, videoSSRC: Int, rtxSSRC: Int) {
       if (speaking) {
         connection.updateSpeakingState(speakingMask)
       }

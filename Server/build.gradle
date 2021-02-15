@@ -19,20 +19,13 @@ dependencies {
   /* audio */
   implementation "com.sedmelluq:lavaplayer:$lavaplayerVersion"
   implementation "com.sedmelluq:lavaplayer-ext-youtube-rotator:$lavaplayerIpRotatorConfig"
+  implementation "com.sedmelluq:udp-queue:1.1.0-linux64"
+
+  // netty
+  implementation "io.netty:netty-transport-native-epoll:$nettyEpollVersion:linux-x86_64"
 
   // filters
   implementation "com.github.natanbc:lavadsp:$lavadspVersion"
-
-  // voice shit
-  implementation "io.netty:netty-transport-native-epoll:$nettyEpollVersion:linux-x86_64"
-
-  implementation "com.sedmelluq:udp-queue:1.1.0-linux64"
-
-  implementation "moe.kyokobot.koe:ext-udpqueue:$koeVersion"
-  implementation("moe.kyokobot.koe:core:$koeVersion") {
-    // This version of SLF4J does not recognise Logback 1.2.3
-    exclude group: "org.slf4j", module: "slf4j-api"
-  }
 
   /* logging */
   implementation "ch.qos.logback:logback-classic:$logbackVersion"
@@ -45,7 +38,6 @@ dependencies {
   /* websocket/rest shit */
   implementation "io.ktor:ktor-server-core:$ktorVersion"
   implementation "io.ktor:ktor-server-netty:$ktorVersion"
-  implementation "io.ktor:ktor-network:$ktorVersion"
   implementation "io.ktor:ktor-websockets:$ktorVersion"
 
   /* random */
@@ -74,7 +66,6 @@ compileKotlin {
     jvmTarget = "11"
     freeCompilerArgs += "-Xopt-in=kotlin.ExperimentalStdlibApi"
     freeCompilerArgs += "-Xinline-classes"
-    freeCompilerArgs += "-Xcoroutines=enable"
   }
 }
 

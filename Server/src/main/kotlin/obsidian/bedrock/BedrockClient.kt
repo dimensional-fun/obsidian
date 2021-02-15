@@ -2,7 +2,7 @@ package obsidian.bedrock
 
 import java.util.concurrent.ConcurrentHashMap
 
-class BedrockClient(private val clientId: Long) {
+class BedrockClient(val clientId: Long) {
   /**
    * All media connections that are currently being handled.
    */
@@ -47,5 +47,13 @@ class BedrockClient(private val clientId: Long) {
     if (connections.isEmpty()) {
       connections.keys.forEach { destroyConnection(it) }
     }
+  }
+
+  operator fun plusAssign(guildId: Long) {
+    createConnection(guildId)
+  }
+
+  operator fun minusAssign(guildId: Long) {
+    removeConnection(guildId)
   }
 }

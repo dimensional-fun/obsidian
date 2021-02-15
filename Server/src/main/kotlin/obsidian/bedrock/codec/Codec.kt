@@ -1,5 +1,7 @@
 package obsidian.bedrock.codec
 
+import org.json.JSONObject
+
 abstract class Codec {
   /**
    * The name of this Codec
@@ -17,6 +19,11 @@ abstract class Codec {
   abstract val priority: Int
 
   /**
+   * The JSON description of this Codec.
+   */
+  abstract val jsonDescription: JSONObject
+
+  /**
    * The type of this codec, can only be audio
    */
   val codecType: CodecType = CodecType.AUDIO
@@ -26,15 +33,28 @@ abstract class Codec {
    */
   val rtxPayloadType: Byte = 0
 
-  override operator fun equals(o: Any?): Boolean {
-    if (this === o) {
+  override operator fun equals(other: Any?): Boolean {
+    if (this === other) {
       return true
     }
 
-    if (o == null || javaClass != o.javaClass) {
+    if (other == null || javaClass != other.javaClass) {
       return false
     }
 
-    return payloadType == (o as Codec).payloadType
+    return payloadType == (other as Codec).payloadType
+  }
+
+  companion object {
+    private val AUDIO_CODECS = listOf(OpusCodec.INSTANCE)
+
+
+    /**
+     * Gets audio codec description by name.
+     *
+     * @param name the codec name
+     * @return Codec instance or null if the codec is not found/supported by Bedrock
+     */
+    fun getAudio(name: String): Codec? = AUDIO_CODECS.find { it.name == name }
   }
 }

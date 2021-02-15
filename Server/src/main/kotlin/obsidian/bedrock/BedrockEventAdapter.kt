@@ -4,27 +4,15 @@ import org.json.JSONObject
 import java.net.InetSocketAddress
 
 open class BedrockEventAdapter : BedrockEventListener {
-  override fun gatewayReady(target: InetSocketAddress?, ssrc: Int) {
-    //
-  }
+  override suspend fun gatewayReady(target: InetSocketAddress, ssrc: Int) = Unit
+  override suspend fun gatewayClosed(code: Int, byRemote: Boolean, reason: String?) = Unit
 
-  override fun gatewayClosed(code: Int, reason: String?, byRemote: Boolean) {
-    //
-  }
+  override suspend fun userConnected(id: String?, audioSSRC: Int, videoSSRC: Int, rtxSSRC: Int) = Unit
+  override suspend fun userDisconnected(id: String?) = Unit
 
-  override fun userConnected(id: String?, audioSSRC: Int, videoSSRC: Int, rtxSSRC: Int) {
-    //
-  }
+  override suspend fun externalIPDiscovered(address: InetSocketAddress) = Unit
+  override suspend fun sessionDescription(session: JSONObject?) = Unit
 
-  override fun userDisconnected(id: String?) {
-    //
-  }
-
-  override fun externalIPDiscovered(address: InetSocketAddress?) {
-    //
-  }
-
-  override fun sessionDescription(session: JSONObject?) {
-    //
-  }
+  override suspend fun heartbeatDispatched(nonce: Long) = Unit
+  override suspend fun heartbeatAcknowledged(nonce: Long) = Unit
 }

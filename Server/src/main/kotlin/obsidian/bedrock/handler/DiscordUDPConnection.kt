@@ -1,135 +1,125 @@
 package obsidian.bedrock.handler
 
-import io.netty.bootstrap.Bootstrap
 import io.netty.buffer.ByteBuf
-import io.netty.buffer.ByteBufAllocator
 import io.netty.channel.ChannelInitializer
-import io.netty.channel.epoll.EpollDatagramChannel
 import io.netty.channel.socket.DatagramChannel
 import io.netty.util.internal.ThreadLocalRandom
-import moe.kyokobot.koe.crypto.EncryptionMode
-import moe.kyokobot.koe.internal.NettyBootstrapFactory
-import moe.kyokobot.koe.internal.util.RTPHeaderWriter
+import obsidian.bedrock.Bedrock
 import obsidian.bedrock.MediaConnection
+import obsidian.bedrock.codec.Codec
+import obsidian.bedrock.crypto.EncryptionMode
+import obsidian.bedrock.util.NettyBootstrapFactory
+import obsidian.bedrock.util.writeV2
+import org.json.JSONObject
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import java.io.Closeable
 import java.net.InetSocketAddress
 import java.net.SocketAddress
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 
 class DiscordUDPConnection(
-  val connection: MediaConnection,
+  private val connection: MediaConnection,
   val serverAddress: SocketAddress,
   val ssrc: Int
-) {
+) : Closeable, ConnectionHandler<InetSocketAddress> {
 
-  private var allocator: ByteBufAllocator
-  private var bootstrap: Bootstrap
+  private var allocator = Bedrock.byteBufAllocator
+  private var bootstrap = NettyBootstrapFactory.createDatagram()
 
   private var encryptionMode: EncryptionMode? = null
   private var channel: DatagramChannel? = null
-  private var secretKey: ByteArray?
+  private var secretKey: ByteArray? = null
 
   private var seq = ThreadLocalRandom.current().nextInt() and 0xffff
 
-  init {
-    bootstrap = NettyBootstrapFactory.datagram()
-  }
+  override fun connect(): CompletionStage<InetSocketAddress> {
+    logger.debug("Connecting to '$serverAddress'...")
 
-
-  fun connect(): CompletionStage<InetSocketAddress>? {
-    logger.debug("Connecting to {}...", serverAddress)
     val future = CompletableFuture<InetSocketAddress>()
     bootstrap.handler(Initializer(this, future))
       .connect(serverAddress)
       .addListener { res ->
-        if (!res.isSuccess()) {
+        if (!res.isSuccess) {
           future.completeExceptionally(res.cause())
         }
       }
     return future
   }
 
-  fun close() {
-    if (channel != null && channel.isOpen()) {
-      channel.close()
+  override fun close() {
+    if (channel != null && channel!!.isOpen) {
+      channel?.close()
     }
   }
 
-  fun handleSessionDescription(`object`: JsonObject) {
-    val mode: Unit = `object`.getString("mode")
-    val audioCodecName: Unit = `object`.getString("audio_codec")
-    encryptionMode = EncryptionMode.get(mode)
-    val audioCodec: Unit = Codec.getAudio(audioCodecName)
+  override fun handleSessionDescription(sessionDescription: JSONObject) {
+    val mode = sessionDescription.getString("mode")
+    val audioCodecName = sessionDescription.getString("audio_codec")
+    encryptionMode = EncryptionMode[mode]
+
+    val audioCodec = Codec.getAudio(audioCodecName)
     if (audioCodecName != null && audioCodec == null) {
       logger.warn("Unsupported audio codec type: {}, no audio data will be polled", audioCodecName)
     }
+
     checkNotNull(encryptionMode) {
       "Encryption mode selected by Discord is not supported by Koe or the " +
         "protocol changed! Open an issue at https://github.com/KyokoBot/koe"
     }
-    val keyArray: Unit = `object`.getArray("secret_key")
-    secretKey = ByteArray(keyArray.size())
+
+    val keyArray = sessionDescription.getJSONArray("secret_key")
+    secretKey = ByteArray(keyArray.length())
+
     for (i in secretKey!!.indices) {
-      secretKey!![i] = (keyArray.getInt(i) and 0xff) as Byte
+      secretKey!![i] = (keyArray.getInt(i) and 0xff).toByte()
     }
-    connection.startAudioFramePolling()
-    connection.startVideoFramePolling()
+
+    connection.startFramePolling()
   }
 
-  fun sendFrame(payloadType: Byte, timestamp: Int, data: ByteBuf?, len: Int, extension: Boolean) {
-    val buf = createPacket(payloadType, timestamp, data, len, extension)
+  override fun sendFrame(payloadType: Byte, timestamp: Int, data: ByteBuf, start: Int, extension: Boolean) {
+    val buf = createPacket(payloadType, timestamp, data, start, extension)
     if (buf != null) {
-      channel.writeAndFlush(buf)
+      channel?.writeAndFlush(buf)
     }
   }
 
-  fun createPacket(payloadType: Byte, timestamp: Int, data: ByteBuf?, len: Int, extension: Boolean): ByteBuf? {
+  fun createPacket(payloadType: Byte, timestamp: Int, data: ByteBuf, len: Int, extension: Boolean): ByteBuf? {
     if (secretKey == null) {
       return null
     }
-    val buf = allocator!!.buffer()
+
+    val buf = allocator.buffer()
     buf.clear()
-    RTPHeaderWriter.writeV2(buf, payloadType, nextSeq(), timestamp, ssrc, extension)
-    if (encryptionMode!!.box(data, len, buf, secretKey)) {
+
+    writeV2(buf, payloadType, nextSeq(), timestamp, ssrc, extension)
+
+    if (encryptionMode!!.box(data, len, buf, secretKey!!)) {
       return buf
     } else {
       logger.debug("Encryption failed!")
       buf.release()
-      // handle failed encryption?
     }
+
     return null
   }
 
-  fun nextSeq(): Char {
-    if (seq.toInt() + 1 > 0xffff) {
-      seq = 0.toChar()
+  private fun nextSeq(): Int {
+    if (seq + 1 > 0xffff) {
+      seq = 0
     } else {
       seq++
     }
+
     return seq
   }
 
-  fun getSecretKey(): ByteArray? {
-    return secretKey
-  }
-
-  fun getSsrc(): Int {
-    return ssrc
-  }
-
-  fun getEncryptionMode(): EncryptionMode? {
-    return encryptionMode
-  }
-
-  fun getServerAddress(): SocketAddress? {
-    return serverAddress
-  }
-
-  private class Initializer private constructor(
+  inner class Initializer constructor(
     private val connection: DiscordUDPConnection,
     private val future: CompletableFuture<InetSocketAddress>
-  ) :
-    ChannelInitializer<DatagramChannel>() {
+  ) : ChannelInitializer<DatagramChannel>() {
     override fun initChannel(datagramChannel: DatagramChannel) {
       connection.channel = datagramChannel
       val handler = HolepunchHandler(future, connection.ssrc)
@@ -139,6 +129,5 @@ class DiscordUDPConnection(
 
   companion object {
     private val logger: Logger = LoggerFactory.getLogger(DiscordUDPConnection::class.java)
-
   }
 }

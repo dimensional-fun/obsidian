@@ -1,30 +1,35 @@
-package obsidian.server.io.websocket
+package obsidian.server.io
 
 import io.ktor.http.cio.websocket.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
-import moe.kyokobot.koe.KoeEventAdapter
-import moe.kyokobot.koe.MediaConnection
-import obsidian.server.Obsidian.koe
-import obsidian.server.io.websocket.ObsidianCloseReasons.DECODE_ERROR
-import obsidian.server.io.websocket.ObsidianCloseReasons.INVALID_OPERATION
+import obsidian.bedrock.BedrockClient
+import obsidian.bedrock.BedrockEventAdapter
+import obsidian.bedrock.MediaConnection
+import obsidian.server.io.MagmaCloseReason.DECODE_ERROR
+import obsidian.server.io.MagmaCloseReason.INVALID_OPERATION
+import obsidian.server.player.Link
 import obsidian.server.util.buildJson
 import org.json.JSONObject
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.full.*
 
-typealias OperationHandler = suspend (json: JSONObject) -> Unit
-
 @Suppress("unused")
-class ObsidianClient(clientId: Long, private val session: DefaultWebSocketServerSession) {
+class MagmaClient(clientId: Long, private val session: WebSocketServerSession) {
   val logger: Logger = LoggerFactory.getLogger(clientId.toString())
 
   /**
    * The koe client for this Session
    */
-  val koeClient = koe.newClient(clientId)
+  val bedrock = BedrockClient(clientId)
+
+  /**
+   * guild id -> [Link]
+   */
+  val links = ConcurrentHashMap<Long, Link>()
 
   /**
    * The operation handlers
@@ -36,7 +41,7 @@ class ObsidianClient(clientId: Long, private val session: DefaultWebSocketServer
       .filter { it.hasAnnotation<OperationHandlers.Op>() }
       .forEach { meth ->
         val clientParam = meth.valueParameters.firstOrNull {
-          it.type.classifier?.equals(ObsidianClient::class) == true
+          it.type.classifier?.equals(MagmaClient::class) == true
         }
 
         require(clientParam != null) { "Each operation handler must have a client parameter." }
@@ -50,7 +55,7 @@ class ObsidianClient(clientId: Long, private val session: DefaultWebSocketServer
         // add handler
         val op = meth.findAnnotation<OperationHandlers.Op>()!!
 
-        handlers[op.code] = { json ->
+        handlers[op.op.code] = { json ->
           val args = mutableMapOf(
             clientParam to this,
             jsonParam to json
@@ -64,19 +69,27 @@ class ObsidianClient(clientId: Long, private val session: DefaultWebSocketServer
     return@lazy handlers
   }
 
-  init {
-    session.launch {
-      session.incoming.consumeEach { frame ->
-        handle(frame)
+  suspend fun listen() {
+    session.incoming.consumeEach { frame ->
+      if (frame !is Frame.Text) {
+        session.close(DECODE_ERROR)
+        return
       }
+
+      val json = JSONObject(frame.readText())
+      val handler = handlers[json.getInt("op")] ?: return session.close(INVALID_OPERATION)
+
+      handler.invoke(json)
     }
+
+    bedrock.close()
   }
 
   fun getMediaConnectionFor(guildId: Long): MediaConnection {
-    var mediaConnection = koeClient.getConnection(guildId)
+    var mediaConnection = bedrock.getConnection(guildId)
     if (mediaConnection == null) {
-      mediaConnection = koeClient.createConnection(guildId)
-      mediaConnection.registerListener(EventListener(guildId))
+      mediaConnection = bedrock.createConnection(guildId)
+      mediaConnection.eventDispatcher.register(EventListener(guildId))
     }
 
     return mediaConnection
@@ -91,10 +104,10 @@ class ObsidianClient(clientId: Long, private val session: DefaultWebSocketServer
     session.send(Frame.Text(json.toString()))
   }
 
-  inner class EventListener(private val guildId: Long) : KoeEventAdapter() {
-    override fun gatewayClosed(code: Int, reason: String?, byRemote: Boolean) {
+  inner class EventListener(private val guildId: Long) : BedrockEventAdapter() {
+    override suspend fun gatewayClosed(code: Int, byRemote: Boolean, reason: String?) {
       send(buildJson {
-        put("op", ObsidianOp.PLAYER_EVENT.code)
+        put("op", MagmaOperation.PLAYER_EVENT.code)
         put("type", "WEBSOCKET_CLOSED")
         put("guild_id", guildId.toString())
         put("data", buildJson<JSONObject> {
@@ -104,18 +117,5 @@ class ObsidianClient(clientId: Long, private val session: DefaultWebSocketServer
         })
       })
     }
-  }
-
-  private suspend fun handle(frame: Frame) {
-    if (frame !is Frame.Text) {
-      session.close(DECODE_ERROR)
-      return
-    }
-
-    val json = JSONObject(frame.readText())
-    val handler = handlers[json.getInt("op")]
-      ?: return session.close(INVALID_OPERATION)
-
-    handler.invoke(json)
   }
 }

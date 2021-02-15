@@ -1,25 +1,23 @@
 package obsidian.bedrock.codec.framePoller
 
 import io.netty.buffer.ByteBufAllocator
-import io.netty.buffer.PooledByteBufAllocator
-import io.netty.channel.epoll.EpollEventLoopGroup
+import io.netty.channel.EventLoopGroup
+import obsidian.bedrock.Bedrock
 import obsidian.bedrock.MediaConnection
 
 abstract class AbstractFramePoller(protected val connection: MediaConnection) : FramePoller {
   /**
-   * The byte buf allocator to use.
+   * Whether we're polling or not.
    */
-  protected val allocator: ByteBufAllocator = PooledByteBufAllocator()
+  override var polling = false
+
+  /**
+   * The [ByteBufAllocator] to use.
+   */
+  protected val allocator: ByteBufAllocator = Bedrock.byteBufAllocator
 
   /**
    * The [EventLoopGroup] being used.
    */
-  protected val eventLoop: EpollEventLoopGroup = EpollEventLoopGroup()
-
-  /**
-   * Whether we're polling or not.
-   */
-  protected var polling = false
-
-  override fun isPolling(): Boolean = polling
+  protected val eventLoop: EventLoopGroup = Bedrock.eventLoopGroup
 }

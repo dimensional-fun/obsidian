@@ -3,45 +3,131 @@ package obsidian.bedrock
 import obsidian.bedrock.codec.Codec
 import obsidian.bedrock.codec.OpusCodec
 import obsidian.bedrock.codec.framePoller.FramePoller
+import obsidian.bedrock.gateway.MediaGatewayConnection
+import obsidian.bedrock.handler.ConnectionHandler
 import obsidian.bedrock.media.MediaFrameProvider
 import org.slf4j.LoggerFactory
+import java.net.SocketAddress
+import java.util.concurrent.CompletionStage
 
 class MediaConnection(val bedrockClient: BedrockClient, val id: Long) {
-  /**
-   * The audio codec being used.
-   */
-  val audioCodec: Codec = OpusCodec.INSTANCE
 
   /**
-   * The [FramePoller] for this media connection.
+   * The [ConnectionHandler].
    */
-  val framePoller: FramePoller = BedrockOptions.framePollerFactory.createFramePoller(audioCodec, this)!!
+  var connectionHandler: ConnectionHandler<out SocketAddress>? = null
 
   /**
-   * The audio frame provider for this media connection.
+   * The [VoiceServerInfo] provided.
    */
-  val frameProvider: MediaFrameProvider? = null
+  var info: VoiceServerInfo? = null
 
+  /**
+   * The [MediaFrameProvider].
+   */
+  var frameProvider: MediaFrameProvider? = null
+    set(value) {
+      if (field != null) {
+        field?.dispose()
+      }
+
+      field = value
+    }
+
+  /**
+   * The [EventDispatcher].
+   */
   val eventDispatcher = EventDispatcher()
 
-  fun connect() {}
+  /**
+   * The [MediaGatewayConnection].
+   */
+  private var mediaGatewayConnection: MediaGatewayConnection? = null
 
-  fun disconnect() {}
+  /**
+   * The audio [Codec] to use when sending frames.
+   */
+  private val audioCodec: Codec = OpusCodec.INSTANCE
 
-  fun registerListener(listener: BedrockEventListener) =
-    eventDispatcher.register(listener)
+  /**
+   * The [FramePoller].
+   */
+  private val framePoller: FramePoller = Bedrock.framePollerFactory.createFramePoller(audioCodec, this)!!
 
-  fun unregisterListener(listener: BedrockEventListener) =
-    eventDispatcher.unregister(listener)
+  /**
+   * Connects to the Discord voice server described in [info]
+   *
+   * @param info The voice server info.
+   */
+  fun connect(info: VoiceServerInfo): CompletionStage<Void> {
+    disconnect()
 
-
-  fun updateSpeakingState(mask: Int) {
-//    if (this.gatewayConnection != null) {
-//      this.gatewayConnection.updateSpeaking(mask)
-//    }
+    val connection = Bedrock.gatewayVersion.createConnection(this, info)
+    return connection.start().thenAccept {
+      mediaGatewayConnection = connection
+      this.info = info
+    }
   }
 
+  /**
+   * Disconnects from the voice server.
+   */
+  fun disconnect() {
+    logger.debug("Disconnecting...")
+
+    stopFramePolling()
+    if (mediaGatewayConnection != null && mediaGatewayConnection?.open == true) {
+      mediaGatewayConnection?.close(1000, null)
+      mediaGatewayConnection = null
+    }
+
+    if (connectionHandler != null) {
+      connectionHandler?.close()
+      connectionHandler = null
+    }
+  }
+
+  /**
+   * Starts the [FramePoller] for this media connection.
+   */
+  fun startFramePolling() {
+    if (this.framePoller.polling) {
+      return
+    }
+
+    this.framePoller.start()
+  }
+
+  /**
+   * Stops the [FramePoller] for this media connection
+   */
+  fun stopFramePolling() {
+    if (!this.framePoller.polling) {
+      return
+    }
+
+    this.framePoller.stop()
+  }
+
+  /**
+   * Updates the speaking state with the provided [mask]
+   *
+   * @param mask The speaking mask to update with
+   */
+  fun updateSpeakingState(mask: Int) =
+    mediaGatewayConnection?.updateSpeaking(mask)
+
+  /**
+   * Closes this media connection.
+   */
   fun close() {
+    if (frameProvider != null) {
+      frameProvider?.dispose()
+      frameProvider = null
+    }
+
+    disconnect()
+    bedrockClient -= id
   }
 
   companion object {
