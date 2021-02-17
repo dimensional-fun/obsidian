@@ -1,7 +1,7 @@
 package obsidian.server.util
 
-import com.sedmelluq.lava.extensions.youtuberotator.tools.ip.Ipv6Block
 import com.uchuhimo.konf.ConfigSpec
+import obsidian.server.Obsidian.config
 
 object ObsidianConfig : ConfigSpec("obsidian") {
   /**
@@ -24,6 +24,23 @@ object ObsidianConfig : ConfigSpec("obsidian") {
    * `obsidian.password`
    */
   val Password by required<String>()
+
+  /**
+   * Whether obsidian should immediately start providing frames after connecting to the voice server.
+   */
+  val ImmediatelyProvide by optional(true, "immediately-provide")
+
+  fun validateAuth(given: String?): Boolean {
+    if (config[Password].isEmpty()) {
+      return true
+    }
+
+    if (given == null) {
+      return false
+    }
+
+    return given == config[Password]
+  }
 
   object Lavaplayer : ConfigSpec("lavaplayer") {
     /**

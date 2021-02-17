@@ -119,7 +119,7 @@ abstract class OpusAudioFrameProvider(val connection: MediaConnection) : MediaFr
    *
    * @param targetBuffer the target [ByteBuf] audio data should be written to.
    */
-  abstract fun retrieveOpusFrame(targetBuffer: ByteBuf?)
+  abstract fun retrieveOpusFrame(targetBuffer: ByteBuf)
 
   companion object {
     private const val SILENCE_FRAME_COUNT = 5

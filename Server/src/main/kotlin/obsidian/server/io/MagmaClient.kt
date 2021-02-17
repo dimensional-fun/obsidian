@@ -104,6 +104,12 @@ class MagmaClient(clientId: Long, private val session: WebSocketServerSession) {
     session.send(Frame.Text(json.toString()))
   }
 
+  internal fun shutdown() {
+    logger.info("Shutting down ${links.size} links.")
+    links.forEach { (_, link) -> link.stop() }
+    bedrock.close()
+  }
+
   inner class EventListener(private val guildId: Long) : BedrockEventAdapter() {
     override suspend fun gatewayClosed(code: Int, byRemote: Boolean, reason: String?) {
       send(buildJson {

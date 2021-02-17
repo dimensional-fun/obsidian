@@ -1,22 +1,21 @@
 package obsidian.server.io
 
-import io.ktor.application.*
 import io.ktor.http.*
 import io.ktor.http.cio.websocket.*
 import io.ktor.request.*
-import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.pipeline.*
 import io.ktor.websocket.*
-import obsidian.server.Obsidian.config
 import obsidian.server.io.MagmaCloseReason.CLIENT_EXISTS
 import obsidian.server.io.MagmaCloseReason.INVALID_AUTHORIZATION
 import obsidian.server.io.MagmaCloseReason.NO_USER_ID
 import obsidian.server.util.ObsidianConfig
-import obsidian.server.util.buildJsonString
+import obsidian.server.util.respondJson
 import org.json.JSONObject
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.reflect.KParameter
+import kotlin.reflect.full.*
 
 class Magma {
   /**
@@ -27,56 +26,41 @@ class Magma {
 
   fun use(routing: Routing) {
     routing.webSocket("/", handler = this::websocketHandler)
-    routing.route("/player/{guild_id}", build = this::buildPlayerRoutes)
+
+    loadRoutes(routing, MagmaRoutes)
   }
 
-  private fun buildPlayerRoutes(route: Route) {
-    route {
-      intercept(ApplicationCallPipeline.ApplicationPhase.Setup) {
-        if (context.request.authorization() != config[ObsidianConfig.Password]) {
-          val text = buildJsonString<JSONObject> {
-            put("success", false)
-            put("message", "Invalid Authorization")
-          }
+  private inline fun <reified T> loadRoutes(routing: Routing, instance: T) {
+    routing.get("/") { context.respondJson<JSONObject> { put("hi", true) } }
 
-          return@intercept context.respondText(text, status = HttpStatusCode.Unauthorized)
+    T::class.members
+      .filter { it.hasAnnotation<Route>() }
+      .forEach { meth ->
+        val contextParam = meth.valueParameters.firstOrNull {
+          it.type.classifier?.equals(PipelineContext::class) == true
         }
 
-        val userId = context.request.header("User-Id")?.toLongOrNull()
-        if (userId == null) {
-          val text = buildJsonString<JSONObject> {
-            put("success", false)
-            put("message", "Invalid user id")
-          }
-
-          return@intercept context.respondText(text, status = HttpStatusCode.BadRequest)
+        require(contextParam != null) {
+          "Each operation handler must have a context parameter."
         }
 
-        if (clients[userId] == null) {
-          val text = buildJsonString<JSONObject> {
-            put("success", false)
-            put("message", "A websocket connection to magma must be made before using player endpoints.")
-          }
+        val route = meth.findAnnotation<Route>()!!
 
-          return@intercept context.respondText(text, status = HttpStatusCode.BadRequest)
+        routing.route(route.path, HttpMethod(route.method.toUpperCase())) {
+          handle {
+            if (route.authenticated && !ObsidianConfig.validateAuth(context.request.authorization())) {
+              return@handle context.respondJson<JSONObject> {
+                put("success", false)
+                put("message", "invalid authentication")
+              }
+            }
+
+            val args = hashMapOf<KParameter, Any>(contextParam to this)
+            meth.instanceParameter?.let { args[it] = MagmaRoutes }
+            meth.callSuspendBy(args)
+          }
         }
       }
-
-      post("/play") {
-        val guildId = context.parameters["guild_id"]?.toLongOrNull()
-        if (guildId == null) {
-          val text = buildJsonString<JSONObject> {
-            put("success", false)
-            put("message", "Invalid Guild ID")
-          }
-
-          return@post context.respondText(text, status = HttpStatusCode.BadRequest)
-        }
-
-        val userId = context.request.header("user-id")!!.toLong()
-        val client = clients[userId]!!
-      }
-    }
   }
 
   /**
@@ -84,7 +68,7 @@ class Magma {
    */
   private suspend fun websocketHandler(session: WebSocketServerSession) {
     val request = session.call.request
-    if (request.authorization() != config[ObsidianConfig.Password]) {
+    if (ObsidianConfig.validateAuth(request.authorization())) {
       logger.warn("Authentication failed from ${request.local.remoteHost}")
       session.close(INVALID_AUTHORIZATION)
       return
@@ -113,6 +97,8 @@ class Magma {
 
     clients.remove(userId)
   }
+
+  annotation class Route(val path: String, val method: String = "Get", val authenticated: Boolean = false)
 
   companion object {
     private val logger = LoggerFactory.getLogger(Magma::class.java)
