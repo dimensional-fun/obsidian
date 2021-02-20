@@ -31,11 +31,34 @@ class Link(
   }
 
   fun stop() {
-
+    player.stopTrack()
   }
 
   fun sendUpdate() {
 
+  }
+
+  fun volume(volume: Int) {
+    player.volume = volume
+  }
+
+  fun pause(state: Boolean) {
+    player.isPaused = state;
+  }
+
+  fun seekTo(position: Long) {
+    if (player.playingTrack == null) {
+      throw RuntimeException("Can't seek when not playing anything");
+    }
+    player.playingTrack.position = position;
+  }
+
+  fun isPaused(): Boolean {
+    return player.isPaused
+  }
+
+  fun isPlaying(): Boolean {
+    return player.playingTrack != null && !player.isPaused
   }
 
   /**
