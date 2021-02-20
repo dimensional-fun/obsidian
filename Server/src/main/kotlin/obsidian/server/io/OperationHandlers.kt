@@ -26,7 +26,7 @@ object OperationHandlers {
     if (config[ObsidianConfig.ImmediatelyProvide]) {
       future.whenComplete { _, thr ->
         if (thr != null) {
-          client.logger.warn("Exception occured while connecting to a voice server.", thr)
+          client.logger.warn("Exception occurred while connecting to a voice server.", thr)
           return@whenComplete
         }
 
