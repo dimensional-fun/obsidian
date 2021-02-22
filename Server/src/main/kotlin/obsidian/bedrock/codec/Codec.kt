@@ -46,8 +46,7 @@ abstract class Codec {
   }
 
   companion object {
-    private val AUDIO_CODECS = listOf(OpusCodec.INSTANCE)
-
+    private val AUDIO_CODECS: List<Codec> by lazy { listOf(OpusCodec.INSTANCE) }
 
     /**
      * Gets audio codec description by name.

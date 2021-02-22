@@ -9,11 +9,11 @@ interface EncryptionMode {
   fun box(opus: ByteBuf, start: Int, output: ByteBuf, secretKey: ByteArray): Boolean
 
   companion object {
-    fun select(modes: List<String>): Supplier<EncryptionMode> {
+    fun select(modes: List<String>): String {
       for (mode in modes) {
         val impl = DefaultEncryptionModes.encryptionModes[mode]
         if (impl != null) {
-          return impl
+          return mode
         }
       }
 
@@ -21,6 +21,6 @@ interface EncryptionMode {
     }
 
     operator fun get(mode: String): EncryptionMode? =
-      DefaultEncryptionModes.encryptionModes[mode]?.get()
+      DefaultEncryptionModes.encryptionModes[mode]?.invoke()
   }
 }

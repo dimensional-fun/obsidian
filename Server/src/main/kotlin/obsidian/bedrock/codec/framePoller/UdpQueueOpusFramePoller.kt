@@ -1,10 +1,14 @@
 package obsidian.bedrock.codec.framePoller
 
+import com.sedmelluq.discord.lavaplayer.format.StandardAudioDataFormats
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import obsidian.bedrock.MediaConnection
 import obsidian.bedrock.codec.OpusCodec
 import obsidian.bedrock.handler.DiscordUDPConnection
 import obsidian.bedrock.media.IntReference
 import java.net.InetSocketAddress
+import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 
 class UdpQueueOpusFramePoller(
@@ -14,14 +18,16 @@ class UdpQueueOpusFramePoller(
   private val timestamp = IntReference()
   private var lastFrame: Long = 0
 
-  override fun start() {
+  override suspend fun start() {
     if (polling) {
       throw IllegalStateException("Polling already started!")
     }
 
     polling = true
     lastFrame = System.currentTimeMillis()
-    eventLoop.execute(::populateQueue)
+    GlobalScope.launch {
+      populateQueue()
+    }
   }
 
   override fun stop() {
@@ -30,7 +36,7 @@ class UdpQueueOpusFramePoller(
     }
   }
 
-  private fun populateQueue() {
+  private suspend fun populateQueue() {
     if (!polling) {
       return
     }
@@ -42,6 +48,7 @@ class UdpQueueOpusFramePoller(
     val codec = OpusCodec.INSTANCE
 
     for (i in 0 until remaining) {
+
       if (frameProvider != null && handler != null && frameProvider.canSendFrame(codec)) {
         val buf = allocator.buffer()
         val start = buf.writerIndex()
@@ -62,13 +69,17 @@ class UdpQueueOpusFramePoller(
     val frameDelay = 40 - (System.currentTimeMillis() - lastFrame)
 
     if (frameDelay > 0) {
-      eventLoop.schedule(this::loop, frameDelay, TimeUnit.MILLISECONDS)
+      eventLoop.schedule({
+        GlobalScope.launch {
+          loop()
+        }
+      }, frameDelay, TimeUnit.MILLISECONDS)
     } else {
       loop()
     }
   }
 
-  private fun loop() {
+  private suspend fun loop() {
     if (System.currentTimeMillis() < lastFrame + 60) {
       lastFrame += 40
     } else {

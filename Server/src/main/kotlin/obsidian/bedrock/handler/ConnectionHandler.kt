@@ -1,9 +1,10 @@
 package obsidian.bedrock.handler
 
+import io.ktor.util.network.*
 import io.netty.buffer.ByteBuf
 import obsidian.bedrock.codec.Codec
 import org.json.JSONObject
-import java.util.concurrent.CompletionStage
+import java.io.Closeable
 
 /**
  * This interface specifies Discord voice connection handler, allowing to implement other methods of establishing voice
@@ -12,16 +13,25 @@ import java.util.concurrent.CompletionStage
  *
  * @param <R> type of the result returned if connection succeeds
  */
-interface ConnectionHandler<R> {
-  fun close()
+interface ConnectionHandler : Closeable {
 
-  fun handleSessionDescription(sessionDescription: JSONObject)
+  /**
+   * Handles a session description
+   *
+   * @param data The session description data.
+   */
+  suspend fun handleSessionDescription(data: JSONObject)
 
-  fun connect(): CompletionStage<R>
+  /**
+   * Connects to the Discord UDP Socket.
+   *
+   * @return Our external network address.
+   */
+  suspend fun connect(): NetworkAddress
 
-  fun sendFrame(codec: Codec, timestamp: Int, data: ByteBuf, start: Int) {
+  suspend fun sendFrame(codec: Codec, timestamp: Int, data: ByteBuf, start: Int) {
     sendFrame(codec.payloadType, timestamp, data, start, false)
   }
 
-  fun sendFrame(payloadType: Byte, timestamp: Int, data: ByteBuf, start: Int, extension: Boolean)
+  suspend fun sendFrame(payloadType: Byte, timestamp: Int, data: ByteBuf, start: Int, extension: Boolean)
 }

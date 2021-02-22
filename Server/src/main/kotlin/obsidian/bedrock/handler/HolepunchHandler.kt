@@ -27,14 +27,18 @@ class HolepunchHandler(
     val buf: ByteBuf = packet.content()
     if (!future!!.isDone) {
       if (buf.readableBytes() != 74) return
+
       buf.skipBytes(8)
+
       val stringBuilder = StringBuilder()
       var b: Byte
       while (buf.readByte().also { b = it }.toInt() != 0) {
         stringBuilder.append(b.toChar())
       }
+
       val ip = stringBuilder.toString()
       val port: Int = buf.getUnsignedShort(72)
+
       ctx.pipeline().remove(this)
       future.complete(InetSocketAddress(ip, port))
     }

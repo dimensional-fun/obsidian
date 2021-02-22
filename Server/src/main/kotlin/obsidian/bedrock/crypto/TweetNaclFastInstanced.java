@@ -1,6 +1,6 @@
 package obsidian.bedrock.crypto;
 
-public class TweetNaclFastInstanced {
+public final class TweetNaclFastInstanced {
   private void coreSalsa20(byte[] o, byte[] p, byte[] k) {
     int j0 = sigma[0] & 0xff | (sigma[1] & 0xff) << 8 | (sigma[2] & 0xff) << 16 | (sigma[3] & 0xff) << 24,
       j1 = k[0] & 0xff | (k[1] & 0xff) << 8 | (k[2] & 0xff) << 16 | (k[3] & 0xff) << 24,

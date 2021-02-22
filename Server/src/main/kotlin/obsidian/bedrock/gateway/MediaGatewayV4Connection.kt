@@ -1,152 +1,76 @@
 package obsidian.bedrock.gateway
 
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
+import io.ktor.util.network.*
+import kotlinx.coroutines.ObsoleteCoroutinesApi
 import obsidian.bedrock.MediaConnection
 import obsidian.bedrock.VoiceServerInfo
 import obsidian.bedrock.codec.OpusCodec
 import obsidian.bedrock.crypto.EncryptionMode
 import obsidian.bedrock.handler.DiscordUDPConnection
+import obsidian.bedrock.handler.Ktor_DiscordUDPConnection
+import obsidian.bedrock.util.Ticker
 import obsidian.server.util.buildJson
 import org.json.JSONArray
 import org.json.JSONObject
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-import java.net.InetSocketAddress
 import java.util.*
-import java.util.concurrent.ScheduledFuture
-import java.util.concurrent.TimeUnit
 
+@ObsoleteCoroutinesApi
 class MediaGatewayV4Connection(
   mediaConnection: MediaConnection,
   voiceServerInfo: VoiceServerInfo
 ) : AbstractMediaGatewayConnection(mediaConnection, voiceServerInfo, 4) {
-  private var heartbeatFuture: ScheduledFuture<*>? = null
   private var ssrc = 0
-  private var address: InetSocketAddress? = null
+  private var address: NetworkAddress? = null
   private var rtcConnectionId: UUID? = null
 
   private lateinit var encryptionModes: List<String>
 
-  /**
-   * Used to identify this session with the voice server..
-   */
-  override fun identify() {
-    logger.debug("Identifying...")
+  init {
+    on(Op.HELLO) {
+      val heartbeatInterval = it.getJSONObject("d")
+        .getLong("heartbeat_interval")
 
-    sendInternalPayload(Op.IDENTIFY, buildJson<JSONObject> {
-      put("server_id", mediaConnection.id)
-      put("user_id", mediaConnection.bedrockClient.clientId)
-      put("session_id", voiceServerInfo.sessionId)
-      put("token", voiceServerInfo.token)
-    })
-  }
+      logger.debug("Received HELLO, heartbeat interval: $heartbeatInterval")
+      startHeartbeating(heartbeatInterval)
+    }
 
-  /**
-   * Handles any received payloads from the voice server.
-   *
-   * @param obj The received JSON payload
-   */
-  override fun handlePayload(obj: JSONObject) {
-    when (Op[obj.getInt("op")]) {
-      Op.HELLO -> {
-        val data = obj.getJSONObject("d")
-        val heartbeatInterval = data.getLong("heartbeat_interval")
-        logger.debug("Received HELLO, heartbeat interval: $heartbeatInterval")
-        startHeartBeating(heartbeatInterval)
-      }
+    on(Op.READY) {
+      val data = it.getJSONObject("d")
 
-      Op.READY -> {
-        val data = obj.getJSONObject("d")
-        val port = data.getInt("port")
-        val ip = data.getString("ip")
+      ssrc = data.getInt("ssrc")
+      println(data.getString("ip"))
+      println(data.getInt("port"))
+      address = NetworkAddress(data.getString("ip"), data.getInt("port"))
+      encryptionModes = data.getJSONArray("modes").toList().map(Any::toString)
 
-        ssrc = data.getInt("ssrc")
-        encryptionModes = data.getJSONArray("modes").toList().map(Any::toString)
-        address = InetSocketAddress(ip, port)
+      logger.debug("Received READY, ssrc: $ssrc")
 
-        GlobalScope.launch { mediaConnection.eventDispatcher.gatewayReady(address!!, ssrc) }
-        logger.debug("Received READY, ssrc: $ssrc")
-        selectProtocol("udp")
-      }
+      mediaConnection.eventDispatcher.gatewayReady(address!!, ssrc)
+      selectProtocol("udp")
+    }
 
-      Op.SESSION_DESCRIPTION -> {
-        val data = obj.getJSONObject("d")
-        logger.debug("Got session description: $data")
-
-        if (mediaConnection.connectionHandler == null) {
-          logger.warn("Received session description before protocol selection? (connection id = $rtcConnectionId)")
-          return
-        }
-
-        GlobalScope.launch { mediaConnection.eventDispatcher.sessionDescription(data) }
+    on(Op.SESSION_DESCRIPTION) {
+      val data = it.getJSONObject("d")
+      if (mediaConnection.connectionHandler != null) {
+        mediaConnection.eventDispatcher.sessionDescription(data)
         mediaConnection.connectionHandler?.handleSessionDescription(data)
+      } else {
+        logger.warn("Received session description before protocol selection? (connection id = $rtcConnectionId)")
       }
+    }
 
-      Op.HEARTBEAT_ACK -> {
-        val nonce = obj.getLong("d")
-        GlobalScope.launch {
-          mediaConnection.eventDispatcher.heartbeatAcknowledged(nonce)
-        }
-      }
+    on(Op.CLIENT_CONNECT) {
+      val data = it.getJSONObject("d")
+      val user = data.getString("user_id")
+      val audioSsrc = data.optInt("audio_ssrc", 0)
+      val videoSsrc = data.optInt("video_ssrc", 0)
+      val rtxSsrc = data.optInt("rtx_ssrc", 0)
 
-      else -> Unit
+      mediaConnection.eventDispatcher.userConnected(user, audioSsrc, videoSsrc, rtxSsrc)
     }
   }
 
-  /**
-   * Updates the speaking state of the Client.
-   *
-   * @param mask The speaking mask.
-   */
-  override fun updateSpeaking(mask: Int) =
-    sendInternalPayload(Op.SPEAKING, buildJson<JSONObject> {
-      put("speaking", mask)
-      put("delay", 0)
-      put("ssrc", ssrc)
-    })
-
-  /**
-   * Handles the closing of the ws connection.
-   *
-   * @param code The close code.
-   * @param byRemote Whether the connection was closed by a remote source
-   * @param reason The close reason.
-   */
-  override fun onClose(code: Int, byRemote: Boolean, reason: String?) {
-    super.onClose(code, byRemote, reason)
-    heartbeatFuture?.cancel(true)
-  }
-
-  /**
-   * Starts heart-beating every [delay] milliseconds
-   *
-   * @param delay The delay (in milliseconds) between each heartbeat.
-   */
-  private fun startHeartBeating(delay: Long) {
-    if (eventExecutor != null) {
-      heartbeatFuture = eventExecutor!!.scheduleAtFixedRate(this::heartbeat, delay, delay, TimeUnit.MILLISECONDS)
-    }
-  }
-
-  /**
-   * Sends a heartbeat operation to the voice server.
-   */
-  private fun heartbeat() {
-    val nonce = System.currentTimeMillis()
-
-    sendInternalPayload(Op.HEARTBEAT, nonce)
-    GlobalScope.launch {
-      mediaConnection.eventDispatcher.heartbeatDispatched(nonce)
-    }
-  }
-
-  /**
-   * Selects the [protocol] to use.
-   *
-   * @param protocol The protocol to use.
-   */
-  private fun selectProtocol(protocol: String) {
+  private suspend fun selectProtocol(protocol: String) {
     val mode = EncryptionMode.select(encryptionModes)
     logger.debug("Selected preferred encryption mode: $mode")
 
@@ -156,31 +80,30 @@ class MediaGatewayV4Connection(
     when (protocol.toLowerCase()) {
       "udp" -> {
         val connection = DiscordUDPConnection(mediaConnection, address!!, ssrc)
+        val externalAddress = connection.connect()
 
-        connection.connect().thenAccept { externalAddress ->
-          logger.debug("Connected, our external address is '$externalAddress'")
-          GlobalScope.launch { mediaConnection.eventDispatcher.externalIPDiscovered(externalAddress) }
+        logger.debug("Connected, our external address is '$externalAddress'")
+        mediaConnection.eventDispatcher.externalIPDiscovered(externalAddress)
 
-          val udpInformation = buildJson<JSONObject> {
-            put("address", externalAddress.address.hostAddress)
-            put("port", externalAddress.port)
-            put("mode", mode)
-          }
-
-          sendInternalPayload(Op.SELECT_PROTOCOL, buildJson<JSONObject> {
-            put("protocol", "udp")
-            put("codecs", SUPPORTED_CODECS)
-            put("rtc_connection_id", rtcConnectionId.toString())
-            put("data", udpInformation)
-            combineWith(udpInformation)
-          })
-
-          sendInternalPayload(Op.CLIENT_CONNECT, buildJson<JSONObject> {
-            put("audio_ssrc", ssrc)
-            put("video_ssrc", 0)
-            put("rtx_ssrc", 0)
-          })
+        val udpInformation = buildJson<JSONObject> {
+          put("address", externalAddress.address.hostAddress)
+          put("port", externalAddress.port)
+          put("mode", mode)
         }
+
+        sendPayload(Op.SELECT_PROTOCOL, buildJson<JSONObject> {
+          put("protocol", "udp")
+          put("codecs", SUPPORTED_CODECS)
+          put("rtc_connection_id", rtcConnectionId.toString())
+          put("data", udpInformation)
+          combineWith(udpInformation)
+        })
+
+        sendPayload(Op.CLIENT_CONNECT, buildJson<JSONObject> {
+          put("audio_ssrc", ssrc)
+          put("video_ssrc", 0)
+          put("rtx_ssrc", 0)
+        })
 
         mediaConnection.connectionHandler = connection
         logger.debug("Waiting for session description...")
@@ -190,9 +113,45 @@ class MediaGatewayV4Connection(
     }
   }
 
-  companion object {
-    val logger: Logger = LoggerFactory.getLogger(MediaGatewayV4Connection::class.java)
+  override suspend fun identify() {
+    logger.debug("Identifying...")
 
+    sendPayload(Op.IDENTIFY, buildJson<JSONObject> {
+      put("server_id", mediaConnection.id.toString())
+      put("user_id", mediaConnection.bedrockClient.clientId.toString())
+      put("session_id", voiceServerInfo.sessionId)
+      put("token", voiceServerInfo.token)
+    })
+  }
+
+  /**
+   * Updates the speaking state of the Client.
+   *
+   * @param mask The speaking mask.
+   */
+  override suspend fun updateSpeaking(mask: Int) {
+    sendPayload(Op.SPEAKING, buildJson<JSONObject> {
+      put("speaking", mask)
+      put("delay", 0)
+      put("ssrc", ssrc)
+    })
+  }
+
+  /**
+   * Starts the heartbeat ticker.
+   *
+   * @param delay Delay, in milliseconds, between heart-beats.
+   */
+  @ObsoleteCoroutinesApi
+  private suspend fun startHeartbeating(delay: Long) {
+    Ticker().tickAt(delay) {
+      val nonce = System.currentTimeMillis()
+      sendPayload(Op.HEARTBEAT, nonce)
+      mediaConnection.eventDispatcher.heartbeatDispatched(nonce)
+    }
+  }
+
+  companion object {
     /**
      * All supported audio codecs.
      */

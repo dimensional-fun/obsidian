@@ -37,6 +37,6 @@ interface MediaFrameProvider {
    *
    * @return If true, Koe will immediately attempt to poll a next frame, this is meant for video transmissions.
    */
-  fun retrieve(codec: Codec?, buf: ByteBuf?, timestamp: IntReference?): Boolean
+  suspend fun retrieve(codec: Codec?, buf: ByteBuf?, timestamp: IntReference?): Boolean
 }
 

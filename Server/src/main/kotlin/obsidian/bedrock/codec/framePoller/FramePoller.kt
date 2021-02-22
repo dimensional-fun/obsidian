@@ -9,7 +9,7 @@ interface FramePoller {
   /**
    * Used to start polling.
    */
-  fun start()
+  suspend fun start()
 
   /**
    * Used to stop polling.

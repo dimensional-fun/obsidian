@@ -30,16 +30,16 @@ object ObsidianConfig : ConfigSpec("obsidian") {
    */
   val ImmediatelyProvide by optional(true, "immediately-provide")
 
-  fun validateAuth(given: String?): Boolean {
-    if (config[Password].isEmpty()) {
-      return true
-    }
-
-    if (given == null) {
-      return false
-    }
-
-    return given == config[Password]
+  /**
+   * Used to validate a string given as authorization.
+   *
+   * @param given The given authorization string.
+   *
+   * @return true, if the given authorization matches the configured password.
+   */
+  fun validateAuth(given: String?): Boolean = when {
+    config[Password].isEmpty() -> true
+    else -> given == config[Password]
   }
 
   object Lavaplayer : ConfigSpec("lavaplayer") {

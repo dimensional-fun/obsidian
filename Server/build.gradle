@@ -20,6 +20,9 @@ dependencies {
   implementation "com.sedmelluq:lavaplayer:$lavaplayerVersion"
   implementation "com.sedmelluq:lavaplayer-ext-youtube-rotator:$lavaplayerIpRotatorConfig"
   implementation "com.sedmelluq:udp-queue:1.1.0-linux64"
+  implementation ("moe.kyokobot.koe:core:1864a8b803") {
+    exclude group: "org.slf4j", module: "slf4j-api"
+  }
 
   // netty
   implementation "io.netty:netty-transport-native-epoll:$nettyEpollVersion:linux-x86_64"
@@ -36,9 +39,21 @@ dependencies {
   implementation "com.uchuhimo:konf-yaml:$konfVersion"
 
   /* websocket/rest shit */
+
+  // Sockets
+  implementation "io.ktor:ktor-network:$ktorVersion"
+
+  // client and server core.
   implementation "io.ktor:ktor-server-core:$ktorVersion"
-  implementation "io.ktor:ktor-server-netty:$ktorVersion"
+  implementation "io.ktor:ktor-client-core:$ktorVersion"
+
+  // websocket extensions for both the client and server.
   implementation "io.ktor:ktor-websockets:$ktorVersion"
+  implementation "io.ktor:ktor-client-websockets:$ktorVersion"
+
+  // engines for server (magma) and client (bedrock)
+  implementation "io.ktor:ktor-server-cio:$ktorVersion"
+  implementation "io.ktor:ktor-client-okhttp:$ktorVersion"
 
   /* random */
   implementation "org.json:json:20200518"

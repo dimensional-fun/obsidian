@@ -1,6 +1,7 @@
 package obsidian.bedrock.crypto
 
 import io.netty.buffer.ByteBuf
+import moe.kyokobot.koe.internal.crypto.TweetNaclFastInstanced
 
 class XSalsa20Poly1305LiteEncryptionMode : EncryptionMode {
   override val name: String = "xsalsa20_poly1305_lite"

@@ -1,10 +1,10 @@
 package obsidian.bedrock
 
+import io.ktor.util.network.*
 import org.json.JSONObject
-import java.net.InetSocketAddress
 
 interface BedrockEventListener {
-  suspend fun gatewayReady(target: InetSocketAddress, ssrc: Int)
+  suspend fun gatewayReady(target: NetworkAddress, ssrc: Int)
 
   suspend fun gatewayClosed(code: Int, byRemote: Boolean, reason: String?)
 
@@ -12,7 +12,7 @@ interface BedrockEventListener {
 
   suspend fun userDisconnected(id: String?)
 
-  suspend fun externalIPDiscovered(address: InetSocketAddress)
+  suspend fun externalIPDiscovered(address: NetworkAddress)
 
    suspend fun sessionDescription(session: JSONObject?)
 

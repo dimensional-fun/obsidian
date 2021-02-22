@@ -1,7 +1,7 @@
 package obsidian.bedrock
 
+import io.ktor.util.network.*
 import org.json.JSONObject
-import java.net.InetSocketAddress
 
 class EventDispatcher : BedrockEventListener {
   private var listeners = hashSetOf<BedrockEventListener>()
@@ -12,7 +12,7 @@ class EventDispatcher : BedrockEventListener {
   fun unregister(listener: BedrockEventListener): Boolean =
     listeners.remove(listener)
 
-  override suspend fun gatewayReady(target: InetSocketAddress, ssrc: Int) {
+  override suspend fun gatewayReady(target: NetworkAddress, ssrc: Int) {
     for (listener in listeners) listener.gatewayReady(target, ssrc)
   }
 
@@ -28,7 +28,7 @@ class EventDispatcher : BedrockEventListener {
     for (listener in listeners) listener.userDisconnected(id)
   }
 
-  override suspend fun externalIPDiscovered(address: InetSocketAddress) {
+  override suspend fun externalIPDiscovered(address: NetworkAddress) {
     for (listener in listeners) listener.externalIPDiscovered(address)
   }
 

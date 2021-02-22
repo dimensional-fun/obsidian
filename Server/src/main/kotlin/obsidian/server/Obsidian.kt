@@ -4,8 +4,8 @@ import com.uchuhimo.konf.Config
 import com.uchuhimo.konf.source.yaml
 import io.ktor.application.*
 import io.ktor.routing.*
+import io.ktor.server.cio.*
 import io.ktor.server.engine.*
-import io.ktor.server.netty.*
 import io.ktor.websocket.*
 import obsidian.bedrock.Bedrock
 import obsidian.server.io.Magma
@@ -26,12 +26,13 @@ object Obsidian {
 
   @JvmStatic
   fun main(args: Array<String>) {
-
-    embeddedServer(Netty, host = config[ObsidianConfig.Host], port = config[ObsidianConfig.Port]) {
-      install(Routing)
+    val server = embeddedServer(CIO, host = config[ObsidianConfig.Host], port = config[ObsidianConfig.Port]) {
       install(WebSockets)
+      install(Routing)
 
       routing(magma::use)
-    }.start()
+    }
+
+    server.start(wait = true)
   }
 }

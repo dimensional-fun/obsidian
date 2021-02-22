@@ -1,68 +1,71 @@
 package obsidian.bedrock.gateway
 
-import io.netty.channel.Channel
-import io.netty.channel.ChannelHandlerContext
-import io.netty.channel.ChannelInitializer
-import io.netty.channel.SimpleChannelInboundHandler
-import io.netty.channel.socket.SocketChannel
-import io.netty.handler.codec.http.EmptyHttpHeaders
-import io.netty.handler.codec.http.FullHttpResponse
-import io.netty.handler.codec.http.HttpClientCodec
-import io.netty.handler.codec.http.HttpObjectAggregator
-import io.netty.handler.codec.http.websocketx.*
-import io.netty.handler.ssl.SslContext
-import io.netty.handler.ssl.SslContextBuilder
-import io.netty.handler.ssl.SslHandler
-import io.netty.util.concurrent.EventExecutor
+import io.ktor.client.*
+import io.ktor.client.engine.*
+import io.ktor.client.engine.okhttp.*
+import io.ktor.client.features.*
+import io.ktor.client.features.websocket.*
+import io.ktor.client.request.*
+import io.ktor.http.*
+import io.ktor.http.cio.websocket.*
+import io.ktor.util.*
+import io.ktor.utils.io.*
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.flow.*
 import obsidian.bedrock.MediaConnection
 import obsidian.bedrock.VoiceServerInfo
-import obsidian.bedrock.util.NettyBootstrapFactory
-import obsidian.bedrock.util.NettyFutureWrapper
-import obsidian.server.util.buildJson
+import obsidian.server.util.buildJsonString
 import org.json.JSONObject
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.net.URI
-import java.nio.channels.NotYetConnectedException
-import java.nio.charset.StandardCharsets
-import java.util.concurrent.CompletableFuture
+import kotlin.coroutines.CoroutineContext
 
 abstract class AbstractMediaGatewayConnection(
-  protected val mediaConnection: MediaConnection,
-  protected val voiceServerInfo: VoiceServerInfo,
+  val mediaConnection: MediaConnection,
+  val voiceServerInfo: VoiceServerInfo,
   version: Int
-) : MediaGatewayConnection {
+) : MediaGatewayConnection, CoroutineScope {
 
   override var open = false
-  protected var eventExecutor: EventExecutor? = null
+  override val coroutineContext: CoroutineContext
+    get() = Job() + Dispatchers.IO
 
-  protected val sslContext: SslContext = SslContextBuilder.forClient().build()
-  protected val connectFuture = CompletableFuture<Void>()
-  protected val websocketUri: URI by lazy { URI("wss://${voiceServerInfo.endpoint.replace(":80", "")}/?v=$version") }
-
-  private val bootstrap = NettyBootstrapFactory.createSocket().handler(WebSocketInitializer())
-  private var channel: Channel? = null
-  private var closed = false
+  private var eventFlow = MutableSharedFlow<JSONObject>(extraBufferCapacity = Int.MAX_VALUE)
+  private var session: ClientWebSocketSession? = null
+  private val websocketUrl: String by lazy { "wss://${voiceServerInfo.endpoint.replace(":80", "")}/?v=$version" }
 
   /**
-   * Starts connecting to the gateway.
+   * Identifies this session
    */
-  override fun start(): CompletableFuture<Void> {
-    if (connectFuture.isDone) {
-      return connectFuture
-    }
+  protected abstract suspend fun identify()
 
-    val future = CompletableFuture<Void>()
-    logger.debug("Connecting to $websocketUri")
+  /**
+   * Sends a JSON encoded string to the voice server.
+   *
+   * @param op The operation code.
+   * @param data The operation data.
+   */
+  suspend inline fun sendPayload(op: Op, data: Any?) {
+    sendPayload(buildJsonString<JSONObject> {
+      put("op", op.code)
+      if (data != null) {
+        put("d", data)
+      }
+    })
+  }
 
-    val chFuture = bootstrap.connect(websocketUri.host, websocketUri.port.takeIf { it != -1 } ?: 443)
-    chFuture.addListener(NettyFutureWrapper(future))
-    future.thenAccept { channel = chFuture.channel() }
-
-    return connectFuture
+  /**
+   * Sends a text payload to the voice server websocket.
+   *
+   * @param text The text to send.
+   */
+  suspend fun sendPayload(text: String) {
+    logger.trace("VS <- $text")
+    session?.send(Frame.Text(text))
   }
 
   /**
@@ -71,163 +74,81 @@ abstract class AbstractMediaGatewayConnection(
    * @param code The close code.
    * @param reason The close reason.
    */
-  override fun close(code: Int, reason: String?) {
-    if (channel != null && channel?.isOpen == true) {
-      if (code != 1006) {
-        channel?.writeAndFlush(CloseWebSocketFrame(code, reason))
-      }
-
-      channel?.close()
-    }
-
-    if (!connectFuture.isDone) {
-      connectFuture.completeExceptionally(NotYetConnectedException())
-    }
-
-    onClose(code, false, reason)
+  override suspend fun close(code: Short, reason: String?) {
+    session?.close(CloseReason(code, reason ?: ""))
   }
 
-  /**
-   * Identifies this session
-   */
-  protected abstract fun identify()
-
-  /**
-   * Handles a received JSON payload.
-   *
-   * @param obj The received JSON payload.
-   */
-  protected abstract fun handlePayload(obj: JSONObject)
-
-  /**
-   * Used to dispatch the "gatewayClosed" event.
-   *
-   * @param code The close code.
-   * @param byRemote Whether the connection was closed by a remote source
-   * @param reason The close reason.
-   */
-  protected open fun onClose(code: Int, byRemote: Boolean, reason: String?) {
-    if (!closed) {
-      closed = true
-      GlobalScope.launch(Dispatchers.IO) {
-        mediaConnection.eventDispatcher.gatewayClosed(code, byRemote, reason)
-      }
-    }
+  protected fun on(op: Op, block: suspend (data: JSONObject) -> Unit) {
+    eventFlow
+      .filter { it.getInt("op") == op.code }
+      .onEach {
+        try {
+          block(it)
+        } catch (ex: Exception) {
+          logger.error("Error while handling OP ${op.code}", ex)
+        }
+      }.launchIn(this)
   }
 
-  /**
-   * Sends an internal JSON Payload to the voice server.
-   *
-   * @param op The operation code.
-   * @param d The operation data.
-   */
-  open fun sendInternalPayload(op: Op, d: Any?) =
-    sendRaw(buildJson {
-      put("op", op.code)
-      put("d", d)
-    })
+  private suspend fun handleIncoming() {
+    val session = this.session ?: return
 
-  /**
-   * Sends a raw JSON payload to the voice server.
-   *
-   * @param obj The JSON payload.
-   */
-  protected open fun sendRaw(obj: JSONObject) {
-    if (channel != null && channel!!.isOpen) {
-      val data = obj.toString()
-      logger.trace("<- $data")
-      channel!!.writeAndFlush(TextWebSocketFrame(data))
-    }
-  }
-
-  inner class WebSocketClientHandler : SimpleChannelInboundHandler<Any>() {
-    private val handshaker = WebSocketClientHandshakerFactory.newHandshaker(
-      websocketUri,
-      WebSocketVersion.V13,
-      null,
-      false,
-      EmptyHttpHeaders.INSTANCE,
-      1280000
-    )
-
-    override fun channelActive(ctx: ChannelHandlerContext) {
-      eventExecutor = ctx.executor()
-      handshaker.handshake(ctx.channel())
-    }
-
-    override fun channelInactive(ctx: ChannelHandlerContext) {
-      close(1006, "Abnormal closure")
-    }
-
-
-    override fun channelRead0(ctx: ChannelHandlerContext?, msg: Any?) {
-      val ch = ctx!!.channel()
-
-      if (!handshaker.isHandshakeComplete) {
-        if (msg is FullHttpResponse) {
-          try {
-            handshaker.finishHandshake(ch, msg as FullHttpResponse?)
-            open = true
-            connectFuture.complete(null)
-            identify()
-          } catch (e: WebSocketHandshakeException) {
-            connectFuture.completeExceptionally(e)
+    session.incoming.asFlow().buffer(Channel.UNLIMITED)
+      .collect {
+        when (it) {
+          is Frame.Text -> handleFrame(it)
+          else -> { /* noop */
           }
         }
-        return
       }
+  }
 
-      if (msg is FullHttpResponse) {
-        throw IllegalStateException(
-          "Unexpected FullHttpResponse (getStatus=" + msg.status() + ", content=" + msg.content()
-            .toString(StandardCharsets.UTF_8) + ")"
-        )
-      }
+  private suspend fun handleFrame(frame: Frame.Text) {
+    val json = JSONObject(frame.readText())
+    logger.trace("VS -> $json")
+    eventFlow.emit(json)
+  }
 
-      if (msg is TextWebSocketFrame) {
-        val jsonObj = JSONObject(msg.text())
-        logger.trace("-> $jsonObj")
-        msg.release()
-        handlePayload(jsonObj)
-      } else if (msg is CloseWebSocketFrame) {
-        if (logger.isDebugEnabled) {
-          logger.debug(
-            "Websocket closed, code: {}, reason: {}",
-            msg.statusCode(),
-            msg.reasonText()
-          )
+  /**
+   * Creates a websocket connection to the voice server described in [voiceServerInfo]
+   */
+  override suspend fun start() {
+    if (open) {
+      close(1000, null)
+    }
+
+    open = true
+    while (open) {
+      try {
+        session = client.webSocketSession {
+          url(websocketUrl)
+        }
+      } catch (ex: Exception) {
+        if (ex is ClientRequestException) {
+          logger.error("WebSocket closed.", ex)
         }
 
         open = false
-        onClose(msg.statusCode(), true, msg.reasonText())
-      }
-    }
-
-
-    override fun exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable?) {
-      if (!connectFuture.isDone) {
-        connectFuture.completeExceptionally(cause)
+        break
       }
 
-      close(4000, "Internal error")
-      ctx.close()
+      identify()
+      handleIncoming()
+
+      open = false
     }
-  }
-
-  inner class WebSocketInitializer : ChannelInitializer<SocketChannel>() {
-    override fun initChannel(ch: SocketChannel) {
-      val engine = sslContext.newEngine(ch.alloc())
-
-      ch.pipeline()
-        .addLast("ssl", SslHandler(engine))
-        .addLast("http-codec", HttpClientCodec())
-        .addLast("aggregator", HttpObjectAggregator(65536))
-        .addLast("handler", WebSocketClientHandler())
-    }
-
   }
 
   companion object {
     val logger: Logger = LoggerFactory.getLogger(AbstractMediaGatewayConnection::class.java)
+    val client = HttpClient(OkHttp) { install(WebSockets) }
+
+    fun <T> ReceiveChannel<T>.asFlow() = flow {
+      try {
+        for (value in this@asFlow) emit(value)
+      } catch (ignore: CancellationException) {
+        //reading was stopped from somewhere else, ignore
+      }
+    }
   }
 }

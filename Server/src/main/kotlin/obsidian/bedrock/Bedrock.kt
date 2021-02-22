@@ -13,9 +13,9 @@ import io.netty.channel.socket.DatagramChannel
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioDatagramChannel
 import io.netty.channel.socket.nio.NioSocketChannel
+import obsidian.bedrock.gateway.GatewayVersion
 import obsidian.bedrock.codec.framePoller.FramePollerFactory
 import obsidian.bedrock.codec.framePoller.UdpQueueFramePollerFactory
-import obsidian.bedrock.gateway.GatewayVersion
 import obsidian.server.Obsidian.config
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory

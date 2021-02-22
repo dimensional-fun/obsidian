@@ -11,6 +11,7 @@ import obsidian.bedrock.MediaConnection
 import obsidian.bedrock.media.OpusAudioFrameProvider
 import obsidian.server.Obsidian.playerManager
 import obsidian.server.io.MagmaClient
+import org.slf4j.LoggerFactory
 import java.nio.ByteBuffer
 
 class Link(
@@ -92,6 +93,8 @@ class Link(
   }
 
   companion object {
+    val logger = LoggerFactory.getLogger(Link::class.java)
+
     fun AudioPlayer.registerListener(listener: AudioEventListener): AudioPlayer {
       addListener(listener)
       return this

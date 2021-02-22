@@ -1,7 +1,5 @@
 package obsidian.bedrock.gateway
 
-import java.util.concurrent.CompletableFuture
-
 interface MediaGatewayConnection {
   /**
    * Whether the gateway connection is opened.
@@ -11,7 +9,7 @@ interface MediaGatewayConnection {
   /**
    * Starts connecting to the gateway.
    */
-  fun start(): CompletableFuture<Void>
+  suspend fun start()
 
   /**
    * Closes the gateway connection.
@@ -19,12 +17,12 @@ interface MediaGatewayConnection {
    * @param code The close code.
    * @param reason The close reason.
    */
-  fun close(code: Int, reason: String?)
+  suspend fun close(code: Short, reason: String?)
 
   /**
    * Updates the speaking state of the Client.
    *
    * @param mask The speaking mask.
    */
-  fun updateSpeaking(mask: Int)
+  suspend fun updateSpeaking(mask: Int)
 }

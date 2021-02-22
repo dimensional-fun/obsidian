@@ -4,6 +4,7 @@ import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelInitializer
 import io.netty.channel.socket.DatagramChannel
 import io.netty.util.internal.ThreadLocalRandom
+import kotlinx.coroutines.future.await
 import obsidian.bedrock.Bedrock
 import obsidian.bedrock.MediaConnection
 import obsidian.bedrock.codec.Codec
@@ -17,13 +18,12 @@ import java.io.Closeable
 import java.net.InetSocketAddress
 import java.net.SocketAddress
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CompletionStage
 
 class DiscordUDPConnection(
   private val connection: MediaConnection,
   val serverAddress: SocketAddress,
   val ssrc: Int
-) : Closeable, ConnectionHandler<InetSocketAddress> {
+) : Closeable, ConnectionHandler {
 
   private var allocator = Bedrock.byteBufAllocator
   private var bootstrap = NettyBootstrapFactory.createDatagram()
@@ -34,7 +34,7 @@ class DiscordUDPConnection(
 
   private var seq = ThreadLocalRandom.current().nextInt() and 0xffff
 
-  override fun connect(): CompletionStage<InetSocketAddress> {
+  override suspend fun connect(): InetSocketAddress {
     logger.debug("Connecting to '$serverAddress'...")
 
     val future = CompletableFuture<InetSocketAddress>()
@@ -45,7 +45,8 @@ class DiscordUDPConnection(
           future.completeExceptionally(res.cause())
         }
       }
-    return future
+
+    return future.await()
   }
 
   override fun close() {
@@ -54,7 +55,7 @@ class DiscordUDPConnection(
     }
   }
 
-  override fun handleSessionDescription(sessionDescription: JSONObject) {
+  override suspend fun handleSessionDescription(sessionDescription: JSONObject) {
     val mode = sessionDescription.getString("mode")
     val audioCodecName = sessionDescription.getString("audio_codec")
     encryptionMode = EncryptionMode[mode]
@@ -76,10 +77,11 @@ class DiscordUDPConnection(
       secretKey!![i] = (keyArray.getInt(i) and 0xff).toByte()
     }
 
+    logger.info("Starting frame polling!")
     connection.startFramePolling()
   }
 
-  override fun sendFrame(payloadType: Byte, timestamp: Int, data: ByteBuf, start: Int, extension: Boolean) {
+  override suspend fun sendFrame(payloadType: Byte, timestamp: Int, data: ByteBuf, start: Int, extension: Boolean) {
     val buf = createPacket(payloadType, timestamp, data, start, extension)
     if (buf != null) {
       channel?.writeAndFlush(buf)
@@ -122,6 +124,7 @@ class DiscordUDPConnection(
   ) : ChannelInitializer<DatagramChannel>() {
     override fun initChannel(datagramChannel: DatagramChannel) {
       connection.channel = datagramChannel
+
       val handler = HolepunchHandler(future, connection.ssrc)
       datagramChannel.pipeline().addFirst("handler", handler)
     }

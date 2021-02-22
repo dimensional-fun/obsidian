@@ -18,8 +18,6 @@ class OpusCodec : Codec() {
   }
 
   companion object {
-    val INSTANCE = OpusCodec()
-
     /**
      * The payload type of the Opus codec.
      */
@@ -34,5 +32,10 @@ class OpusCodec : Codec() {
      * Represents a Silence Frame within opus.
      */
     val SILENCE_FRAME = byteArrayOf(0xF8.toByte(), 0xFF.toByte(), 0xFE.toByte())
+
+    /**
+     * A pre-defined instance of [OpusCodec]
+     */
+    val INSTANCE: OpusCodec by lazy { OpusCodec() }
   }
 }

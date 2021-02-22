@@ -68,12 +68,12 @@ class Magma {
    */
   private suspend fun websocketHandler(session: WebSocketServerSession) {
     val request = session.call.request
-    if (ObsidianConfig.validateAuth(request.authorization())) {
+    if (!ObsidianConfig.validateAuth(request.authorization())) {
       logger.warn("Authentication failed from ${request.local.remoteHost}")
       session.close(INVALID_AUTHORIZATION)
       return
     } else {
-      logger.warn("Incoming request from ${request.local.remoteHost}")
+      logger.info("Incoming request from ${request.local.remoteHost}")
     }
 
     val userId = request.headers["User-Id"]?.toLongOrNull()
@@ -95,6 +95,7 @@ class Magma {
       session.close(io.ktor.http.cio.websocket.CloseReason(4005, ex.message ?: "Unknown Error"))
     }
 
+    client.shutdown()
     clients.remove(userId)
   }
 

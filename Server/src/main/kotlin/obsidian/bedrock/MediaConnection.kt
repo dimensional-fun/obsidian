@@ -1,21 +1,19 @@
 package obsidian.bedrock
 
+import obsidian.bedrock.gateway.MediaGatewayConnection
 import obsidian.bedrock.codec.Codec
 import obsidian.bedrock.codec.OpusCodec
 import obsidian.bedrock.codec.framePoller.FramePoller
-import obsidian.bedrock.gateway.MediaGatewayConnection
 import obsidian.bedrock.handler.ConnectionHandler
 import obsidian.bedrock.media.MediaFrameProvider
 import org.slf4j.LoggerFactory
-import java.net.SocketAddress
-import java.util.concurrent.CompletionStage
 
 class MediaConnection(val bedrockClient: BedrockClient, val id: Long) {
 
   /**
    * The [ConnectionHandler].
    */
-  var connectionHandler: ConnectionHandler<out SocketAddress>? = null
+  var connectionHandler: ConnectionHandler? = null
 
   /**
    * The [VoiceServerInfo] provided.
@@ -47,7 +45,7 @@ class MediaConnection(val bedrockClient: BedrockClient, val id: Long) {
   /**
    * The audio [Codec] to use when sending frames.
    */
-  private val audioCodec: Codec = OpusCodec.INSTANCE
+  private val audioCodec: Codec by lazy { OpusCodec.INSTANCE }
 
   /**
    * The [FramePoller].
@@ -59,20 +57,20 @@ class MediaConnection(val bedrockClient: BedrockClient, val id: Long) {
    *
    * @param info The voice server info.
    */
-  fun connect(info: VoiceServerInfo): CompletionStage<Void> {
-    disconnect()
+  suspend fun connect(info: VoiceServerInfo) {
+    if (mediaGatewayConnection != null) {
+      disconnect()
+    }
 
     val connection = Bedrock.gatewayVersion.createConnection(this, info)
-    return connection.start().thenAccept {
-      mediaGatewayConnection = connection
-      this.info = info
-    }
+    mediaGatewayConnection = connection
+    connection.start()
   }
 
   /**
    * Disconnects from the voice server.
    */
-  fun disconnect() {
+  suspend fun disconnect() {
     logger.debug("Disconnecting...")
 
     stopFramePolling()
@@ -90,7 +88,7 @@ class MediaConnection(val bedrockClient: BedrockClient, val id: Long) {
   /**
    * Starts the [FramePoller] for this media connection.
    */
-  fun startFramePolling() {
+  suspend fun startFramePolling() {
     if (this.framePoller.polling) {
       return
     }
@@ -114,13 +112,13 @@ class MediaConnection(val bedrockClient: BedrockClient, val id: Long) {
    *
    * @param mask The speaking mask to update with
    */
-  fun updateSpeakingState(mask: Int) =
+  suspend fun updateSpeakingState(mask: Int) =
     mediaGatewayConnection?.updateSpeaking(mask)
 
   /**
    * Closes this media connection.
    */
-  fun close() {
+  suspend fun close() {
     if (frameProvider != null) {
       frameProvider?.dispose()
       frameProvider = null

@@ -29,7 +29,7 @@ class BedrockClient(val clientId: Long) {
    *
    * @param guildId
    */
-  fun destroyConnection(guildId: Long) =
+  suspend fun destroyConnection(guildId: Long) =
     removeConnection(guildId)?.close()
 
   /**
@@ -43,7 +43,7 @@ class BedrockClient(val clientId: Long) {
   /**
    * Closes this BedrockClient.
    */
-  fun close() {
+  suspend fun close() {
     if (connections.isEmpty()) {
       connections.keys.forEach { destroyConnection(it) }
     }

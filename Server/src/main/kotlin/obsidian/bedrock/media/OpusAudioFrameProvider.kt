@@ -45,7 +45,7 @@ abstract class OpusAudioFrameProvider(val connection: MediaConnection) : MediaFr
     return provide;
   }
 
-  override fun retrieve(codec: Codec?, buf: ByteBuf?, timestamp: IntReference?): Boolean {
+  override suspend fun retrieve(codec: Codec?, buf: ByteBuf?, timestamp: IntReference?): Boolean {
     if (codec?.payloadType != OpusCodec.PAYLOAD_TYPE) {
       return false
     }
@@ -56,6 +56,7 @@ abstract class OpusAudioFrameProvider(val connection: MediaConnection) : MediaFr
       if (speaking) {
         setSpeaking(false)
       }
+
       timestamp!!.add(960)
       return false
     }
@@ -81,11 +82,10 @@ abstract class OpusAudioFrameProvider(val connection: MediaConnection) : MediaFr
     }
 
     timestamp!!.add(960)
-
     return false
   }
 
-  private fun setSpeaking(state: Boolean) {
+  private suspend fun setSpeaking(state: Boolean) {
     speaking = state
     if (speaking != lastSpeaking) {
       lastSpeaking = state

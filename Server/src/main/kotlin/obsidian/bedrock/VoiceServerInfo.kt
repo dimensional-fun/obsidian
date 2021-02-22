@@ -2,7 +2,7 @@ package obsidian.bedrock
 
 import org.json.JSONObject
 
-class VoiceServerInfo private constructor(
+data class VoiceServerInfo(
   val sessionId: String,
   val token: String,
   val endpoint: String
