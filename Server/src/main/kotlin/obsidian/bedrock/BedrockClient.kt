@@ -44,7 +44,7 @@ class BedrockClient(val clientId: Long) {
    * Closes this BedrockClient.
    */
   suspend fun close() {
-    if (connections.isEmpty()) {
+    if (!connections.isEmpty()) {
       connections.keys.forEach { destroyConnection(it) }
     }
   }

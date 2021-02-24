@@ -77,7 +77,6 @@ class DiscordUDPConnection(
       secretKey!![i] = (keyArray.getInt(i) and 0xff).toByte()
     }
 
-    logger.info("Starting frame polling!")
     connection.startFramePolling()
   }
 

@@ -6,14 +6,6 @@ import obsidian.bedrock.Bedrock
 
 object NettyBootstrapFactory {
   /**
-   * Creates a Socket Channel [Bootstrap]
-   */
-  fun createSocket(): Bootstrap =
-    Bootstrap()
-      .group(Bedrock.eventLoopGroup)
-      .channel(Bedrock.socketChannelClass)
-
-  /**
    * Creates a Datagram [Bootstrap]
    */
   fun createDatagram(): Bootstrap {

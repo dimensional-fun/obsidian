@@ -64,14 +64,6 @@ object Bedrock {
   }
 
   /**
-   * The class of the netty [SocketChannel] being used.
-   * Defaults to [NioSocketChannel] if Epoll isn't available.
-   */
-  val socketChannelClass: Class<out SocketChannel> by lazy {
-    if (epollAvailable) EpollSocketChannel::class.java else NioSocketChannel::class.java
-  }
-
-  /**
    * The [GatewayVersion] to use.
    */
   val gatewayVersion = GatewayVersion.V4
