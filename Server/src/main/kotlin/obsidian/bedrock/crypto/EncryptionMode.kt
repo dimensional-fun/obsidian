@@ -1,7 +1,6 @@
 package obsidian.bedrock.crypto
 
 import io.netty.buffer.ByteBuf
-import java.util.function.Supplier
 
 interface EncryptionMode {
   val name: String
