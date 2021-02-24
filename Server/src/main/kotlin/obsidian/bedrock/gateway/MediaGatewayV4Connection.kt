@@ -7,8 +7,7 @@ import obsidian.bedrock.VoiceServerInfo
 import obsidian.bedrock.codec.OpusCodec
 import obsidian.bedrock.crypto.EncryptionMode
 import obsidian.bedrock.handler.DiscordUDPConnection
-import obsidian.bedrock.handler.Ktor_DiscordUDPConnection
-import obsidian.bedrock.util.Ticker
+import obsidian.bedrock.util.Interval
 import obsidian.server.util.buildJson
 import org.json.JSONArray
 import org.json.JSONObject
@@ -22,6 +21,7 @@ class MediaGatewayV4Connection(
   private var ssrc = 0
   private var address: NetworkAddress? = null
   private var rtcConnectionId: UUID? = null
+  private var interval: Interval = Interval()
 
   private lateinit var encryptionModes: List<String>
 
@@ -38,8 +38,6 @@ class MediaGatewayV4Connection(
       val data = it.getJSONObject("d")
 
       ssrc = data.getInt("ssrc")
-      println(data.getString("ip"))
-      println(data.getInt("port"))
       address = NetworkAddress(data.getString("ip"), data.getInt("port"))
       encryptionModes = data.getJSONArray("modes").toList().map(Any::toString)
 
@@ -68,6 +66,11 @@ class MediaGatewayV4Connection(
 
       mediaConnection.eventDispatcher.userConnected(user, audioSsrc, videoSsrc, rtxSsrc)
     }
+  }
+
+  override suspend fun close(code: Short, reason: String?) {
+    interval.stop()
+    super.close(code, reason)
   }
 
   private suspend fun selectProtocol(protocol: String) {
@@ -144,7 +147,7 @@ class MediaGatewayV4Connection(
    */
   @ObsoleteCoroutinesApi
   private suspend fun startHeartbeating(delay: Long) {
-    Ticker().tickAt(delay) {
+    interval.start(delay) {
       val nonce = System.currentTimeMillis()
       sendPayload(Op.HEARTBEAT, nonce)
       mediaConnection.eventDispatcher.heartbeatDispatched(nonce)

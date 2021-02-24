@@ -5,38 +5,112 @@ import com.sedmelluq.discord.lavaplayer.player.AudioPlayer
 import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter
 import com.sedmelluq.discord.lavaplayer.player.event.AudioEventListener
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
+import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason
 import com.sedmelluq.discord.lavaplayer.track.playback.MutableAudioFrame
 import io.netty.buffer.ByteBuf
+import kotlinx.coroutines.ObsoleteCoroutinesApi
+import kotlinx.coroutines.launch
 import obsidian.bedrock.MediaConnection
 import obsidian.bedrock.media.OpusAudioFrameProvider
+import obsidian.bedrock.util.Interval
+import obsidian.server.Obsidian.config
 import obsidian.server.Obsidian.playerManager
 import obsidian.server.io.MagmaClient
+import obsidian.server.io.Op
+import obsidian.server.player.filter.FilterChain
+import obsidian.server.util.config.ObsidianConfig
+import obsidian.server.util.TrackUtil
+import obsidian.server.util.buildJson
+import org.json.JSONObject
 import org.slf4j.LoggerFactory
 import java.nio.ByteBuffer
 
 class Link(
-  private val client: MagmaClient,
-  private val guildId: Long
+  val client: MagmaClient,
+  val guildId: Long
 ) : AudioEventAdapter() {
 
+  /**
+   * The frame counter.
+   */
   val frameCounter = FrameLossCounter()
 
+  /**
+   * The player update interval.
+   */
+  val playerUpdater = Interval()
+
+  /**
+   * The lavaplayer filter.
+   */
   val player: AudioPlayer = playerManager.createPlayer()
     .registerListener(this)
     .registerListener(frameCounter)
+    .registerListener(PlayerEvents(this))
 
+  /**
+   * Whether the player is currently paused.
+   */
+  val paused: Boolean
+    get() = player.isPaused
 
-  fun play(track: AudioTrack) {
+  /**
+   * Whether the player is currently playing a track.
+   */
+  val playing: Boolean
+    get() = player.playingTrack != null && !player.isPaused
+
+  /**
+   * The current filter chain.
+   */
+  var filters: FilterChain = FilterChain(this)
+    set(value) {
+      value.apply()
+      field = value
+    }
+
+  suspend fun play(track: AudioTrack) {
     player.playTrack(track)
     sendUpdate()
   }
 
+  /**
+   * Stops the currently playing song.
+   */
   fun stop() {
     player.stopTrack()
   }
 
-  fun sendUpdate() {
+  /**
+   * Used to start sending periodic player updates.
+   */
+  private suspend fun startPeriodicUpdates() {
+    playerUpdater.start(config[ObsidianConfig.PlayerUpdateInterval], ::sendUpdate)
+  }
 
+  /**
+   * Sends a player update to the client.
+   */
+  private suspend fun sendUpdate() {
+    client.send(Op.PLAYER_UPDATE) {
+      put("guild_id", guildId.toString())
+
+      if (playing) {
+        put("track", buildJson<JSONObject> {
+          put("encoded", TrackUtil.encode(player.playingTrack))
+          put("position", player.playingTrack.position)
+          put("paused", paused)
+        })
+      } else {
+        put("track", JSONObject.NULL)
+      }
+
+      put("frame_stats", buildJson<JSONObject> {
+        put("usable", frameCounter.dataUsable)
+        put("success", frameCounter.curSuccess)
+        put("loss", frameCounter.curLoss)
+      })
+    }
   }
 
   fun volume(volume: Int) {
@@ -47,19 +121,15 @@ class Link(
     player.isPaused = state;
   }
 
+  /**
+   * Used to seek
+   */
   fun seekTo(position: Long) {
     if (player.playingTrack == null) {
-      throw RuntimeException("Can't seek when not playing anything");
+      throw error("Can't seek when not playing anything");
     }
+
     player.playingTrack.position = position;
-  }
-
-  fun isPaused(): Boolean {
-    return player.isPaused
-  }
-
-  fun isPlaying(): Boolean {
-    return player.playingTrack != null && !player.isPaused
   }
 
   /**
@@ -69,6 +139,21 @@ class Link(
    */
   fun provideTo(mediaConnection: MediaConnection) {
     mediaConnection.frameProvider = LinkFrameProvider(mediaConnection)
+  }
+
+  override fun onTrackEnd(player: AudioPlayer?, track: AudioTrack?, endReason: AudioTrackEndReason?) {
+    client.launch(client.coroutineContext) {
+      playerUpdater.stop()
+    }
+  }
+
+  @ObsoleteCoroutinesApi
+  override fun onTrackStart(player: AudioPlayer?, track: AudioTrack?) {
+    client.launch {
+      if (!playerUpdater.started) {
+        startPeriodicUpdates()
+      }
+    }
   }
 
   inner class LinkFrameProvider(mediaConnection: MediaConnection) : OpusAudioFrameProvider(mediaConnection) {

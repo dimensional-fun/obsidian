@@ -15,13 +15,45 @@ class FrameLossCounter : AudioEventAdapter() {
   var lastTrackEnded = Long.MAX_VALUE
     private set
 
+  /**
+   * Current amount of successful frames.
+   */
+  var curSuccess = 0
+
+  /**
+   * Current amount of lost frames.
+   */
+  var curLoss = 0
+
+  /**
+   * Previous amount of successful frames.
+   */
+  var lastSuccess = 0
+
+  /**
+   * Previous amount of lost frames.
+   */
+  var lastLoss = 0
+
+  /**
+   * Whether the collected data is usable.
+   */
+  val dataUsable: Boolean get() {
+    logger.debug("LTS = $lastTrackStarted, LTE = $lastTrackEnded, PS = $playingSince")
+
+    // Check that there isn't a significant gap in playback. If no track has ended yet, we can look past that
+    if (lastTrackStarted - lastTrackEnded > ACCEPTABLE_TRACK_SWITCH_TIME && lastTrackEnded != Long.MAX_VALUE) {
+      return false
+    }
+
+    // Check that we have at least stats for last minute
+    val lastMin = System.currentTimeMillis() / 60000 - 1
+
+    logger.debug("Is data usable: ${playingSince < lastMin * 60000}")
+    return playingSince < lastMin * 60000
+  }
+
   private var curMinute: Long = 0
-  private var curLoss = 0
-  private var curSuccess = 0
-
-  private var lastLoss = 0
-  private var lassSuccess = 0
-
   private var playingSince = Long.MAX_VALUE
 
   /**
@@ -40,25 +72,11 @@ class FrameLossCounter : AudioEventAdapter() {
     curLoss++
   }
 
-  fun isDataUsable(): Boolean {
-    logger.info("LTS = $lastTrackStarted, LTE = $lastTrackEnded, PS = $playingSince")
-
-    // Check that there isn't a significant gap in playback. If no track has ended yet, we can look past that
-    if (lastTrackStarted - lastTrackEnded > ACCEPTABLE_TRACK_SWITCH_TIME && lastTrackEnded != Long.MAX_VALUE) {
-      return false
-    }
-
-    // Check that we have at least stats for last minute
-    val lastMin = System.currentTimeMillis() / 60000 - 1
-    logger.debug("Is data usable: ${playingSince < lastMin * 60000}")
-    return playingSince < lastMin * 60000
-  }
-
   private fun checkTime() {
     val actualMinute = System.currentTimeMillis() / 60000
     if (curMinute != actualMinute) {
       lastLoss = curLoss
-      lassSuccess = curSuccess
+      lastSuccess = curSuccess
       curLoss = 0
       curSuccess = 0
       curMinute = actualMinute
@@ -88,8 +106,8 @@ class FrameLossCounter : AudioEventAdapter() {
   override fun toString(): String {
     return "AudioLossCounter{" +
       "lastLoss=" + lastLoss +
-      ", lastSucc=" + lassSuccess +
-      ", total=" + (lassSuccess + lastLoss) +
+      ", lastSucc=" + lastSuccess +
+      ", total=" + (lastSuccess + lastLoss) +
       '}'
   }
 
