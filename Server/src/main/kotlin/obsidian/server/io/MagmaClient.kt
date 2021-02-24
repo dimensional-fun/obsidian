@@ -51,7 +51,7 @@ class MagmaClient(
   private val session: WebSocketServerSession
 ) : CoroutineScope {
   /**
-   * The koe client for this Session
+   * The Bedrock client for this Session
    */
   val bedrock = BedrockClient(clientId)
 

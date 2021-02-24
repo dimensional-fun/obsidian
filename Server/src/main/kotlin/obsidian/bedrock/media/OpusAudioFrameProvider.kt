@@ -122,7 +122,7 @@ abstract class OpusAudioFrameProvider(val connection: MediaConnection) : MediaFr
   /**
    * Called every time Opus frame poller tries to retrieve an Opus audio frame.
    *
-   * @return If this method returns true, Koe will attempt to retrieve an Opus audio frame.
+   * @return If this method returns true, Bedrock will attempt to retrieve an Opus audio frame.
    */
   abstract fun canProvide(): Boolean
 
@@ -131,7 +131,7 @@ abstract class OpusAudioFrameProvider(val connection: MediaConnection) : MediaFr
    *
    *
    * This method must not block, otherwise it might cause severe performance issues, due to event loop thread
-   * getting blocked, therefore it's recommended to load all data before or in parallel, not when Koe frame poller
+   * getting blocked, therefore it's recommended to load all data before or in parallel, not when Bedrock frame poller
    * calls this method. If no data gets written, the frame won't be sent.
    *
    * @param targetBuffer the target [ByteBuf] audio data should be written to.

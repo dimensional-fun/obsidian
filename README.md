@@ -21,6 +21,10 @@
 - [GitHub](https://github.com/mixtape-bot)
 - [Discord](https://discord.gg/TUYc4nn)
 
+###### Credits
+
+- [**Koe**](https://github.com/kyokobot/koe)
+
 ###### Contributors
 
 - [@Sxmurai](https://github.com/Sxmurai)

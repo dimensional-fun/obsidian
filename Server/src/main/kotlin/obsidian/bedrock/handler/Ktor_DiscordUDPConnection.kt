@@ -108,8 +108,8 @@ class Ktor_DiscordUDPConnection(
     }
 
     checkNotNull(encryptionMode) {
-      "Encryption mode selected by Discord is not supported by Koe or the " +
-        "protocol changed! Open an issue at https://github.com/KyokoBot/koe"
+      "Encryption mode selected by Discord is not supported by Bedrock or the " +
+        "protocol changed! Open an issue at!"
     }
 
     val keyArray = data.getJSONArray("secret_key")

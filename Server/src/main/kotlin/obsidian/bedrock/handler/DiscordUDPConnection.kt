@@ -84,8 +84,8 @@ class DiscordUDPConnection(
     }
 
     checkNotNull(encryptionMode) {
-      "Encryption mode selected by Discord is not supported by Koe or the " +
-        "protocol changed! Open an issue at https://github.com/KyokoBot/koe"
+      "Encryption mode selected by Discord is not supported by Bedrock or the " +
+        "protocol changed! Open an issue!"
     }
 
     val keyArray = sessionDescription.getJSONArray("secret_key")
