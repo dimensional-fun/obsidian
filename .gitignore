@@ -1,4 +1,12 @@
 .gradle/
 .idea/
+
+logs/
 build/
 Server/build/
+js-test/
+
+.obsidianrc
+*.jar
+application.yml
+/js-test/

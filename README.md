@@ -2,18 +2,28 @@
 
 > A robust and performant audio sending node meant for Discord Bots.
 
-## Why Obsidian
+- Built using [**Ktor**](https://ktor.io)
+- Uses [**Lavaplayer**](https://github.com/sedmelluq/lavaplayer)
+- Performant, low memory and cpu footprint.
 
-- Stable
-- Constantly being Maintained.
-- Closed Source
+## Clients
 
-## Contributors
+> Clients are used to interface with Magma, Obsidian's WebSocket and REST API.
 
-- **[@melike2d](https://github.com/melike2d)**
-- **[@sxmurai](https://github.com/sxmurai)**
-- **[@serenmodz21](https://github.com/SerenModz21)**
+- Nothing rn xd
+
+**Want to make your own? Read our [API Docs](/API.md)**
 
 ---
 
-<h5 align="center">mixtapebot - urmom 2021</h5>
+> Made by the Mixtape Team.
+
+- [GitHub](https://github.com/mixtape-bot)
+- [Discord](https://discord.gg/TUYc4nn)
+
+###### Contributors
+
+- [@Sxmurai](https://github.com/Sxmurai)
+- [@SerenModz21](https://github.com/SerenModz21)
+
+<h5 align="center">Mixtape Bot &bull; 2021</h5>
