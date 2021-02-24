@@ -9,7 +9,7 @@ import io.ktor.websocket.*
 import obsidian.server.io.MagmaCloseReason.CLIENT_EXISTS
 import obsidian.server.io.MagmaCloseReason.INVALID_AUTHORIZATION
 import obsidian.server.io.MagmaCloseReason.NO_USER_ID
-import obsidian.server.util.ObsidianConfig
+import obsidian.server.util.config.ObsidianConfig
 import obsidian.server.util.respondJson
 import org.json.JSONObject
 import org.slf4j.LoggerFactory
@@ -36,6 +36,7 @@ class Magma {
     T::class.members
       .filter { it.hasAnnotation<Route>() }
       .forEach { meth ->
+
         val contextParam = meth.valueParameters.firstOrNull {
           it.type.classifier?.equals(PipelineContext::class) == true
         }
@@ -97,6 +98,18 @@ class Magma {
 
     client.shutdown()
     clients.remove(userId)
+  }
+
+  suspend fun shutdown() {
+    if (clients.isNotEmpty()) {
+      logger.info("Shutting down ${clients.size} clients.")
+
+      clients.forEach { (_, l) ->
+        l.shutdown()
+      }
+    } else {
+      logger.info("No clients to shutdown.")
+    }
   }
 
   annotation class Route(val path: String, val method: String = "Get", val authenticated: Boolean = false)

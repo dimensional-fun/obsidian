@@ -2,19 +2,22 @@ package obsidian.server.io
 
 import com.sedmelluq.discord.lavaplayer.track.TrackMarker
 import io.ktor.http.cio.websocket.*
+import io.ktor.util.*
 import io.ktor.websocket.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
+import kotlinx.serialization.json.Json
 import obsidian.bedrock.BedrockClient
 import obsidian.bedrock.BedrockEventAdapter
 import obsidian.bedrock.MediaConnection
 import obsidian.bedrock.VoiceServerInfo
 import obsidian.bedrock.gateway.AbstractMediaGatewayConnection.Companion.asFlow
+import obsidian.bedrock.gateway.MediaGatewayV4Connection.Companion.combineWith
+import obsidian.bedrock.util.Interval
 import obsidian.server.player.Link
 import obsidian.server.player.TrackEndMarkerHandler
+import obsidian.server.player.filter.FilterChain
 import obsidian.server.util.TrackUtil
 import obsidian.server.util.buildJson
 import org.json.JSONObject
@@ -25,9 +28,10 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.reflect.full.*
 
 @Suppress("unused")
-class MagmaClient(clientId: Long, private val session: WebSocketServerSession) : CoroutineScope {
-  val logger: Logger = LoggerFactory.getLogger(clientId.toString())
-
+class MagmaClient(
+  private val clientId: Long,
+  private val session: WebSocketServerSession
+) : CoroutineScope {
   /**
    * The koe client for this Session
    */
@@ -39,78 +43,75 @@ class MagmaClient(clientId: Long, private val session: WebSocketServerSession) :
   val links = ConcurrentHashMap<Long, Link>()
 
   /**
+   * JSON parser for events.
+   */
+  private val jsonParser = Json {
+    ignoreUnknownKeys = true
+    isLenient = true
+  }
+
+  /**
    * Events flow lol - idk kotlin
    */
-  val events = MutableSharedFlow<JSONObject>(extraBufferCapacity = Int.MAX_VALUE)
+  private val events = MutableSharedFlow<Operation>(extraBufferCapacity = Int.MAX_VALUE)
 
   override val coroutineContext: CoroutineContext
     get() = Job() + Dispatchers.IO
 
-  init {
-    on(MagmaOperation.SUBMIT_VOICE_UPDATE) {
-      val guildId = getGuildId(it)
-        ?: return@on logger.warn("Invalid or missing 'guild_id' property for operation \"SUBMIT_VOICE_UPDATE\"")
+  /**
+   * The stats interval.
+   */
+  @ObsoleteCoroutinesApi
+  private val stats = Interval()
 
-      if (it.has("endpoint")) {
-        val connection = getMediaConnectionFor(guildId)
-        connection.connect(VoiceServerInfo.from(it))
-      }
+  init {
+    on<SubmitVoiceUpdate> {
+      mediaConnectionFor(guildId).connect(VoiceServerInfo(sessionId, token, endpoint))
     }
 
-    on(MagmaOperation.PLAY_TRACK) {
-      val guildId = getGuildId(it)
-        ?: return@on logger.warn("Invalid or missing 'guild_id' property for operation \"PLAY_TRACK\"")
+    on<Filters> {
+      val link = links.computeIfAbsent(guildId) { Link(this@MagmaClient, guildId) }
+      link.filters = FilterChain.from(link, this)
+    }
 
-      if (!it.has("track")) {
-        return@on
-      }
+    on<StopTrack> {
+      links[guildId]?.stop()
+    }
 
-      val link = links.computeIfAbsent(guildId) { Link(this, guildId) }
-      if (link.player.playingTrack != null && it.optBoolean("no_replace", false)) {
+    on<Pause> {
+      links[guildId]?.player?.isPaused = state
+    }
+
+    on<PlayTrack> {
+      val link = links.computeIfAbsent(guildId) { Link(this@MagmaClient, guildId) }
+      if (link.player.playingTrack != null && noReplace) {
         logger.info("Skipping PLAY_TRACK operation")
         return@on
       }
 
-      val track = TrackUtil.decode(it.getString("track"))
+      val track = TrackUtil.decode(track)
 
       // handle "end_time" and "start_time" parameters
-      if (it.has("start_time")) {
-        val startTime = it.optLong("start_time", 0)
-        if (startTime in 0..track.duration) {
-          track.position = startTime
-        }
+      if (startTime in 0..track.duration) {
+        track.position = startTime
       }
 
-      if (it.has("end_time")) {
-        val stopTime = it.optLong("end_time", 0)
-        if (stopTime in 0..track.duration) {
-          val handler = TrackEndMarkerHandler(link)
-          val marker = TrackMarker(stopTime, handler)
-          track.setMarker(marker)
-        }
+      if (endTime in 0..track.duration) {
+        val handler = TrackEndMarkerHandler(link)
+        val marker = TrackMarker(endTime, handler)
+        track.setMarker(marker)
       }
 
       link.play(track)
 
-      val connection: MediaConnection = getMediaConnectionFor(guildId)
+      val connection: MediaConnection = mediaConnectionFor(guildId)
       link.provideTo(connection)
     }
   }
 
-  private fun on(op: MagmaOperation, block: suspend (data: JSONObject) -> Unit) {
-    events.filter { it.getInt("op") == op.code }
-      .onEach {
-        try {
-          block(it)
-        } catch (ex: Exception) {
-          logger.error("Error while handling OP ${op.code}", ex)
-        }
-      }
-      .launchIn(this)
-  }
-
+  @ObsoleteCoroutinesApi
   suspend fun listen() {
-    events.onEach { println(it) }
+//    sendStats()
 
     session.incoming.asFlow().buffer(Channel.UNLIMITED)
       .collect {
@@ -122,13 +123,36 @@ class MagmaClient(clientId: Long, private val session: WebSocketServerSession) :
       }
   }
 
-  private suspend fun dispatch(frame: Frame.Text) {
-    val json = JSONObject(frame.readText())
-    logger.trace("Magma received - $json")
-    events.emit(json)
+  suspend fun send(op: Op, builder: JSONObject.() -> Unit = {}) {
+    send(buildJson<JSONObject> {
+      put("op", op.code)
+      put("d", JSONObject().apply(builder))
+    })
   }
 
-  fun getMediaConnectionFor(guildId: Long): MediaConnection {
+  private inline fun <reified T : Operation> on(crossinline block: suspend T.() -> Unit) {
+    events.filterIsInstance<T>()
+      .onEach {
+        try {
+          block.invoke(it)
+        } catch (ex: Exception) {
+          logger.error(ex)
+        }
+      }
+      .launchIn(this)
+  }
+
+  private suspend fun dispatch(frame: Frame.Text) {
+    val json = frame.readText()
+    logger.trace("$clientId -> $json")
+
+    val operation = jsonParser.decodeFromString(Operation.Companion, json)
+      ?: return
+
+    events.emit(operation)
+  }
+
+  private fun mediaConnectionFor(guildId: Long): MediaConnection {
     var mediaConnection = bedrock.getConnection(guildId)
     if (mediaConnection == null) {
       mediaConnection = bedrock.createConnection(guildId)
@@ -143,8 +167,9 @@ class MagmaClient(clientId: Long, private val session: WebSocketServerSession) :
    *
    * @param json The jason payload.
    */
-  suspend fun send(json: JSONObject) {
+  private suspend fun send(json: JSONObject) {
     session.send(Frame.Text(json.toString()))
+    logger.trace("$clientId <- ${json.getInt("op")}")
   }
 
   internal suspend fun shutdown() {
@@ -154,21 +179,56 @@ class MagmaClient(clientId: Long, private val session: WebSocketServerSession) :
   }
 
   inner class EventListener(private val guildId: Long) : BedrockEventAdapter() {
+    private var lastHeartbeat: Long? = null
+    private var lastHeartbeatNonce: Long? = null
+
     override suspend fun gatewayClosed(code: Int, byRemote: Boolean, reason: String?) {
-      send(buildJson {
-        put("op", MagmaOperation.PLAYER_EVENT.code)
+      send(Op.PLAYER_EVENT) {
         put("type", "WEBSOCKET_CLOSED")
         put("guild_id", guildId.toString())
-        put("data", buildJson<JSONObject> {
-          put("reason", reason)
-          put("code", code)
-          put("by_remote", byRemote)
-        })
-      })
+        put("reason", reason)
+        put("code", code)
+        put("by_remote", byRemote)
+      }
+    }
+
+    override suspend fun heartbeatAcknowledged(nonce: Long) {
+      if (lastHeartbeatNonce == null || lastHeartbeat == null) {
+        return
+      }
+
+      if (lastHeartbeatNonce != nonce) {
+        logger.warn("A heartbeat was acknowledged but it wasn't the last?")
+        return
+      }
+
+      logger.info("Our latency between the voice websocket is ${System.currentTimeMillis() - lastHeartbeat!!}ms")
+    }
+
+    override suspend fun heartbeatDispatched(nonce: Long) {
+      lastHeartbeat = System.currentTimeMillis()
+      lastHeartbeatNonce = nonce
+    }
+  }
+
+  @ObsoleteCoroutinesApi
+  private suspend fun sendStats() {
+    send(Op.STATS) {
+      combineWith(Stats.build(this@MagmaClient))
+    }
+
+    if (!stats.started) {
+      coroutineScope {
+        launch {
+          stats.start(60000, ::sendStats)
+        }
+      }
     }
   }
 
   companion object {
+    private val logger: Logger = LoggerFactory.getLogger(MagmaClient::class.java)
+
     private fun getGuildId(data: JSONObject): Long? =
       try {
         data.getLong("guild_id")

@@ -1,10 +1,11 @@
 apply plugin: "kotlin"
+apply plugin: "kotlinx-serialization"
 apply plugin: "application"
 apply plugin: "com.github.johnrengelman.shadow"
 
 description = "A robust and performant audio sending node meant for Discord Bots."
 
-mainClassName = "obsidian.server.Main"
+mainClassName = "obsidian.server.Obsidian"
 version "1.0.0"
 
 ext {
@@ -20,12 +21,6 @@ dependencies {
   implementation "com.sedmelluq:lavaplayer:$lavaplayerVersion"
   implementation "com.sedmelluq:lavaplayer-ext-youtube-rotator:$lavaplayerIpRotatorConfig"
   implementation "com.sedmelluq:udp-queue:1.1.0-linux64"
-  implementation ("moe.kyokobot.koe:core:1864a8b803") {
-    exclude group: "org.slf4j", module: "slf4j-api"
-  }
-
-  // netty
-  implementation "io.netty:netty-transport-native-epoll:$nettyEpollVersion:linux-x86_64"
 
   // filters
   implementation "com.github.natanbc:lavadsp:$lavadspVersion"
@@ -33,26 +28,38 @@ dependencies {
   /* logging */
   implementation "ch.qos.logback:logback-classic:$logbackVersion"
   implementation "io.sentry:sentry:$sentryVersion"
+  implementation "com.github.ajalt.mordant:mordant:$mordantVersion"
 
   /* config */
   implementation "com.uchuhimo:konf:$konfVersion"
   implementation "com.uchuhimo:konf-yaml:$konfVersion"
 
-  /* websocket/rest shit */
+  /* serialization */
+  implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:$kxsJsonVersion"
+  implementation "org.jetbrains.kotlinx:kotlinx-serialization-core:1.1.0"
+
+  /* netty */
+  implementation "io.netty:netty-transport:$nettyVersion"
+  implementation "io.netty:netty-codec-http:$nettyVersion"
+  implementation "io.netty:netty-transport-native-epoll:$nettyVersion:linux-x86_64"
+
+  /* ktor */
+
+  // metrics
+  implementation "io.ktor:ktor-metrics-micrometer:$ktorVersion"
+  implementation "io.micrometer:micrometer-registry-prometheus:latest.release"
 
   // Sockets
   implementation "io.ktor:ktor-network:$ktorVersion"
 
-  // client and server core.
+  // server shit
   implementation "io.ktor:ktor-server-core:$ktorVersion"
-  implementation "io.ktor:ktor-client-core:$ktorVersion"
-
-  // websocket extensions for both the client and server.
   implementation "io.ktor:ktor-websockets:$ktorVersion"
-  implementation "io.ktor:ktor-client-websockets:$ktorVersion"
-
-  // engines for server (magma) and client (bedrock)
   implementation "io.ktor:ktor-server-cio:$ktorVersion"
+
+  // client shit
+  implementation "io.ktor:ktor-client-core:$ktorVersion"
+  implementation "io.ktor:ktor-client-websockets:$ktorVersion"
   implementation "io.ktor:ktor-client-okhttp:$ktorVersion"
 
   /* random */
@@ -80,6 +87,7 @@ compileKotlin {
   kotlinOptions {
     jvmTarget = "11"
     freeCompilerArgs += "-Xopt-in=kotlin.ExperimentalStdlibApi"
+    freeCompilerArgs += "-Xopt-in=kotlinx.coroutines.ObsoleteCoroutinesApi"
     freeCompilerArgs += "-Xinline-classes"
   }
 }
