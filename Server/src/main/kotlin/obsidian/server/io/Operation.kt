@@ -116,8 +116,8 @@ data class Filters(
   @SerialName("guild_id")
   val guildId: Long,
 
-  val volume: Float?,
-  val tremolo: TremoloFilter?,
-  val equalizer: EqualizerFilter?,
-  val timescale: TimescaleFilter?
+  val volume: Float? = null,
+  val tremolo: TremoloFilter? = null,
+  val equalizer: EqualizerFilter? = null,
+  val timescale: TimescaleFilter? = null
 ) : Operation()
