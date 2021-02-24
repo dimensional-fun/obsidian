@@ -1,4 +1,4 @@
-package obsidian.server.util
+package obsidian.server.util.config
 
 import com.uchuhimo.konf.ConfigSpec
 import obsidian.server.Obsidian.config
@@ -27,8 +27,17 @@ object ObsidianConfig : ConfigSpec("obsidian") {
 
   /**
    * Whether obsidian should immediately start providing frames after connecting to the voice server.
+   *
+   * `immediately-provide`
    */
   val ImmediatelyProvide by optional(true, "immediately-provide")
+
+  /**
+   * The delay (in milliseconds) between each player update.
+   *
+   * `obsidian.player-update-interval`
+   */
+  val PlayerUpdateInterval by optional(5000L, "player-update-interval")
 
   /**
    * Used to validate a string given as authorization.
