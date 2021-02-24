@@ -1,6 +1,6 @@
 # Obsidian
 
-> A robust and performant audio sending node meant for Discord Bots.
+> A performant standalone audio sending node meant for Discord Bots.
 
 - Built using [**Ktor**](https://ktor.io)
 - Uses [**Lavaplayer**](https://github.com/sedmelluq/lavaplayer)
