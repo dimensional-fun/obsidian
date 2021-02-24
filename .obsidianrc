@@ -16,3 +16,9 @@ obsidian:
     youtube:
       allow-search: true
       playlist-page-limit: 6
+
+logging:
+  level: debug
+
+  file:
+    max-history: 30

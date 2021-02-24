@@ -1,6 +1,7 @@
 package obsidian.server.player
 
 import com.sedmelluq.discord.lavaplayer.player.DefaultAudioPlayerManager
+import com.sedmelluq.discord.lavaplayer.source.AudioSourceManager
 import com.sedmelluq.discord.lavaplayer.source.bandcamp.BandcampAudioSourceManager
 import com.sedmelluq.discord.lavaplayer.source.getyarn.GetyarnAudioSourceManager
 import com.sedmelluq.discord.lavaplayer.source.http.HttpAudioSourceManager
@@ -16,13 +17,15 @@ import com.sedmelluq.lava.extensions.youtuberotator.planner.*
 import com.sedmelluq.lava.extensions.youtuberotator.tools.ip.Ipv4Block
 import com.sedmelluq.lava.extensions.youtuberotator.tools.ip.Ipv6Block
 import obsidian.server.Obsidian.config
-import obsidian.server.util.ObsidianConfig
+import obsidian.server.util.config.ObsidianConfig
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.net.InetAddress
 import java.util.function.Predicate
 
 class ObsidianPlayerManager : DefaultAudioPlayerManager() {
+  val enabledSources = mutableListOf<String>()
+
   /**
    * The route planner.
    */
@@ -127,6 +130,13 @@ class ObsidianPlayerManager : DefaultAudioPlayerManager() {
           else -> logger.warn("Unknown source \"$source\"")
         }
       }
+
+    logger.info("Enabled sources: ${enabledSources.joinToString(", ")}")
+  }
+
+  override fun registerSourceManager(sourceManager: AudioSourceManager) {
+    super.registerSourceManager(sourceManager)
+    enabledSources.add(sourceManager.sourceName)
   }
 
   companion object {
