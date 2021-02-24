@@ -6,7 +6,7 @@ import com.sedmelluq.discord.lavaplayer.tools.FriendlyException
 import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import org.slf4j.LoggerFactory
-import java.util.ArrayList
+import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import java.util.concurrent.atomic.AtomicBoolean
@@ -17,23 +17,26 @@ class AudioLoader(private val audioPlayerManager: AudioPlayerManager) : AudioLoa
 
   fun load(identifier: String?): CompletionStage<LoadResult> {
     val isUsed = used.getAndSet(true)
-    check(!isUsed) { "This loader can only be used once per instance" }
+    check(!isUsed) {
+      "This loader can only be used once per instance"
+    }
 
-    logger.trace("Loading item with identifier {}", identifier)
+    logger.trace("Loading item with identifier $identifier")
     audioPlayerManager.loadItem(identifier, this)
 
     return loadResult
   }
 
   override fun trackLoaded(audioTrack: AudioTrack) {
-    logger.info("Loaded track " + audioTrack.info.title)
+    logger.info("Loaded track ${audioTrack.info.title}")
+
     val result = ArrayList<AudioTrack>()
     result.add(audioTrack)
     loadResult.complete(LoadResult(LoadType.TRACK_LOADED, result, null, null))
   }
 
   override fun playlistLoaded(audioPlaylist: AudioPlaylist) {
-    logger.info("Loaded playlist " + audioPlaylist.name)
+    logger.info("Loaded playlist ${audioPlaylist.name}")
 
     var playlistName: String? = null
     var selectedTrack: Int? = null
