@@ -28,21 +28,22 @@ import kotlinx.serialization.encoding.Encoder
 
 @Serializable(with = Op.Serializer::class)
 enum class Op(val code: Int) {
-  UNKNOWN(Int.MIN_VALUE),
-  SUBMIT_VOICE_UPDATE(0),
+  Unknown(Int.MIN_VALUE),
+  SubmitVoiceUpdate(0),
 
   // obsidian related.
-  STATS(1),
+  Stats(1),
 
   // player information.
-  PLAYER_EVENT(2),
-  PLAYER_UPDATE(3),
+  PlayerEvent(2),
+  PlayerUpdate(3),
 
   // player control.
-  PLAY_TRACK(4),
-  STOP_TRACK(5),
-  PAUSE(6),
-  FILTERS(7);
+  PlayTrack(4),
+  StopTrack(5),
+  Pause(6),
+  Filters(7),
+  Seek(8);
 
   companion object Serializer : KSerializer<Op> {
     /**
@@ -57,7 +58,7 @@ enum class Op(val code: Int) {
       get() = PrimitiveSerialDescriptor("op", PrimitiveKind.INT)
 
     override fun deserialize(decoder: Decoder): Op =
-      this[decoder.decodeInt()] ?: UNKNOWN
+      this[decoder.decodeInt()] ?: Unknown
 
     override fun serialize(encoder: Encoder, value: Op) =
       encoder.encodeInt(value.code)
