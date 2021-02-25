@@ -49,13 +49,11 @@ dependencies {
   implementation "io.ktor:ktor-metrics-micrometer:$ktorVersion"
   implementation "io.micrometer:micrometer-registry-prometheus:latest.release"
 
-  // Sockets
-  implementation "io.ktor:ktor-network:$ktorVersion"
-
   // server shit
   implementation "io.ktor:ktor-server-core:$ktorVersion"
   implementation "io.ktor:ktor-websockets:$ktorVersion"
   implementation "io.ktor:ktor-server-cio:$ktorVersion"
+  implementation "io.ktor:ktor-locations:$ktorVersion"
 
   // client shit
   implementation "io.ktor:ktor-client-core:$ktorVersion"
