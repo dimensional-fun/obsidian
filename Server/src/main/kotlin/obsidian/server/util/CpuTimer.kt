@@ -24,7 +24,6 @@ import java.lang.management.ManagementFactory
 import java.lang.management.OperatingSystemMXBean
 import java.lang.reflect.Method
 
-
 class CpuTimer {
   val processRecentCpuUsage: Double
     get() = try {
