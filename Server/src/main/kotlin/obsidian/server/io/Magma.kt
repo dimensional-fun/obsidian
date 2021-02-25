@@ -20,6 +20,7 @@ package obsidian.server.io
 
 import io.ktor.http.*
 import io.ktor.http.cio.websocket.*
+import io.ktor.locations.*
 import io.ktor.request.*
 import io.ktor.routing.*
 import io.ktor.util.pipeline.*
@@ -27,15 +28,15 @@ import io.ktor.websocket.*
 import obsidian.server.io.MagmaCloseReason.CLIENT_EXISTS
 import obsidian.server.io.MagmaCloseReason.INVALID_AUTHORIZATION
 import obsidian.server.io.MagmaCloseReason.NO_USER_ID
+import obsidian.server.io.controllers.Tracks
 import obsidian.server.util.config.ObsidianConfig
 import obsidian.server.util.respondJson
 import org.json.JSONObject
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.reflect.KParameter
 import kotlin.reflect.full.*
 
-class Magma {
+class Magma private constructor() {
   /**
    * All connected clients.
    * `Client ID -> MagmaClient`
@@ -43,43 +44,21 @@ class Magma {
   private val clients = ConcurrentHashMap<Long, MagmaClient>()
 
   fun use(routing: Routing) {
-    routing.webSocket("/", handler = this::websocketHandler)
+    routing {
+      webSocket("/", handler = this@Magma::websocketHandler)
 
-    loadRoutes(routing, MagmaRoutes)
-  }
-
-  private inline fun <reified T> loadRoutes(routing: Routing, instance: T) {
-    routing.get("/") { context.respondJson<JSONObject> { put("hi", true) } }
-
-    T::class.members
-      .filter { it.hasAnnotation<Route>() }
-      .forEach { meth ->
-
-        val contextParam = meth.valueParameters.firstOrNull {
-          it.type.classifier?.equals(PipelineContext::class) == true
-        }
-
-        require(contextParam != null) {
-          "Each operation handler must have a context parameter."
-        }
-
-        val route = meth.findAnnotation<Route>()!!
-
-        routing.route(route.path, HttpMethod(route.method.toUpperCase())) {
-          handle {
-            if (route.authenticated && !ObsidianConfig.validateAuth(context.request.authorization())) {
-              return@handle context.respondJson<JSONObject> {
-                put("success", false)
-                put("message", "invalid authentication")
-              }
-            }
-
-            val args = hashMapOf<KParameter, Any>(contextParam to this)
-            meth.instanceParameter?.let { args[it] = MagmaRoutes }
-            meth.callSuspendBy(args)
-          }
+      get("/") {
+        context.respondJson<JSONObject> {
+          put("message", "hi")
         }
       }
+
+      get("/stats") {
+        context.respondJson(Stats.build())
+      }
+    }
+
+    Tracks(routing)
   }
 
   /**
@@ -111,7 +90,7 @@ class Magma {
     try {
       client.listen()
     } catch (ex: Throwable) {
-      session.close(io.ktor.http.cio.websocket.CloseReason(4005, ex.message ?: "Unknown Error"))
+      session.close(CloseReason(4005, ex.message ?: "Unknown Error"))
     }
 
     client.shutdown()
@@ -121,18 +100,16 @@ class Magma {
   suspend fun shutdown() {
     if (clients.isNotEmpty()) {
       logger.info("Shutting down ${clients.size} clients.")
-
-      clients.forEach { (_, l) ->
-        l.shutdown()
+      for ((_, client) in clients) {
+        client.shutdown()
       }
     } else {
       logger.info("No clients to shutdown.")
     }
   }
 
-  annotation class Route(val path: String, val method: String = "Get", val authenticated: Boolean = false)
-
   companion object {
+    val magma: Magma by lazy { Magma() }
     private val logger = LoggerFactory.getLogger(Magma::class.java)
   }
 }

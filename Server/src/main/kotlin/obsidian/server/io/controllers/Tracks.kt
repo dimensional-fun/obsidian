@@ -16,13 +16,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package obsidian.server.io
+package obsidian.server.io.controllers
 
-import io.ktor.application.*
-import io.ktor.http.*
-import io.ktor.util.pipeline.*
+import com.sedmelluq.discord.lavaplayer.track.AudioTrack
+import io.ktor.locations.*
+import io.ktor.routing.*
 import kotlinx.coroutines.future.await
-import obsidian.server.Obsidian.playerManager
+import obsidian.server.Obsidian
 import obsidian.server.io.search.AudioLoader
 import obsidian.server.io.search.LoadType
 import obsidian.server.util.TrackUtil
@@ -33,40 +33,24 @@ import org.json.JSONObject
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
-object MagmaRoutes {
-  private val logger: Logger = LoggerFactory.getLogger(MagmaRoutes::class.java)
-
-  @Magma.Route("/loadtracks", authenticated = true)
-  suspend fun loadTracks(pipeline: PC) {
-    val identifier = pipeline.context.request.queryParameters["identifier"]
-      ?: return pipeline.context.respondJson<JSONObject>(status = HttpStatusCode.BadRequest) {
-        put("success", false)
-        put("message", "Empty \"identifier\" query parameter.")
+class Tracks(routing: Routing) {
+  init {
+    routing {
+      get<LoadTracks> { data ->
+        context.respondJson(loadTracks(data.identifier))
       }
+    }
+  }
 
-    val result = AudioLoader(playerManager)
+  private suspend fun loadTracks(identifier: String): JSONObject {
+    val result = AudioLoader(Obsidian.playerManager)
       .load(identifier)
       .await()
 
-    val json = buildJson<JSONObject> {
+    return buildJson {
       put("tracks", buildJson<JSONArray> {
-        result.tracks.forEach { track ->
-          val obj = buildJson<JSONObject> {
-            put("track", TrackUtil.encode(track))
-            put("info", buildJson<JSONObject> {
-              put("title", track.info.title)
-              put("source", track.sourceManager.sourceName)
-              put("author", track.info.author)
-              put("length", track.info.length)
-              put("identifier", track.info.identifier)
-              put("uri", track.info.uri)
-              put("is_stream", track.info.isStream)
-              put("is_seekable", track.isSeekable)
-              put("position", track.position)
-            })
-          }
-
-          put(obj)
+        for (track in result.tracks.map(::encodeTrack)) {
+          put(track)
         }
       })
 
@@ -86,9 +70,27 @@ object MagmaRoutes {
         logger.error("Track loading failed", result.exception)
       }
     }
+  }
 
-    pipeline.context.respondJson(json)
+  @Location("/loadtracks")
+  data class LoadTracks(val identifier: String)
+
+  companion object {
+    private val logger: Logger = LoggerFactory.getLogger(Tracks::class.java)
+
+    fun encodeTrack(track: AudioTrack): JSONObject = buildJson {
+      put("track", TrackUtil.encode(track))
+      put("info", buildJson<JSONObject> {
+        put("title", track.info.title)
+        put("source", track.sourceManager.sourceName)
+        put("author", track.info.author)
+        put("length", track.info.length)
+        put("identifier", track.info.identifier)
+        put("uri", track.info.uri)
+        put("is_stream", track.info.isStream)
+        put("is_seekable", track.isSeekable)
+        put("position", track.position)
+      })
+    }
   }
 }
-
-typealias PC = PipelineContext<Unit, ApplicationCall>

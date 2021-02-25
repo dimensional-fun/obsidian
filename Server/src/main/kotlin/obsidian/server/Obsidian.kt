@@ -27,6 +27,7 @@ import ch.qos.logback.core.rolling.TimeBasedRollingPolicy
 import com.uchuhimo.konf.Config
 import com.uchuhimo.konf.source.yaml
 import io.ktor.application.*
+import io.ktor.locations.*
 import io.ktor.metrics.micrometer.*
 import io.ktor.routing.*
 import io.ktor.server.cio.*
@@ -36,7 +37,7 @@ import io.micrometer.prometheus.PrometheusConfig
 import io.micrometer.prometheus.PrometheusMeterRegistry
 import kotlinx.coroutines.runBlocking
 import obsidian.bedrock.Bedrock
-import obsidian.server.io.Magma
+import obsidian.server.io.Magma.Companion.magma
 import obsidian.server.player.ObsidianPlayerManager
 import obsidian.server.util.config.LoggingConfig
 import obsidian.server.util.config.ObsidianConfig
@@ -54,7 +55,6 @@ object Obsidian {
 
   val metricRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
   val playerManager = ObsidianPlayerManager()
-  val magma = Magma()
 
   @JvmStatic
   fun main(args: Array<String>) {
@@ -77,13 +77,13 @@ object Obsidian {
     rootLogger.level = Level.toLevel(config[LoggingConfig.Level])
 
     val server = embeddedServer(CIO, host = config[ObsidianConfig.Host], port = config[ObsidianConfig.Port]) {
+      install(Locations)
       install(WebSockets)
-      install(Routing)
-      install(MicrometerMetrics) {
-        registry = metricRegistry
-      }
+      install(MicrometerMetrics) { registry = metricRegistry }
 
-      routing(magma::use)
+      routing {
+        magma.use(this)
+      }
     }
 
     server.start(wait = true)
