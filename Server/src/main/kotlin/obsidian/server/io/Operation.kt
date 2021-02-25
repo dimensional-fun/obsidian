@@ -30,7 +30,6 @@ import kotlinx.serialization.json.JsonObject
 import obsidian.server.player.filter.impl.EqualizerFilter
 import obsidian.server.player.filter.impl.TimescaleFilter
 import obsidian.server.player.filter.impl.TremoloFilter
-import obsidian.server.player.filter.impl.VolumeFilter
 
 sealed class Operation {
   companion object : DeserializationStrategy<Operation?> {
@@ -58,11 +57,12 @@ sealed class Operation {
 
             1 ->
               data = when (op) {
-                Op.SUBMIT_VOICE_UPDATE -> decode(SubmitVoiceUpdate.serializer())
-                Op.PLAY_TRACK -> decode(PlayTrack.serializer())
-                Op.STOP_TRACK -> decode(StopTrack.serializer())
-                Op.PAUSE -> decode(Pause.serializer())
-                Op.FILTERS -> decode(Filters.serializer())
+                Op.SubmitVoiceUpdate -> decode(SubmitVoiceUpdate.serializer())
+                Op.PlayTrack -> decode(PlayTrack.serializer())
+                Op.StopTrack -> decode(StopTrack.serializer())
+                Op.Pause -> decode(Pause.serializer())
+                Op.Filters -> decode(Filters.serializer())
+                Op.Seek -> decode(Seek.serializer())
 
                 else -> if (data == null) {
                   val element = decodeNullableSerializableElement(descriptor, idx, JsonElement.serializer().nullable)
@@ -138,4 +138,11 @@ data class Filters(
   val tremolo: TremoloFilter? = null,
   val equalizer: EqualizerFilter? = null,
   val timescale: TimescaleFilter? = null
+) : Operation()
+
+@Serializable
+data class Seek(
+  @SerialName("guild_id")
+  val guildId: Long,
+  val position: Long
 ) : Operation()

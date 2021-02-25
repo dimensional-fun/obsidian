@@ -24,31 +24,33 @@ import com.sedmelluq.discord.lavaplayer.tools.FriendlyException
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason
 import kotlinx.coroutines.launch
-import obsidian.server.io.Op
-import obsidian.server.util.TrackUtil
-import obsidian.server.util.buildJson
-import org.json.JSONObject
+import obsidian.server.io.TrackEndEvent
+import obsidian.server.io.TrackExceptionEvent
+import obsidian.server.io.TrackStartEvent
+import obsidian.server.io.TrackStuckEvent
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 class PlayerEvents(private val link: Link) : AudioEventAdapter() {
   override fun onTrackEnd(player: AudioPlayer?, track: AudioTrack?, endReason: AudioTrackEndReason?) {
     link.client.launch {
-      link.client.send(Op.PLAYER_EVENT) {
-        put("guild_id", link.guildId.toString())
-        put("type", "TRACK_END")
-        put("track", track?.let { TrackUtil.encode(it) } ?: JSONObject.NULL)
-      }
+      val event = TrackEndEvent(
+        guildId = link.guildId,
+        track = track
+      )
+
+      link.client.send(event)
     }
   }
 
   override fun onTrackStart(player: AudioPlayer?, track: AudioTrack) {
     link.client.launch {
-      link.client.send(Op.PLAYER_EVENT) {
-        put("guild_id", link.guildId.toString())
-        put("type", "TRACK_START")
-        put("track", TrackUtil.encode(track))
-      }
+      val event = TrackStartEvent(
+        guildId = link.guildId,
+        track = track
+      )
+
+      link.client.send(event)
     }
   }
 
@@ -56,27 +58,29 @@ class PlayerEvents(private val link: Link) : AudioEventAdapter() {
     link.client.launch {
       logger.warn("${track?.info?.title} got stuck! Threshold surpassed: $thresholdMs");
 
-      link.client.send(Op.PLAYER_EVENT) {
-        put("guild_id", link.guildId.toString())
-        put("type", "TRACK_STUCK")
-        put("track", track?.let { TrackUtil.encode(it) } ?: JSONObject.NULL)
-        put("threshold_ms", thresholdMs)
-      }
+      val event = TrackStuckEvent(
+        guildId = link.guildId,
+        track = track,
+        thresholdMs = thresholdMs
+      )
+
+      link.client.send(event)
     }
   }
 
   override fun onTrackException(player: AudioPlayer?, track: AudioTrack?, exception: FriendlyException) {
     link.client.launch {
-      link.client.send(Op.PLAYER_EVENT) {
-        put("guild_id", link.guildId.toString())
-        put("type", "TRACK_EXCEPTION")
-        put("track", track?.let { TrackUtil.encode(it) } ?: JSONObject.NULL)
-        put("exception", buildJson<JSONObject> {
-          put("message", exception.message)
-          put("serverity", exception.severity)
-          put("cause", exception.rootCause)
-        })
-      }
+      val event = TrackExceptionEvent(
+        guildId = link.guildId,
+        track = track,
+        exception = TrackExceptionEvent.Exception(
+          message = exception.message,
+          severity = exception.severity,
+          cause = exception.rootCause.message
+        )
+      )
+
+      link.client.send(event)
     }
   }
 

@@ -33,13 +33,14 @@ import obsidian.bedrock.media.OpusAudioFrameProvider
 import obsidian.bedrock.util.Interval
 import obsidian.server.Obsidian.config
 import obsidian.server.Obsidian.playerManager
+import obsidian.server.io.CurrentTrack
+import obsidian.server.io.Frames
 import obsidian.server.io.MagmaClient
-import obsidian.server.io.Op
+import obsidian.server.io.PlayerUpdate
 import obsidian.server.player.filter.FilterChain
-import obsidian.server.util.config.ObsidianConfig
 import obsidian.server.util.TrackUtil
-import obsidian.server.util.buildJson
-import org.json.JSONObject
+import obsidian.server.util.config.ObsidianConfig
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.nio.ByteBuffer
 
@@ -54,23 +55,12 @@ class Link(
   val frameCounter = FrameLossCounter()
 
   /**
-   * The player update interval.
-   */
-  val playerUpdater = Interval()
-
-  /**
    * The lavaplayer filter.
    */
   val player: AudioPlayer = playerManager.createPlayer()
     .registerListener(this)
     .registerListener(frameCounter)
     .registerListener(PlayerEvents(this))
-
-  /**
-   * Whether the player is currently paused.
-   */
-  val paused: Boolean
-    get() = player.isPaused
 
   /**
    * Whether the player is currently playing a track.
@@ -87,67 +77,67 @@ class Link(
       field = value
     }
 
-  suspend fun play(track: AudioTrack) {
-    player.playTrack(track)
-    sendUpdate()
-  }
+  /**
+   * The player update interval.
+   */
+  private val playerUpdater = Interval()
 
   /**
-   * Stops the currently playing song.
+   * Plays the provided [track] and dispatches a Player Update
    */
-  fun stop() {
-    player.stopTrack()
+  suspend fun play(track: AudioTrack) {
+    player.playTrack(track)
+    dispatchUpdate()
   }
 
   /**
    * Used to start sending periodic player updates.
    */
   private suspend fun startPeriodicUpdates() {
-    playerUpdater.start(config[ObsidianConfig.PlayerUpdateInterval], ::sendUpdate)
+    playerUpdater.start(config[ObsidianConfig.PlayerUpdateInterval], ::dispatchUpdate)
   }
 
   /**
    * Sends a player update to the client.
    */
-  private suspend fun sendUpdate() {
-    client.send(Op.PLAYER_UPDATE) {
-      put("guild_id", guildId.toString())
+  private suspend fun dispatchUpdate() {
+    val currentTrack = CurrentTrack(
+      track = TrackUtil.encode(player.playingTrack),
+      paused = player.isPaused,
+      position = player.playingTrack.position
+    )
 
-      if (playing) {
-        put("track", buildJson<JSONObject> {
-          put("encoded", TrackUtil.encode(player.playingTrack))
-          put("position", player.playingTrack.position)
-          put("paused", paused)
-        })
-      } else {
-        put("track", JSONObject.NULL)
-      }
+    val frames = Frames(
+      sent = frameCounter.lastSuccess,
+      nulled = frameCounter.lastLoss,
+    )
 
-      put("frame_stats", buildJson<JSONObject> {
-        put("usable", frameCounter.dataUsable)
-        put("success", frameCounter.curSuccess)
-        put("loss", frameCounter.curLoss)
-      })
-    }
-  }
-
-  fun volume(volume: Int) {
-    player.volume = volume
-  }
-
-  fun pause(state: Boolean) {
-    player.isPaused = state;
+    client.send(
+      PlayerUpdate(
+        guildId = guildId,
+        currentTrack = currentTrack,
+        frames = frames
+      )
+    )
   }
 
   /**
    * Used to seek
    */
   fun seekTo(position: Long) {
-    if (player.playingTrack == null) {
-      throw error("Can't seek when not playing anything");
+    require(player.playingTrack != null) {
+      "A track must be playing in order to seek."
     }
 
-    player.playingTrack.position = position;
+    require(player.playingTrack.isSeekable) {
+      "The playing track is not seekable."
+    }
+
+    require(position in 0..player.playingTrack.duration) {
+      "The given position must be within 0 and the current playing track's duration."
+    }
+
+    player.playingTrack.position = position
   }
 
   /**
@@ -196,8 +186,6 @@ class Link(
   }
 
   companion object {
-    val logger = LoggerFactory.getLogger(Link::class.java)
-
     fun AudioPlayer.registerListener(listener: AudioEventListener): AudioPlayer {
       addListener(listener)
       return this

@@ -31,13 +31,11 @@ import obsidian.bedrock.BedrockEventAdapter
 import obsidian.bedrock.MediaConnection
 import obsidian.bedrock.VoiceServerInfo
 import obsidian.bedrock.gateway.AbstractMediaGatewayConnection.Companion.asFlow
-import obsidian.bedrock.gateway.MediaGatewayV4Connection.Companion.combineWith
 import obsidian.bedrock.util.Interval
 import obsidian.server.player.Link
 import obsidian.server.player.TrackEndMarkerHandler
 import obsidian.server.player.filter.FilterChain
 import obsidian.server.util.TrackUtil
-import obsidian.server.util.buildJson
 import org.json.JSONObject
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -66,6 +64,7 @@ class MagmaClient(
   private val jsonParser = Json {
     ignoreUnknownKeys = true
     isLenient = true
+    encodeDefaults = true
   }
 
   /**
@@ -88,20 +87,43 @@ class MagmaClient(
     }
 
     on<Filters> {
-      val link = links.computeIfAbsent(guildId) { Link(this@MagmaClient, guildId) }
+      val link = links.computeIfAbsent(guildId) {
+        Link(this@MagmaClient, guildId)
+      }
+
       link.filters = FilterChain.from(link, this)
     }
 
-    on<StopTrack> {
-      links[guildId]?.stop()
-    }
 
     on<Pause> {
-      links[guildId]?.player?.isPaused = state
+      val link = links.computeIfAbsent(guildId) {
+        Link(this@MagmaClient, guildId)
+      }
+
+      link.player.isPaused = state
+    }
+
+    on<Seek> {
+      val link = links.computeIfAbsent(guildId) {
+        Link(this@MagmaClient, guildId)
+      }
+
+      link.seekTo(position)
+    }
+
+    on<StopTrack> {
+      val link = links.computeIfAbsent(guildId) {
+        Link(this@MagmaClient, guildId)
+      }
+
+      link.player.stopTrack()
     }
 
     on<PlayTrack> {
-      val link = links.computeIfAbsent(guildId) { Link(this@MagmaClient, guildId) }
+      val link = links.computeIfAbsent(guildId) {
+        Link(this@MagmaClient, guildId)
+      }
+
       if (link.player.playingTrack != null && noReplace) {
         logger.info("Skipping PLAY_TRACK operation")
         return@on
@@ -134,18 +156,11 @@ class MagmaClient(
     session.incoming.asFlow().buffer(Channel.UNLIMITED)
       .collect {
         when (it) {
-          is Frame.Text -> dispatch(it)
+          is Frame.Text -> handleFrame(it)
           else -> { /* no-op */
           }
         }
       }
-  }
-
-  suspend fun send(op: Op, builder: JSONObject.() -> Unit = {}) {
-    send(buildJson<JSONObject> {
-      put("op", op.code)
-      put("d", JSONObject().apply(builder))
-    })
   }
 
   private inline fun <reified T : Operation> on(crossinline block: suspend T.() -> Unit) {
@@ -160,7 +175,12 @@ class MagmaClient(
       .launchIn(this)
   }
 
-  private suspend fun dispatch(frame: Frame.Text) {
+  /**
+   * Handles an incoming [Frame.Text].
+   *
+   * @param frame The received text frame, binary frames.
+   */
+  private suspend fun handleFrame(frame: Frame.Text) {
     val json = frame.readText()
     logger.trace("$clientId -> $json")
 
@@ -185,14 +205,19 @@ class MagmaClient(
    *
    * @param json The jason payload.
    */
-  private suspend fun send(json: JSONObject) {
-    session.send(Frame.Text(json.toString()))
-    logger.trace("$clientId <- ${json.getInt("op")}")
+  public suspend fun send(dispatch: Dispatch) {
+    val json = jsonParser.encodeToString(Dispatch.Companion, dispatch)
+
+    session.send(Frame.Text(json))
+    logger.trace("$clientId <- ${json}")
   }
 
   internal suspend fun shutdown() {
     logger.info("Shutting down ${links.size} links.")
-    links.forEach { (_, link) -> link.stop() }
+    for ((_, link) in links) {
+      link.player.stopTrack()
+    }
+
     bedrock.close()
   }
 
@@ -201,13 +226,14 @@ class MagmaClient(
     private var lastHeartbeatNonce: Long? = null
 
     override suspend fun gatewayClosed(code: Int, byRemote: Boolean, reason: String?) {
-      send(Op.PLAYER_EVENT) {
-        put("type", "WEBSOCKET_CLOSED")
-        put("guild_id", guildId.toString())
-        put("reason", reason)
-        put("code", code)
-        put("by_remote", byRemote)
-      }
+      send(
+        WebSocketClosedEvent(
+          guildId = guildId,
+          reason = reason,
+          code = code,
+          byRemote = byRemote
+        )
+      )
     }
 
     override suspend fun heartbeatAcknowledged(nonce: Long) {
@@ -231,9 +257,9 @@ class MagmaClient(
 
   @ObsoleteCoroutinesApi
   private suspend fun sendStats() {
-    send(Op.STATS) {
-      combineWith(Stats.build(this@MagmaClient))
-    }
+//    send(Op.STATS) {
+//      combineWith(Stats.build(this@MagmaClient))
+//    }
 
     if (!stats.started) {
       coroutineScope {
