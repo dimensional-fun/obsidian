@@ -35,8 +35,8 @@ data class EqualizerFilter(val bands: List<Band>) : Filter {
       return null
     }
 
-    val bands = FloatArray(15) {
-      bands[it].gain
+    val bands = FloatArray(15) { band ->
+      bands.find { it.band == band }?.gain ?: 0f
     }
 
     return Equalizer(format.channelCount, downstream, bands)
