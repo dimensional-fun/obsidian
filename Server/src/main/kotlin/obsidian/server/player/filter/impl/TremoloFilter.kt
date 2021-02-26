@@ -33,7 +33,7 @@ data class TremoloFilter(
   override val enabled: Boolean
     get() = isSet(frequency, 2f) || isSet(depth, 0.5f);
 
-  override fun build(format: AudioDataFormat, downstream: FloatPcmAudioFilter): FloatPcmAudioFilter {
+  init {
     require(depth <= 1 && depth > 0) {
       "'depth' must be greater than 0 and less than 1"
     }
@@ -41,9 +41,10 @@ data class TremoloFilter(
     require(frequency > 0) {
       "'frequency' must be greater than 0"
     }
+  }
 
-    return TremoloPcmAudioFilter(downstream, format.channelCount, format.sampleRate)
+  override fun build(format: AudioDataFormat, downstream: FloatPcmAudioFilter): FloatPcmAudioFilter =
+    TremoloPcmAudioFilter(downstream, format.channelCount, format.sampleRate)
       .setDepth(depth)
       .setFrequency(frequency)
-  }
 }

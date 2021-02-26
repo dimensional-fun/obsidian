@@ -27,22 +27,25 @@ import com.sedmelluq.discord.lavaplayer.format.AudioDataFormat
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import obsidian.server.io.Filters
 import obsidian.server.player.Link
-import obsidian.server.player.filter.impl.EqualizerFilter
-import obsidian.server.player.filter.impl.TimescaleFilter
-import obsidian.server.player.filter.impl.TremoloFilter
-import obsidian.server.player.filter.impl.VolumeFilter
+import obsidian.server.player.filter.impl.*
 
 class FilterChain(val link: Link) {
+  var channelMix: ChannelMixFilter? = null
   var equalizer: EqualizerFilter? = null
-  var volume: VolumeFilter? = null
+  var karaoke: KaraokeFilter? = null
+  var lowPass: LowPassFilter? = null
+  var rotation: RotationFilter? = null
   var timescale: TimescaleFilter? = null
   var tremolo: TremoloFilter? = null
+  var vibrato: VibratoFilter? = null
+  var volume: VolumeFilter? = null
+
 
   /**
    * All enabled filters.
    */
   val enabled: List<Filter>
-    get() = listOfNotNull(equalizer, volume, timescale, tremolo)
+    get() = listOfNotNull(channelMix, equalizer, karaoke, lowPass, rotation, timescale, tremolo, vibrato, volume)
 
   /**
    * Get the filter factory.
@@ -95,9 +98,18 @@ class FilterChain(val link: Link) {
 
     fun from(link: Link, filters: Filters): FilterChain {
       return FilterChain(link).apply {
-        filters.volume?.let { volume = VolumeFilter(it) }
-        timescale = filters.timescale
+        channelMix = filters.channelMix
         equalizer = filters.equalizer
+        karaoke = filters.karaoke
+        lowPass = filters.lowPass
+        rotation = filters.rotation
+        timescale = filters.timescale
+        tremolo = filters.tremolo
+        vibrato = filters.vibrato
+
+        filters.volume?.let {
+          volume = VolumeFilter(it)
+        }
       }
     }
   }

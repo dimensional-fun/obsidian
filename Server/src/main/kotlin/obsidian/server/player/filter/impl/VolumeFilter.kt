@@ -32,12 +32,13 @@ data class VolumeFilter(
   override val enabled: Boolean
     get() = isSet(volume, 1f)
 
-  override fun build(format: AudioDataFormat, downstream: FloatPcmAudioFilter): FloatPcmAudioFilter {
-    require(volume > 0 && volume <= 5) {
-      "'volume' must be greater than 0 and less than or equal to 5."
+  init {
+    require(volume in 0.0..5.0) {
+      "'volume' must be >= 0 and <= 5."
     }
-
-    return VolumePcmAudioFilter(downstream)
-      .setVolume(volume)
   }
+
+  override fun build(format: AudioDataFormat, downstream: FloatPcmAudioFilter): FloatPcmAudioFilter =
+    VolumePcmAudioFilter(downstream)
+      .setVolume(volume)
 }

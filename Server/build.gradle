@@ -45,17 +45,20 @@ dependencies {
 
   /* ktor */
 
-  // metrics
+  // Serialization
+  implementation "io.ktor:ktor-serialization:$ktorVersion"
+
+  // Metrics
   implementation "io.ktor:ktor-metrics-micrometer:$ktorVersion"
   implementation "io.micrometer:micrometer-registry-prometheus:latest.release"
 
-  // server shit
+  // Server
   implementation "io.ktor:ktor-server-core:$ktorVersion"
   implementation "io.ktor:ktor-websockets:$ktorVersion"
   implementation "io.ktor:ktor-server-cio:$ktorVersion"
   implementation "io.ktor:ktor-locations:$ktorVersion"
 
-  // client shit
+  // Client
   implementation "io.ktor:ktor-client-core:$ktorVersion"
   implementation "io.ktor:ktor-client-websockets:$ktorVersion"
   implementation "io.ktor:ktor-client-okhttp:$ktorVersion"
@@ -79,13 +82,14 @@ jar {
 compileJava.options.encoding = "UTF-8"
 
 compileKotlin {
-  sourceCompatibility = JavaVersion.VERSION_11
-  targetCompatibility = JavaVersion.VERSION_11
+  sourceCompatibility = JavaVersion.VERSION_13
+  targetCompatibility = JavaVersion.VERSION_13
 
   kotlinOptions {
-    jvmTarget = "11"
+    jvmTarget = "13"
     freeCompilerArgs += "-Xopt-in=kotlin.ExperimentalStdlibApi"
     freeCompilerArgs += "-Xopt-in=kotlinx.coroutines.ObsoleteCoroutinesApi"
+    freeCompilerArgs += "-Xopt-in=io.ktor.locations.KtorExperimentalLocationsAPI"
     freeCompilerArgs += "-Xinline-classes"
   }
 }

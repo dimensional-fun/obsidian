@@ -111,6 +111,11 @@ class MagmaClient(
       link.seekTo(position)
     }
 
+    on<Destroy> {
+      links[guildId]?.player?.stopTrack()
+      bedrock.destroyConnection(guildId)
+    }
+
     on<StopTrack> {
       val link = links.computeIfAbsent(guildId) {
         Link(this@MagmaClient, guildId)

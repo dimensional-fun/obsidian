@@ -27,9 +27,11 @@ import ch.qos.logback.core.rolling.TimeBasedRollingPolicy
 import com.uchuhimo.konf.Config
 import com.uchuhimo.konf.source.yaml
 import io.ktor.application.*
+import io.ktor.features.*
 import io.ktor.locations.*
 import io.ktor.metrics.micrometer.*
 import io.ktor.routing.*
+import io.ktor.serialization.*
 import io.ktor.server.cio.*
 import io.ktor.server.engine.*
 import io.ktor.websocket.*
@@ -78,8 +80,17 @@ object Obsidian {
 
     val server = embeddedServer(CIO, host = config[ObsidianConfig.Host], port = config[ObsidianConfig.Port]) {
       install(Locations)
+
       install(WebSockets)
-      install(MicrometerMetrics) { registry = metricRegistry }
+
+      install(MicrometerMetrics) {
+        registry = metricRegistry
+      }
+
+      @Suppress()
+      install(ContentNegotiation) {
+        json()
+      }
 
       routing {
         magma.use(this)

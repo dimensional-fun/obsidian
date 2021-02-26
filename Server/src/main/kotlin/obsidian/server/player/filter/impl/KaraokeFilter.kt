@@ -18,45 +18,27 @@
 
 package obsidian.server.player.filter.impl
 
-import com.github.natanbc.lavadsp.timescale.TimescalePcmAudioFilter
+import com.github.natanbc.lavadsp.karaoke.KaraokePcmAudioFilter
 import com.sedmelluq.discord.lavaplayer.filter.FloatPcmAudioFilter
 import com.sedmelluq.discord.lavaplayer.format.AudioDataFormat
 import kotlinx.serialization.Serializable
 import obsidian.server.player.filter.Filter
-import obsidian.server.player.filter.Filter.Companion.isSet
-import obsidian.server.player.filter.FilterChain
 
 @Serializable
-data class TimescaleFilter(
-  val pitch: Float = 1f,
-  val speed: Float = 1f,
-  val rate: Float = 1f
+data class KaraokeFilter(
+  val level: Float,
+  val monoLevel: Float,
+  val filterBand: Float,
+  val filterWidth: Float,
 ) : Filter {
   override val enabled: Boolean
-    get() =
-      FilterChain.TIMESCALE_ENABLED
-        && (isSet(pitch, 1f)
-        || isSet(speed, 1f)
-        || isSet(rate, 1f))
-
-  init {
-    require(speed > 0) {
-      "'speed' must be greater than 0"
-    }
-
-    require(rate > 0) {
-      "'rate' must be greater than 0"
-    }
-
-    require(pitch > 0) {
-      "'pitch' must be greater than 0"
-    }
-  }
+    get() = Filter.isSet(level, 1f) || Filter.isSet(monoLevel, 1f)
+      || Filter.isSet(filterBand, 220f) || Filter.isSet(filterWidth, 100f)
 
   override fun build(format: AudioDataFormat, downstream: FloatPcmAudioFilter): FloatPcmAudioFilter =
-    TimescalePcmAudioFilter(downstream, format.channelCount, format.sampleRate)
-      .setPitch(pitch.toDouble())
-      .setRate(rate.toDouble())
-      .setSpeed(speed.toDouble())
+    KaraokePcmAudioFilter(downstream, format.channelCount, format.sampleRate)
+      .setLevel(level)
+      .setMonoLevel(monoLevel)
+      .setFilterBand(filterBand)
+      .setFilterWidth(filterWidth)
 }
-

@@ -105,7 +105,7 @@ data class CurrentTrack(
 
 @Serializable
 data class Frames(
-  val nulled: Int,
+  val lost: Int,
   val sent: Int
 )
 

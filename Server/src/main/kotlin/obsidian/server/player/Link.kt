@@ -40,8 +40,6 @@ import obsidian.server.io.PlayerUpdate
 import obsidian.server.player.filter.FilterChain
 import obsidian.server.util.TrackUtil
 import obsidian.server.util.config.ObsidianConfig
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import java.nio.ByteBuffer
 
 class Link(
@@ -109,7 +107,7 @@ class Link(
 
     val frames = Frames(
       sent = frameCounter.lastSuccess,
-      nulled = frameCounter.lastLoss,
+      lost = frameCounter.lastLoss,
     )
 
     client.send(

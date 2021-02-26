@@ -1,0 +1,20 @@
+### /decodetracks multiple
+
+POST http://localhost:3030/decodetracks
+Content-Type: application/json
+
+{
+  "tracks": [
+    "QAAAigIAKkhhbHNleSwgRG9taW5pYyBGaWtlIC0gRG9taW5pYydzIEludGVybHVkZQAGSGFsc2V5AAAAAAABZ2AAC1BiS05sOHBPVlRFAAEAK2h0dHBzOi8vd3d3LnlvdXR1YmUuY29tL3dhdGNoP3Y9UGJLTmw4cE9WVEUAB3lvdXR1YmUAAAAAAAAAAA==",
+    "QAAAagIABGRhcmsADGJsb29keSB3aGl0ZQAAAAAAAW8wAAthSjFOS0NST1pDcwABACtodHRwczovL3d3dy55b3V0dWJlLmNvbS93YXRjaD92PWFKMU5LQ1JPWkNzAAd5b3V0dWJlAAAAAAAAAAA="
+  ]
+}
+
+### /decodetracks single
+
+POST http://localhost:3030/decodetracks
+Content-Type: application/json
+
+{
+  "tracks": "QAAAagIABGRhcmsADGJsb29keSB3aGl0ZQAAAAAAAW8wAAthSjFOS0NST1pDcwABACtodHRwczovL3d3dy55b3V0dWJlLmNvbS93YXRjaD92PWFKMU5LQ1JPWkNzAAd5b3V0dWJlAAAAAAAAAAA="
+}

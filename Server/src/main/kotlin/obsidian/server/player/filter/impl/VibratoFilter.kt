@@ -18,45 +18,36 @@
 
 package obsidian.server.player.filter.impl
 
-import com.github.natanbc.lavadsp.timescale.TimescalePcmAudioFilter
+import com.github.natanbc.lavadsp.vibrato.VibratoPcmAudioFilter
 import com.sedmelluq.discord.lavaplayer.filter.FloatPcmAudioFilter
 import com.sedmelluq.discord.lavaplayer.format.AudioDataFormat
 import kotlinx.serialization.Serializable
 import obsidian.server.player.filter.Filter
-import obsidian.server.player.filter.Filter.Companion.isSet
-import obsidian.server.player.filter.FilterChain
 
 @Serializable
-data class TimescaleFilter(
-  val pitch: Float = 1f,
-  val speed: Float = 1f,
-  val rate: Float = 1f
+data class VibratoFilter(
+  val frequency: Float = 2f,
+  val depth: Float = .5f
 ) : Filter {
   override val enabled: Boolean
-    get() =
-      FilterChain.TIMESCALE_ENABLED
-        && (isSet(pitch, 1f)
-        || isSet(speed, 1f)
-        || isSet(rate, 1f))
+    get() = Filter.isSet(frequency, 2f) || Filter.isSet(depth, 0.5f)
 
   init {
-    require(speed > 0) {
-      "'speed' must be greater than 0"
+    require(depth > 0 && depth < 1) {
+      "'depth' must be greater than 0 and less than 1."
     }
 
-    require(rate > 0) {
-      "'rate' must be greater than 0"
-    }
-
-    require(pitch > 0) {
-      "'pitch' must be greater than 0"
+    require(frequency > 0 && frequency < VIBRATO_FREQUENCY_MAX_HZ) {
+      "'frequency' must be greater than 0 and less than $VIBRATO_FREQUENCY_MAX_HZ"
     }
   }
 
   override fun build(format: AudioDataFormat, downstream: FloatPcmAudioFilter): FloatPcmAudioFilter =
-    TimescalePcmAudioFilter(downstream, format.channelCount, format.sampleRate)
-      .setPitch(pitch.toDouble())
-      .setRate(rate.toDouble())
-      .setSpeed(speed.toDouble())
-}
+    VibratoPcmAudioFilter(downstream, format.channelCount, format.sampleRate)
+      .setFrequency(frequency)
+      .setDepth(depth)
 
+  companion object {
+    private const val VIBRATO_FREQUENCY_MAX_HZ = 14f
+  }
+}

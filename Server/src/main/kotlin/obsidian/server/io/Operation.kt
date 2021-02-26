@@ -19,7 +19,6 @@
 package obsidian.server.io
 
 import kotlinx.serialization.*
-import kotlinx.serialization.builtins.LongAsStringSerializer
 import kotlinx.serialization.builtins.nullable
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.buildClassSerialDescriptor
@@ -27,9 +26,7 @@ import kotlinx.serialization.encoding.CompositeDecoder
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import obsidian.server.player.filter.impl.EqualizerFilter
-import obsidian.server.player.filter.impl.TimescaleFilter
-import obsidian.server.player.filter.impl.TremoloFilter
+import obsidian.server.player.filter.impl.*
 
 sealed class Operation {
   companion object : DeserializationStrategy<Operation?> {
@@ -63,6 +60,7 @@ sealed class Operation {
                 Op.Pause -> decode(Pause.serializer())
                 Op.Filters -> decode(Filters.serializer())
                 Op.Seek -> decode(Seek.serializer())
+                Op.Destroy -> decode(Destroy.serializer())
 
                 else -> if (data == null) {
                   val element = decodeNullableSerializableElement(descriptor, idx, JsonElement.serializer().nullable)
@@ -86,7 +84,6 @@ sealed class Operation {
 data class PlayTrack(
   val track: String,
 
-  @Serializable(with = LongAsStringSerializer::class)
   @SerialName("guild_id")
   val guildId: Long,
 
@@ -101,18 +98,13 @@ data class PlayTrack(
 ) : Operation()
 
 @Serializable
-data class StopTrack(
-  @Serializable(with = LongAsStringSerializer::class)
-  val guildId: Long
-
-) : Operation()
+data class StopTrack(@SerialName("guild_id") val guildId: Long) : Operation()
 
 @Serializable
 data class SubmitVoiceUpdate(
   val endpoint: String,
   val token: String,
 
-  @Serializable(with = LongAsStringSerializer::class)
   @SerialName("guild_id")
   val guildId: Long,
 
@@ -122,7 +114,6 @@ data class SubmitVoiceUpdate(
 
 @Serializable
 data class Pause(
-  @Serializable(with = LongAsStringSerializer::class)
   @SerialName("guild_id")
   val guildId: Long,
   val state: Boolean = true
@@ -130,14 +121,18 @@ data class Pause(
 
 @Serializable
 data class Filters(
-  @Serializable(with = LongAsStringSerializer::class)
   @SerialName("guild_id")
   val guildId: Long,
 
   val volume: Float? = null,
   val tremolo: TremoloFilter? = null,
   val equalizer: EqualizerFilter? = null,
-  val timescale: TimescaleFilter? = null
+  val timescale: TimescaleFilter? = null,
+  val karaoke: KaraokeFilter? = null,
+  val channelMix: ChannelMixFilter? = null,
+  val vibrato: VibratoFilter? = null,
+  val rotation: RotationFilter? = null,
+  val lowPass: LowPassFilter? = null
 ) : Operation()
 
 @Serializable
@@ -146,3 +141,6 @@ data class Seek(
   val guildId: Long,
   val position: Long
 ) : Operation()
+
+@Serializable
+data class Destroy(@SerialName("guild_id") val guildId: Long) : Operation()

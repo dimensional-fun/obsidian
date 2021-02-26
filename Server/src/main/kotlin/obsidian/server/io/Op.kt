@@ -43,7 +43,8 @@ enum class Op(val code: Int) {
   StopTrack(5),
   Pause(6),
   Filters(7),
-  Seek(8);
+  Seek(8),
+  Destroy(9);
 
   companion object Serializer : KSerializer<Op> {
     /**
