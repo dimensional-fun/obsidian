@@ -20,6 +20,7 @@ package obsidian.server.io
 
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
+import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -162,7 +163,10 @@ data class TrackEndEvent(
   override val guildId: Long,
 
   @Serializable(with = AudioTrackSerializer::class)
-  val track: AudioTrack?
+  val track: AudioTrack?,
+
+  @SerialName("reason")
+  val endReason: AudioTrackEndReason
 ) : PlayerEvent() {
   override val type: PlayerEventType = PlayerEventType.TRACK_END
 }

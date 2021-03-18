@@ -32,11 +32,12 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 class PlayerEvents(private val link: Link) : AudioEventAdapter() {
-  override fun onTrackEnd(player: AudioPlayer?, track: AudioTrack?, endReason: AudioTrackEndReason?) {
+  override fun onTrackEnd(player: AudioPlayer?, track: AudioTrack?, endReason: AudioTrackEndReason) {
     link.client.launch {
       val event = TrackEndEvent(
         guildId = link.guildId,
-        track = track
+        track = track,
+        endReason = endReason
       )
 
       link.client.send(event)

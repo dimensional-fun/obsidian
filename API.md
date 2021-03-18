@@ -205,13 +205,21 @@ Dispatched when a track ends
 ---
 
 - `track` the track that had ended
+- `reason` Reason for why the track had ended
 
 ```json
 {
   ...
-  "track": "..."
+  "track": "...",
+  "reason": "REPLACED"
 }
 ```
+
+**End Reasons**
+
+- `STOPPED`, `REPLACED`, `CLEANUP`, `LOAD_FAILED`, `FINISHED`
+
+For more information visit [**AudioTrackEndReason.java**](https://github.com/sedmelluq/lavaplayer/blob/master/main/src/main/java/com/sedmelluq/discord/lavaplayer/track/AudioTrackEndReason.java)
 
 ##### `TRACK_STUCK`
 
@@ -230,8 +238,7 @@ dispatched when track playback is stuck
 }
 ```
 
-- [**
-  Lavaplayer**](https://github.com/sedmelluq/lavaplayer/blob/bec39953a037b318663fad76873fbab9ce13c033/main/src/main/java/com/sedmelluq/discord/lavaplayer/player/event/TrackStuckEvent.java)
+- [**Lavaplayer**](https://github.com/sedmelluq/lavaplayer/blob/bec39953a037b318663fad76873fbab9ce13c033/main/src/main/java/com/sedmelluq/discord/lavaplayer/player/event/TrackStuckEvent.java)
 
 ##### `TRACK_EXCEPTION`
 
