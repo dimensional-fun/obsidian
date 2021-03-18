@@ -21,7 +21,7 @@ package obsidian.bedrock.handler
 import io.ktor.util.network.*
 import io.netty.buffer.ByteBuf
 import obsidian.bedrock.codec.Codec
-import org.json.JSONObject
+import obsidian.bedrock.gateway.event.SessionDescription
 import java.io.Closeable
 
 /**
@@ -36,7 +36,7 @@ interface ConnectionHandler : Closeable {
    *
    * @param data The session description data.
    */
-  suspend fun handleSessionDescription(data: JSONObject)
+  suspend fun handleSessionDescription(data: SessionDescription)
 
   /**
    * Connects to the Discord UDP Socket.
@@ -44,10 +44,6 @@ interface ConnectionHandler : Closeable {
    * @return Our external network address.
    */
   suspend fun connect(): NetworkAddress
-
-  suspend fun sendFrame(codec: Codec, timestamp: Int, data: ByteBuf, start: Int) {
-    sendFrame(codec.payloadType, timestamp, data, start, false)
-  }
 
   suspend fun sendFrame(payloadType: Byte, timestamp: Int, data: ByteBuf, start: Int, extension: Boolean)
 }

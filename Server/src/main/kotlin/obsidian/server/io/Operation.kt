@@ -98,7 +98,10 @@ data class PlayTrack(
 ) : Operation()
 
 @Serializable
-data class StopTrack(@SerialName("guild_id") val guildId: Long) : Operation()
+data class StopTrack(
+  @SerialName("guild_id")
+  val guildId: Long
+) : Operation()
 
 @Serializable
 data class SubmitVoiceUpdate(
@@ -129,9 +132,11 @@ data class Filters(
   val equalizer: EqualizerFilter? = null,
   val timescale: TimescaleFilter? = null,
   val karaoke: KaraokeFilter? = null,
+  @SerialName("channel_mix")
   val channelMix: ChannelMixFilter? = null,
   val vibrato: VibratoFilter? = null,
   val rotation: RotationFilter? = null,
+  @SerialName("low_pass")
   val lowPass: LowPassFilter? = null
 ) : Operation()
 

@@ -18,8 +18,7 @@
 
 package obsidian.bedrock.codec
 
-import obsidian.server.util.buildJson
-import org.json.JSONObject
+import obsidian.bedrock.gateway.event.CodecDescription
 
 class OpusCodec : Codec() {
   override val name = "opus"
@@ -28,12 +27,12 @@ class OpusCodec : Codec() {
 
   override val payloadType: Byte = PAYLOAD_TYPE
 
-  override val jsonDescription: JSONObject = buildJson {
-    put("name", name)
-    put("payload_type", payloadType)
-    put("priority", priority)
-    put("type", "audio")
-  }
+  override val description = CodecDescription(
+    name = name,
+    payloadType = payloadType,
+    priority = priority,
+    type = CodecType.AUDIO
+  )
 
   companion object {
     /**

@@ -16,35 +16,32 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package obsidian.server.io
+package obsidian.bedrock.gateway.event
 
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 
-@Serializable(with = Op.Serializer::class)
 enum class Op(val code: Int) {
   Unknown(Int.MIN_VALUE),
-  SubmitVoiceUpdate(0),
 
-  // obsidian related.
-  Stats(1),
+  // sent
+  Identify(0),
+  SelectProtocol(1),
+  Heartbeat(3),
+  Speaking(5),
 
-  // player information.
-  PlayerEvent(2),
-  PlayerUpdate(3),
+  // received & sent
+  ClientConnect(12),
 
-  // player control.
-  PlayTrack(4),
-  StopTrack(5),
-  Pause(6),
-  Filters(7),
-  Seek(8),
-  Destroy(9);
+  // received
+  Ready(2),
+  SessionDescription(4),
+  HeartbeatAck(6),
+  Hello(8);
 
   companion object Serializer : KSerializer<Op> {
     /**
@@ -53,7 +50,7 @@ enum class Op(val code: Int) {
      * @param code The operation code.
      */
     operator fun get(code: Int): Op? =
-      values().firstOrNull { it.code == code }
+      values().find { it.code == code }
 
     override val descriptor: SerialDescriptor
       get() = PrimitiveSerialDescriptor("op", PrimitiveKind.INT)
@@ -64,5 +61,4 @@ enum class Op(val code: Int) {
     override fun serialize(encoder: Encoder, value: Op) =
       encoder.encodeInt(value.code)
   }
-
 }

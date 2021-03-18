@@ -27,9 +27,9 @@ import obsidian.bedrock.Bedrock
 import obsidian.bedrock.MediaConnection
 import obsidian.bedrock.codec.Codec
 import obsidian.bedrock.crypto.EncryptionMode
+import obsidian.bedrock.gateway.event.SessionDescription
 import obsidian.bedrock.util.NettyBootstrapFactory
 import obsidian.bedrock.util.writeV2
-import org.json.JSONObject
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.Closeable
@@ -73,14 +73,12 @@ class DiscordUDPConnection(
     }
   }
 
-  override suspend fun handleSessionDescription(sessionDescription: JSONObject) {
-    val mode = sessionDescription.getString("mode")
-    val audioCodecName = sessionDescription.getString("audio_codec")
-    encryptionMode = EncryptionMode[mode]
+  override suspend fun handleSessionDescription(data: SessionDescription) {
+    encryptionMode = EncryptionMode[data.mode]
 
-    val audioCodec = Codec.getAudio(audioCodecName)
-    if (audioCodecName != null && audioCodec == null) {
-      logger.warn("Unsupported audio codec type: {}, no audio data will be polled", audioCodecName)
+    val audioCodec = Codec.getAudio(data.audioCodec)
+    if (audioCodec == null) {
+      logger.warn("Unsupported audio codec type: {}, no audio data will be polled", data.audioCodec)
     }
 
     checkNotNull(encryptionMode) {
@@ -88,11 +86,8 @@ class DiscordUDPConnection(
         "protocol changed! Open an issue!"
     }
 
-    val keyArray = sessionDescription.getJSONArray("secret_key")
-    secretKey = ByteArray(keyArray.length())
-
-    for (i in secretKey!!.indices) {
-      secretKey!![i] = (keyArray.getInt(i) and 0xff).toByte()
+    secretKey = ByteArray(data.secretKey.size) { idx ->
+      (data.secretKey[idx] and 0xff).toByte()
     }
 
     connection.startFramePolling()

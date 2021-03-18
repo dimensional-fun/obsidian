@@ -29,8 +29,12 @@ import obsidian.server.player.filter.FilterChain
 @Serializable
 data class TimescaleFilter(
   val pitch: Float = 1f,
+  val pitchOctaves: Float? = null,
+  val pitchSemiTones: Float? = null,
   val speed: Float = 1f,
-  val rate: Float = 1f
+  val speedChange: Float? = null,
+  val rate: Float = 1f,
+  val rateChange: Float? = null,
 ) : Filter {
   override val enabled: Boolean
     get() =
@@ -51,12 +55,43 @@ data class TimescaleFilter(
     require(pitch > 0) {
       "'pitch' must be greater than 0"
     }
+
+    if (pitchOctaves != null) {
+      require(!isSet(pitch, 1.0F) && pitchSemiTones == null) {
+        "'pitchOctaves' cannot be used in conjunction with 'pitch' and 'pitchSemiTones'"
+      }
+    }
+
+    if (pitchSemiTones != null) {
+      require(!isSet(pitch, 1.0F) && pitchOctaves == null) {
+        "'pitchOctaves' cannot be used in conjunction with 'pitch' and 'pitchSemiTones'"
+      }
+    }
+
+    if (speedChange != null) {
+      require(!isSet(speed, 1.0F)) {
+        "'speedChange' cannot be used in conjunction with 'speed'"
+      }
+    }
+
+    if (rateChange != null) {
+      require(!isSet(rate, 1.0F)) {
+        "'rateChange' cannot be used in conjunction with 'rate'"
+      }
+    }
   }
 
   override fun build(format: AudioDataFormat, downstream: FloatPcmAudioFilter): FloatPcmAudioFilter =
-    TimescalePcmAudioFilter(downstream, format.channelCount, format.sampleRate)
-      .setPitch(pitch.toDouble())
-      .setRate(rate.toDouble())
-      .setSpeed(speed.toDouble())
+    TimescalePcmAudioFilter(downstream, format.channelCount, format.sampleRate).also { af ->
+      af.pitch = pitch.toDouble()
+      af.rate = rate.toDouble()
+      af.speed = speed.toDouble()
+
+      this.pitchOctaves?.let { af.setPitchOctaves(it.toDouble()) }
+      this.pitchSemiTones?.let { af.setPitchSemiTones(it.toDouble()) }
+      this.speedChange?.let { af.setSpeedChange(it.toDouble()) }
+      this.rateChange?.let { af.setRateChange(it.toDouble()) }
+    }
+
 }
 

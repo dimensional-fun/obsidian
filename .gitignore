@@ -1,12 +1,16 @@
 .gradle/
 .idea/
+.settings/
 
-logs/
-build/
-Server/build/
-js-test/
+/logs/
+/build/
+/test/
+/target/
+/Server/build
 
 .obsidianrc
+*.iml
 *.jar
-application.yml
-/js-test/
+
+.project
+.classpath

@@ -24,11 +24,9 @@ import obsidian.bedrock.MediaConnection
 import obsidian.bedrock.VoiceServerInfo
 import obsidian.bedrock.codec.OpusCodec
 import obsidian.bedrock.crypto.EncryptionMode
+import obsidian.bedrock.gateway.event.*
 import obsidian.bedrock.handler.DiscordUDPConnection
 import obsidian.bedrock.util.Interval
-import obsidian.server.util.buildJson
-import org.json.JSONArray
-import org.json.JSONObject
 import java.util.*
 
 @ObsoleteCoroutinesApi
@@ -44,45 +42,37 @@ class MediaGatewayV4Connection(
   private lateinit var encryptionModes: List<String>
 
   init {
-    on(Op.HELLO) {
-      val heartbeatInterval = it.getJSONObject("d")
-        .getLong("heartbeat_interval")
-
+    on<Hello> {
       logger.debug("Received HELLO, heartbeat interval: $heartbeatInterval")
       startHeartbeating(heartbeatInterval)
     }
 
-    on(Op.READY) {
-      val data = it.getJSONObject("d")
-
-      ssrc = data.getInt("ssrc")
-      address = NetworkAddress(data.getString("ip"), data.getInt("port"))
-      encryptionModes = data.getJSONArray("modes").toList().map(Any::toString)
-
+    on<Ready> {
       logger.debug("Received READY, ssrc: $ssrc")
+
+      // update state
+      this@MediaGatewayV4Connection.ssrc = ssrc
+      address = NetworkAddress(ip, port)
+      encryptionModes = modes
 
       mediaConnection.eventDispatcher.gatewayReady(address!!, ssrc)
       selectProtocol("udp")
     }
 
-    on(Op.SESSION_DESCRIPTION) {
-      val data = it.getJSONObject("d")
+    on<HeartbeatAck> {
+      mediaConnection.eventDispatcher.heartbeatAcknowledged(nonce)
+    }
+
+    on<SessionDescription> {
       if (mediaConnection.connectionHandler != null) {
-        mediaConnection.eventDispatcher.sessionDescription(data)
-        mediaConnection.connectionHandler?.handleSessionDescription(data)
+        mediaConnection.connectionHandler?.handleSessionDescription(this)
       } else {
         logger.warn("Received session description before protocol selection? (connection id = $rtcConnectionId)")
       }
     }
 
-    on(Op.CLIENT_CONNECT) {
-      val data = it.getJSONObject("d")
-      val user = data.getString("user_id")
-      val audioSsrc = data.optInt("audio_ssrc", 0)
-      val videoSsrc = data.optInt("video_ssrc", 0)
-      val rtxSsrc = data.optInt("rtx_ssrc", 0)
-
-      mediaConnection.eventDispatcher.userConnected(user, audioSsrc, videoSsrc, rtxSsrc)
+    on<ClientConnect> {
+      mediaConnection.eventDispatcher.userConnected(userId, audioSsrc, videoSsrc, rtxSsrc)
     }
   }
 
@@ -104,27 +94,23 @@ class MediaGatewayV4Connection(
         val externalAddress = connection.connect()
 
         logger.debug("Connected, our external address is '$externalAddress'")
-        mediaConnection.eventDispatcher.externalIPDiscovered(externalAddress)
 
-        val udpInformation = buildJson<JSONObject> {
-          put("address", externalAddress.address.hostAddress)
-          put("port", externalAddress.port)
-          put("mode", mode)
-        }
+        sendPayload(SelectProtocol(
+          protocol = "udp",
+          codecs = SUPPORTED_CODECS,
+          connectionId = rtcConnectionId!!,
+          data = SelectProtocol.UDPInformation(
+            address = externalAddress.address.hostAddress,
+            port = externalAddress.port,
+            mode = mode
+          )
+        ))
 
-        sendPayload(Op.SELECT_PROTOCOL, buildJson<JSONObject> {
-          put("protocol", "udp")
-          put("codecs", SUPPORTED_CODECS)
-          put("rtc_connection_id", rtcConnectionId.toString())
-          put("data", udpInformation)
-          combineWith(udpInformation)
-        })
-
-        sendPayload(Op.CLIENT_CONNECT, buildJson<JSONObject> {
-          put("audio_ssrc", ssrc)
-          put("video_ssrc", 0)
-          put("rtx_ssrc", 0)
-        })
+        sendPayload(Command.ClientConnect(
+          audioSsrc = ssrc,
+          videoSsrc = 0,
+          rtxSsrc = 0
+        ))
 
         mediaConnection.connectionHandler = connection
         logger.debug("Waiting for session description...")
@@ -137,12 +123,20 @@ class MediaGatewayV4Connection(
   override suspend fun identify() {
     logger.debug("Identifying...")
 
-    sendPayload(Op.IDENTIFY, buildJson<JSONObject> {
-      put("server_id", mediaConnection.id.toString())
-      put("user_id", mediaConnection.bedrockClient.clientId.toString())
-      put("session_id", voiceServerInfo.sessionId)
-      put("token", voiceServerInfo.token)
-    })
+    sendPayload(Identify(
+      token = voiceServerInfo.token,
+      guildId = mediaConnection.id,
+      userId = mediaConnection.bedrockClient.clientId,
+      sessionId = voiceServerInfo.sessionId
+    ))
+  }
+
+  override suspend fun onClose(code: Short, reason: String?) {
+    if (interval.started) {
+      interval.stop()
+    }
+
+    mediaConnection.eventDispatcher.gatewayClosed(code, reason)
   }
 
   /**
@@ -151,11 +145,11 @@ class MediaGatewayV4Connection(
    * @param mask The speaking mask.
    */
   override suspend fun updateSpeaking(mask: Int) {
-    sendPayload(Op.SPEAKING, buildJson<JSONObject> {
-      put("speaking", mask)
-      put("delay", 0)
-      put("ssrc", ssrc)
-    })
+    sendPayload(Speaking(
+      speaking = mask,
+      delay = 0,
+      ssrc = ssrc
+    ))
   }
 
   /**
@@ -164,11 +158,11 @@ class MediaGatewayV4Connection(
    * @param delay Delay, in milliseconds, between heart-beats.
    */
   @ObsoleteCoroutinesApi
-  private suspend fun startHeartbeating(delay: Long) {
-    interval.start(delay) {
+  private suspend fun startHeartbeating(delay: Double) {
+    interval.start(delay.toLong()) {
       val nonce = System.currentTimeMillis()
-      sendPayload(Op.HEARTBEAT, nonce)
       mediaConnection.eventDispatcher.heartbeatDispatched(nonce)
+      sendPayload(Heartbeat(nonce))
     }
   }
 
@@ -176,21 +170,6 @@ class MediaGatewayV4Connection(
     /**
      * All supported audio codecs.
      */
-    val SUPPORTED_CODECS = buildJson<JSONArray> {
-      put(OpusCodec.INSTANCE.jsonDescription)
-    }
-
-    /**
-     * Combines this [JSONObject] with the provided [JSONObject]
-     *
-     * @param other The [JSONObject] to combine with.
-     */
-    fun JSONObject.combineWith(other: JSONObject): JSONObject {
-      other.keySet()
-        .filter { this.has(it) }
-        .forEach { put(it, other.get(it)) }
-
-      return this
-    }
+    val SUPPORTED_CODECS = listOf(OpusCodec.INSTANCE.description)
   }
 }

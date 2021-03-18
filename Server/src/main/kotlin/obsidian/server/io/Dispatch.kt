@@ -69,6 +69,11 @@ sealed class Dispatch {
             encodeSerializableElement(descriptor, 1, TrackStuckEvent.serializer(), value)
           }
 
+          is WebSocketOpenEvent -> {
+            encodeSerializableElement(descriptor, 0, Op, Op.PlayerEvent)
+            encodeSerializableElement(descriptor, 1, WebSocketOpenEvent.serializer(), value)
+          }
+
           is WebSocketClosedEvent -> {
             encodeSerializableElement(descriptor, 0, Op, Op.PlayerEvent)
             encodeSerializableElement(descriptor, 1, WebSocketClosedEvent.serializer(), value)
@@ -117,15 +122,23 @@ sealed class PlayerEvent : Dispatch() {
 }
 
 @Serializable
+data class WebSocketOpenEvent(
+  @Serializable(with = LongAsStringSerializer::class)
+  @SerialName("guild_id")
+  override val guildId: Long,
+  val ssrc: Int,
+  val target: String
+) : PlayerEvent() {
+  override val type: PlayerEventType = PlayerEventType.WEBSOCKET_OPEN
+}
+
+@Serializable
 data class WebSocketClosedEvent(
   @Serializable(with = LongAsStringSerializer::class)
   @SerialName("guild_id")
   override val guildId: Long,
-
-  @SerialName("by_remote")
-  val byRemote: Boolean,
   val reason: String?,
-  val code: Int
+  val code: Short
 ) : PlayerEvent() {
   override val type: PlayerEventType = PlayerEventType.WEBSOCKET_CLOSED
 }
@@ -190,6 +203,7 @@ data class TrackExceptionEvent(
 }
 
 enum class PlayerEventType {
+  WEBSOCKET_OPEN,
   WEBSOCKET_CLOSED,
   TRACK_START,
   TRACK_END,

@@ -60,23 +60,22 @@ object Obsidian {
 
   @JvmStatic
   fun main(args: Array<String>) {
-    val rootLogger = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME) as Logger
-    val rollingFileAppender = RollingFileAppender<ILoggingEvent>().apply {
-      context = rootLogger.loggerContext
-      rollingPolicy = TimeBasedRollingPolicy<ILoggingEvent>().apply {
-        maxHistory = 30
-        fileNamePattern = "logs/obsidian.%d{yyyyMMdd}.log"
-      }
-
-
-      file = "logs/obsidian.log"
-      encoder = PatternLayoutEncoder().apply {
-        pattern = "%d{yyyy-MM-dd HH:mm:ss.SSS} [%20.-20thread] %-40.40logger{39} %-6level %msg%n"
-      }
-    }
-
-    rootLogger.addAppender(rollingFileAppender)
-    rootLogger.level = Level.toLevel(config[LoggingConfig.Level])
+//    val rootLogger = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME) as Logger
+//    val rollingFileAppender = RollingFileAppender<ILoggingEvent>().apply {
+//      context = rootLogger.loggerContext
+//      rollingPolicy = TimeBasedRollingPolicy<ILoggingEvent>().apply {
+//        maxHistory = 30
+//        fileNamePattern = "logs/obsidian.%d{yyyyMMdd}.log"
+//      }
+//
+//      file = "logs/obsidian.log"
+//      encoder = PatternLayoutEncoder().apply {
+//        pattern = "%d{yyyy-MM-dd HH:mm:ss.SSS} [%20.-20thread] %-40.40logger{39} %-6level %msg%n"
+//      }
+//    }
+//
+//    rootLogger.addAppender(rollingFileAppender)
+//    rootLogger.level = Level.toLevel(config[LoggingConfig.Level])
 
     val server = embeddedServer(CIO, host = config[ObsidianConfig.Host], port = config[ObsidianConfig.Port]) {
       install(Locations)

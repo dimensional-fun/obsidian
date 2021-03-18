@@ -21,11 +21,13 @@ package obsidian.server.player.filter.impl
 import com.github.natanbc.lavadsp.rotation.RotationPcmAudioFilter
 import com.sedmelluq.discord.lavaplayer.filter.FloatPcmAudioFilter
 import com.sedmelluq.discord.lavaplayer.format.AudioDataFormat
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import obsidian.server.player.filter.Filter
 
 @Serializable
 data class RotationFilter(
+  @SerialName("rotation_hz")
   val rotationHz: Float = 5f
 ) : Filter {
   override val enabled: Boolean

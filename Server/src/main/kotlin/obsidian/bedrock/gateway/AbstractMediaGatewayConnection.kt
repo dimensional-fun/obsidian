@@ -27,19 +27,20 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.http.cio.websocket.*
 import io.ktor.util.*
-import io.ktor.utils.io.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.BroadcastChannel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.*
 import obsidian.bedrock.MediaConnection
 import obsidian.bedrock.VoiceServerInfo
-import obsidian.server.util.buildJsonString
-import org.json.JSONObject
+import obsidian.bedrock.gateway.event.Command
+import obsidian.bedrock.gateway.event.Event
+import obsidian.server.io.MagmaClient.Companion.jsonParser
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.nio.charset.Charset
+import java.util.concurrent.CancellationException
 import kotlin.coroutines.CoroutineContext
 
 abstract class AbstractMediaGatewayConnection(
@@ -48,83 +49,48 @@ abstract class AbstractMediaGatewayConnection(
   version: Int
 ) : MediaGatewayConnection, CoroutineScope {
 
+  /**
+   * Whether the websocket is open
+   */
   override var open = false
+
+  /**
+   * Coroutine context
+   */
   override val coroutineContext: CoroutineContext
     get() = Job() + Dispatchers.IO
 
-  private var eventFlow = MutableSharedFlow<JSONObject>(extraBufferCapacity = Int.MAX_VALUE)
-  private var session: ClientWebSocketSession? = null
-  private val websocketUrl: String by lazy { "wss://${voiceServerInfo.endpoint.replace(":80", "")}/?v=$version" }
+  /**
+   * Broadcast channel
+   */
+  private val channel = BroadcastChannel<Event>(1)
 
   /**
-   * Identifies this session
+   * Event flow
    */
-  protected abstract suspend fun identify()
+  protected val eventFlow: Flow<Event>
+    get() = channel.openSubscription().asFlow().buffer(Channel.UNLIMITED)
 
   /**
-   * Sends a JSON encoded string to the voice server.
-   *
-   * @param op The operation code.
-   * @param data The operation data.
+   * Current websocket session
    */
-  suspend inline fun sendPayload(op: Op, data: Any?) {
-    sendPayload(buildJsonString<JSONObject> {
-      put("op", op.code)
-      if (data != null) {
-        put("d", data)
-      }
-    })
+  private lateinit var socket: DefaultClientWebSocketSession
+
+  /**
+   * Websocket url to use
+   */
+  private val websocketUrl: String by lazy {
+    "wss://${voiceServerInfo.endpoint.replace(":80", "")}/?v=$version"
   }
 
   /**
-   * Sends a text payload to the voice server websocket.
-   *
-   * @param text The text to send.
-   */
-  suspend fun sendPayload(text: String) {
-    logger.trace("VS <- $text")
-    session?.send(Frame.Text(text))
-  }
-
-  /**
-   * Closes the gateway connection.
+   * Closes the connection to the voice server
    *
    * @param code The close code.
    * @param reason The close reason.
    */
   override suspend fun close(code: Short, reason: String?) {
-    session?.close(CloseReason(code, reason ?: ""))
-  }
-
-  protected fun on(op: Op, block: suspend (data: JSONObject) -> Unit) {
-    eventFlow
-      .filter { it.getInt("op") == op.code }
-      .onEach {
-        try {
-          block(it)
-        } catch (ex: Exception) {
-          logger.error("Error while handling OP ${op.code}", ex)
-        }
-      }.launchIn(this)
-  }
-
-  private suspend fun handleIncoming() {
-    val session = this.session ?: return
-
-    session.incoming.asFlow().buffer(Channel.UNLIMITED)
-      .collect {
-        when (it) {
-          is Frame.Text -> handleFrame(it)
-          else -> { /* noop */
-          }
-        }
-      }
-  }
-
-  private suspend fun handleFrame(frame: Frame.Text) {
-    val json = JSONObject(frame.readText())
-    logger.trace("VS -> $json")
-    eventFlow.emit(json)
+    channel.close()
   }
 
   /**
@@ -138,7 +104,7 @@ abstract class AbstractMediaGatewayConnection(
     open = true
     while (open) {
       try {
-        session = client.webSocketSession {
+        socket = client.webSocketSession {
           url(websocketUrl)
         }
       } catch (ex: Exception) {
@@ -155,13 +121,104 @@ abstract class AbstractMediaGatewayConnection(
 
       open = false
     }
+
+    if (::socket.isInitialized) {
+      socket.close()
+    }
+
+    val reason = withTimeoutOrNull(1500) {
+      socket.closeReason.await()
+    }
+
+    try {
+      onClose(reason?.code ?: -1, reason?.message ?: "unknown")
+    } catch (ex: Exception) {
+      logger.error(ex)
+    }
+  }
+
+  /**
+   * Sends a JSON encoded string to the voice server.
+   *
+   * @param command The command to send
+   */
+  suspend fun sendPayload(command: Command) {
+    if (open) {
+      try {
+        val json = jsonParser.encodeToString(Command.Companion, command)
+        logger.trace("VS <<< $json")
+        socket.send(json)
+      } catch (ex: Exception) {
+        logger.error(ex)
+      }
+    }
+  }
+
+  /**
+   * Identifies this session
+   */
+  protected abstract suspend fun identify()
+
+  /**
+   * Called when the websocket connection has closed.
+   *
+   * @param code Close code
+   * @param reason Close reason
+   */
+  protected abstract suspend fun onClose(code: Short, reason: String?)
+
+  /**
+   * Used to handle specific events that are received
+   *
+   * @param block
+   */
+  protected inline fun <reified T : Event> on(crossinline block: suspend T.() -> Unit) {
+    eventFlow.filterIsInstance<T>()
+      .onEach {
+        try {
+          block(it)
+        } catch (ex: Exception) {
+          logger.error(ex)
+        }
+      }.launchIn(this)
+  }
+
+  /**
+   * Handles incoming frames from the voice server
+   */
+  private suspend fun handleIncoming() {
+    val session = this.socket
+    session.incoming.asFlow().buffer(Channel.UNLIMITED)
+      .collect {
+        when (it) {
+          is Frame.Text, is Frame.Binary -> handleFrame(it)
+          else -> { /* noop */
+          }
+        }
+      }
+  }
+
+  /**
+   * Handles an incoming frame
+   *
+   * @param frame Frame that was received
+   */
+  private suspend fun handleFrame(frame: Frame) {
+    val json = frame.data.toString(Charset.defaultCharset())
+
+    try {
+      logger.trace("VS >>> $json")
+      jsonParser.decodeFromString(Event.Companion, json)?.let { channel.send(it) }
+    } catch (ex: Exception) {
+      logger.error(ex)
+    }
   }
 
   companion object {
     val logger: Logger = LoggerFactory.getLogger(AbstractMediaGatewayConnection::class.java)
     val client = HttpClient(OkHttp) { install(WebSockets) }
 
-    fun <T> ReceiveChannel<T>.asFlow() = flow {
+    internal fun <T> ReceiveChannel<T>.asFlow() = flow {
       try {
         for (value in this@asFlow) emit(value)
       } catch (ignore: CancellationException) {

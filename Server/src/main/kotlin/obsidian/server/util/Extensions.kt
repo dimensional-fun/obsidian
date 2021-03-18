@@ -38,5 +38,6 @@ suspend inline fun <reified T> ApplicationCall.respondJson(
   respondText(
     json.toString(),
     status = status,
-    contentType = ContentType.Application.Json
+    contentType = ContentType.Application.Json,
+    configure = configure
   )

@@ -87,8 +87,10 @@ compileKotlin {
 
   kotlinOptions {
     jvmTarget = "13"
+    incremental = true
     freeCompilerArgs += "-Xopt-in=kotlin.ExperimentalStdlibApi"
     freeCompilerArgs += "-Xopt-in=kotlinx.coroutines.ObsoleteCoroutinesApi"
+    freeCompilerArgs += "-Xopt-in=kotlinx.coroutines.ExperimentalCoroutinesApi"
     freeCompilerArgs += "-Xopt-in=io.ktor.locations.KtorExperimentalLocationsAPI"
     freeCompilerArgs += "-Xinline-classes"
   }

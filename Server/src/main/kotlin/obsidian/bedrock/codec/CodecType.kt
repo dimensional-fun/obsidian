@@ -18,6 +18,11 @@
 
 package obsidian.bedrock.codec
 
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+@Serializable
 enum class CodecType {
+  @SerialName("audio")
   AUDIO
 }

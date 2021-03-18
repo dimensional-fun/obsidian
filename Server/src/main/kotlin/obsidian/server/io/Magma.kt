@@ -23,8 +23,10 @@ import io.ktor.http.cio.websocket.*
 import io.ktor.locations.*
 import io.ktor.request.*
 import io.ktor.routing.*
+import io.ktor.util.*
 import io.ktor.util.pipeline.*
 import io.ktor.websocket.*
+import kotlinx.coroutines.isActive
 import obsidian.server.io.MagmaCloseReason.CLIENT_EXISTS
 import obsidian.server.io.MagmaCloseReason.INVALID_AUTHORIZATION
 import obsidian.server.io.MagmaCloseReason.NO_USER_ID
@@ -45,7 +47,40 @@ class Magma private constructor() {
 
   fun use(routing: Routing) {
     routing {
-      webSocket("/", handler = this@Magma::websocketHandler)
+      webSocket("/") {
+        val request = call.request
+        if (!ObsidianConfig.validateAuth(request.authorization())) {
+          logger.warn("Authentication failed from ${request.local.remoteHost}")
+          close(INVALID_AUTHORIZATION)
+          return@webSocket
+        } else {
+          logger.info("Incoming request from ${request.local.remoteHost}")
+        }
+
+        val userId = request.headers["User-Id"]?.toLongOrNull()
+        if (userId == null) {
+          close(NO_USER_ID)
+          logger.info("${request.local.remoteHost}: Missing 'User-Id' header")
+          return@webSocket
+        }
+
+        var client = clients[userId]
+        if (client != null) {
+          close(CLIENT_EXISTS)
+          return@webSocket
+        }
+
+        client = MagmaClient(userId, this)
+        try {
+          client.listen()
+        } catch (ex: Throwable) {
+          logger.error(ex)
+          close(CloseReason(4005, ex.message ?: "unknown exception"))
+        }
+
+        client.shutdown()
+        clients.remove(userId)
+      }
 
       get("/") {
         context.respondJson<JSONObject> {
@@ -59,42 +94,6 @@ class Magma private constructor() {
     }
 
     Tracks(routing)
-  }
-
-  /**
-   * Handles an incoming session
-   */
-  private suspend fun websocketHandler(session: WebSocketServerSession) {
-    val request = session.call.request
-    if (!ObsidianConfig.validateAuth(request.authorization())) {
-      logger.warn("Authentication failed from ${request.local.remoteHost}")
-      session.close(INVALID_AUTHORIZATION)
-      return
-    } else {
-      logger.info("Incoming request from ${request.local.remoteHost}")
-    }
-
-    val userId = request.headers["User-Id"]?.toLongOrNull()
-    if (userId == null) {
-      session.close(NO_USER_ID)
-      return
-    }
-
-    var client = clients[userId]
-    if (client != null) {
-      session.close(CLIENT_EXISTS)
-      return
-    }
-
-    client = MagmaClient(userId, session)
-    try {
-      client.listen()
-    } catch (ex: Throwable) {
-      session.close(CloseReason(4005, ex.message ?: "Unknown Error"))
-    }
-
-    client.shutdown()
-    clients.remove(userId)
   }
 
   suspend fun shutdown() {

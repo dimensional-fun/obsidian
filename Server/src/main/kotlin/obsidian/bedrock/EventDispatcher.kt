@@ -19,7 +19,6 @@
 package obsidian.bedrock
 
 import io.ktor.util.network.*
-import org.json.JSONObject
 
 class EventDispatcher : BedrockEventListener {
   private var listeners = hashSetOf<BedrockEventListener>()
@@ -31,34 +30,32 @@ class EventDispatcher : BedrockEventListener {
     listeners.remove(listener)
 
   override suspend fun gatewayReady(target: NetworkAddress, ssrc: Int) {
-    for (listener in listeners) listener.gatewayReady(target, ssrc)
+    for (listener in listeners) {
+      listener.gatewayReady(target, ssrc)
+    }
   }
 
-  override suspend fun gatewayClosed(code: Int, byRemote: Boolean, reason: String?) {
-    for (listener in listeners) listener.gatewayClosed(code, byRemote, reason)
+  override suspend fun gatewayClosed(code: Short, reason: String?) {
+    for (listener in listeners) {
+      listener.gatewayClosed(code, reason)
+    }
   }
 
   override suspend fun userConnected(id: String?, audioSSRC: Int, videoSSRC: Int, rtxSSRC: Int) {
-    for (listener in listeners) listener.userConnected(id, audioSSRC, videoSSRC, rtxSSRC)
-  }
-
-  override suspend fun userDisconnected(id: String?) {
-    for (listener in listeners) listener.userDisconnected(id)
-  }
-
-  override suspend fun externalIPDiscovered(address: NetworkAddress) {
-    for (listener in listeners) listener.externalIPDiscovered(address)
-  }
-
-  override suspend fun sessionDescription(session: JSONObject?) {
-    for (listener in listeners) listener.sessionDescription(session)
+    for (listener in listeners) {
+      listener.userConnected(id, audioSSRC, videoSSRC, rtxSSRC)
+    }
   }
 
   override suspend fun heartbeatDispatched(nonce: Long) {
-    for (listener in listeners) listener.heartbeatDispatched(nonce)
+    for (listener in listeners) {
+      listener.heartbeatDispatched(nonce)
+    }
   }
 
   override suspend fun heartbeatAcknowledged(nonce: Long) {
-    for (listener in listeners) listener.heartbeatAcknowledged(nonce)
+    for (listener in listeners) {
+      listener.heartbeatAcknowledged(nonce)
+    }
   }
 }

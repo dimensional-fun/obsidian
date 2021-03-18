@@ -21,14 +21,18 @@ package obsidian.server.player.filter.impl
 import com.github.natanbc.lavadsp.karaoke.KaraokePcmAudioFilter
 import com.sedmelluq.discord.lavaplayer.filter.FloatPcmAudioFilter
 import com.sedmelluq.discord.lavaplayer.format.AudioDataFormat
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import obsidian.server.player.filter.Filter
 
 @Serializable
 data class KaraokeFilter(
   val level: Float,
+  @SerialName("mono_level")
   val monoLevel: Float,
+  @SerialName("filter_band")
   val filterBand: Float,
+  @SerialName("filter_width")
   val filterWidth: Float,
 ) : Filter {
   override val enabled: Boolean

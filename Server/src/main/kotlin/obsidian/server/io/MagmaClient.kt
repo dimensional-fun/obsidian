@@ -21,6 +21,7 @@ package obsidian.server.io
 import com.sedmelluq.discord.lavaplayer.track.TrackMarker
 import io.ktor.http.cio.websocket.*
 import io.ktor.util.*
+import io.ktor.util.network.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -39,10 +40,12 @@ import obsidian.server.util.TrackUtil
 import org.json.JSONObject
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.nio.charset.Charset
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
 import kotlin.reflect.full.*
 
+@ExperimentalCoroutinesApi
 @Suppress("unused")
 class MagmaClient(
   private val clientId: Long,
@@ -58,14 +61,6 @@ class MagmaClient(
    */
   val links = ConcurrentHashMap<Long, Link>()
 
-  /**
-   * JSON parser for events.
-   */
-  private val jsonParser = Json {
-    ignoreUnknownKeys = true
-    isLenient = true
-    encodeDefaults = true
-  }
 
   /**
    * Events flow lol - idk kotlin
@@ -83,7 +78,13 @@ class MagmaClient(
 
   init {
     on<SubmitVoiceUpdate> {
-      mediaConnectionFor(guildId).connect(VoiceServerInfo(sessionId, token, endpoint))
+      val conn = mediaConnectionFor(guildId)
+      val link = links.computeIfAbsent(guildId) {
+        Link(this@MagmaClient, guildId)
+      }
+
+      conn.connect(VoiceServerInfo(sessionId, token, endpoint))
+      link.provideTo(conn)
     }
 
     on<Filters> {
@@ -148,21 +149,16 @@ class MagmaClient(
       }
 
       link.play(track)
-
-      val connection: MediaConnection = mediaConnectionFor(guildId)
-      link.provideTo(connection)
     }
   }
 
   @ObsoleteCoroutinesApi
   suspend fun listen() {
-//    sendStats()
-
     session.incoming.asFlow().buffer(Channel.UNLIMITED)
       .collect {
         when (it) {
-          is Frame.Text -> handleFrame(it)
-          else -> { /* no-op */
+          is Frame.Binary, is Frame.Text -> handleIncomingFrame(it)
+          else -> { // no-op
           }
         }
       }
@@ -181,18 +177,19 @@ class MagmaClient(
   }
 
   /**
-   * Handles an incoming [Frame.Text].
+   * Handles an incoming [Frame].
    *
-   * @param frame The received text frame, binary frames.
+   * @param frame The received text or binary frame.
    */
-  private suspend fun handleFrame(frame: Frame.Text) {
-    val json = frame.readText()
-    logger.trace("$clientId -> $json")
+  private suspend fun handleIncomingFrame(frame: Frame) {
+    val json = frame.data.toString(Charset.defaultCharset())
 
-    val operation = jsonParser.decodeFromString(Operation.Companion, json)
-      ?: return
-
-    events.emit(operation)
+    try {
+      logger.trace("$clientId >>> $json")
+      jsonParser.decodeFromString(Operation, json)?.let { events.emit(it) }
+    } catch (ex: Exception) {
+      logger.error(ex)
+    }
   }
 
   private fun mediaConnectionFor(guildId: Long): MediaConnection {
@@ -208,13 +205,12 @@ class MagmaClient(
   /**
    * Send a JSON payload to the client.
    *
-   * @param json The jason payload.
+   * @param dispatch The dispatch instance
    */
-  public suspend fun send(dispatch: Dispatch) {
+  suspend fun send(dispatch: Dispatch) {
     val json = jsonParser.encodeToString(Dispatch.Companion, dispatch)
-
-    session.send(Frame.Text(json))
-    logger.trace("$clientId <- ${json}")
+    logger.trace("$clientId <- $json")
+    session.send(json)
   }
 
   internal suspend fun shutdown() {
@@ -230,13 +226,22 @@ class MagmaClient(
     private var lastHeartbeat: Long? = null
     private var lastHeartbeatNonce: Long? = null
 
-    override suspend fun gatewayClosed(code: Int, byRemote: Boolean, reason: String?) {
+    override suspend fun gatewayReady(target: NetworkAddress, ssrc: Int) {
+      send(
+        WebSocketOpenEvent(
+          guildId = guildId,
+          ssrc = ssrc,
+          target = target.hostname
+        )
+      )
+    }
+
+    override suspend fun gatewayClosed(code: Short, reason: String?) {
       send(
         WebSocketClosedEvent(
           guildId = guildId,
           reason = reason,
-          code = code,
-          byRemote = byRemote
+          code = code
         )
       )
     }
@@ -276,6 +281,15 @@ class MagmaClient(
   }
 
   companion object {
+    /**
+     * JSON parser for everything.
+     */
+    val jsonParser = Json {
+      ignoreUnknownKeys = true
+      isLenient = true
+      encodeDefaults = true
+    }
+
     private val logger: Logger = LoggerFactory.getLogger(MagmaClient::class.java)
 
     private fun getGuildId(data: JSONObject): Long? =
