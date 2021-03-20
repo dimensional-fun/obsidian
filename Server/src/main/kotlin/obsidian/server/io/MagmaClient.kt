@@ -256,7 +256,7 @@ class MagmaClient(
         return
       }
 
-      logger.info("Our latency between the voice websocket is ${System.currentTimeMillis() - lastHeartbeat!!}ms")
+      logger.debug("Voice WebSocket latency is ${System.currentTimeMillis() - lastHeartbeat!!}ms")
     }
 
     override suspend fun heartbeatDispatched(nonce: Long) {

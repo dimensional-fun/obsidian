@@ -58,9 +58,7 @@ class FilterChain(val link: Link) {
    * Applies all enabled filters to the player.
    */
   fun apply() {
-    if (enabled.isNotEmpty()) {
-      link.player.setFilterFactory(getFilterFactory())
-    }
+    link.player.setFilterFactory(getFilterFactory())
   }
 
   inner class FilterFactory : PcmFilterFactory {
