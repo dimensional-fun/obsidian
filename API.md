@@ -1,6 +1,6 @@
 # Obsidian API Documentation
 
-Welcome to the Obsidian API Documentation! This document describes mostly everything about Magma and the REST API.
+Welcome to the Obsidian API Documentation! This document describes mostly everything about the WebSocket and HTTP server.
 
 ###### What's Magma?
 
@@ -103,16 +103,16 @@ To connect you must have these headers assigned
 ```
 Authorization: Password configured in `.obsidianrc`
 User-Id: The user id of the bot you're playing music with
-Resume-Key: The resume key (like lavalink)
+Resume-Key: The resume key (like lavalink), however this is only needed if the client needs to be resumed.
 ```
 
 **Close Codes**
 
 | close code | reason                                             |
 |:-----------|:---------------------------------------------------|
-| 4001       | You specified the incorrect authorization          |
-| 4002       | You didn't specify the `User-Id` header            |
-| 4004       | A client with the specified user id already exists |
+| 4001       | You specified invalid authorization                |
+| 4002       | No `User-Id` header was specified                  |
+| 4004       | A session for the `User-Id` header already exists  |
 | 4005       | An error occurred while handling incoming frames   |
 
 ###### Payload Structure
