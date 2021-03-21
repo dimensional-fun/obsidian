@@ -10,7 +10,7 @@
 
 > Clients are used to interface with Magma, Obsidian's WebSocket and REST API.
 
-- Nothing rn xd
+- [obby.js](https://github.com/Sxmurai/obby.js), NodeJS (v14+)
 
 **Want to make your own? Read our [API Docs](/API.md)**
 
