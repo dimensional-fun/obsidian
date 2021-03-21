@@ -18,27 +18,41 @@
 
 package obsidian.server.io
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder
+import io.ktor.auth.*
 import io.ktor.http.*
 import io.ktor.http.cio.websocket.*
 import io.ktor.locations.*
 import io.ktor.request.*
+import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
 import io.ktor.util.pipeline.*
 import io.ktor.websocket.*
-import kotlinx.coroutines.isActive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import obsidian.server.io.MagmaCloseReason.CLIENT_EXISTS
 import obsidian.server.io.MagmaCloseReason.INVALID_AUTHORIZATION
 import obsidian.server.io.MagmaCloseReason.NO_USER_ID
 import obsidian.server.io.controllers.Tracks
 import obsidian.server.util.config.ObsidianConfig
-import obsidian.server.util.respondJson
-import org.json.JSONObject
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
 import kotlin.reflect.full.*
 
 class Magma private constructor() {
+  /**
+   * Executor
+   */
+  val executor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor(
+    ThreadFactoryBuilder()
+      .setNameFormat("Magma-Cleanup")
+      .setDaemon(true)
+      .build()
+  )
+
   /**
    * All connected clients.
    * `Client ID -> MagmaClient`
@@ -66,11 +80,19 @@ class Magma private constructor() {
 
         var client = clients[userId]
         if (client != null) {
+          val resumeKey: String? = request.headers["Resume-Key"]
+          if (resumeKey != null && client.resumeKey == resumeKey) {
+            client.resume(this)
+            return@webSocket
+          }
+
           close(CLIENT_EXISTS)
           return@webSocket
         }
 
         client = MagmaClient(userId, this)
+        clients[userId] = client
+
         try {
           client.listen()
         } catch (ex: Throwable) {
@@ -78,22 +100,29 @@ class Magma private constructor() {
           close(CloseReason(4005, ex.message ?: "unknown exception"))
         }
 
-        client.shutdown()
-        clients.remove(userId)
+        client.handleClose()
       }
 
-      get("/") {
-        context.respondJson<JSONObject> {
-          put("message", "hi")
+      authenticate {
+        get("/stats") {
+          context.respond(Stats.build())
         }
-      }
-
-      get("/stats") {
-        context.respondJson(Stats.build())
       }
     }
 
     Tracks(routing)
+  }
+
+  /**
+   * Removes a client
+   */
+  fun remove(clientId: Long) {
+    clients.remove(clientId)
+  }
+
+  suspend fun shutdown(client: MagmaClient) {
+    client.shutdown()
+    clients.remove(client.userId)
   }
 
   suspend fun shutdown() {

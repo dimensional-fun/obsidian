@@ -18,10 +18,10 @@
 
 package obsidian.bedrock
 
-import obsidian.bedrock.gateway.MediaGatewayConnection
 import obsidian.bedrock.codec.Codec
 import obsidian.bedrock.codec.OpusCodec
 import obsidian.bedrock.codec.framePoller.FramePoller
+import obsidian.bedrock.gateway.MediaGatewayConnection
 import obsidian.bedrock.handler.ConnectionHandler
 import obsidian.bedrock.media.MediaFrameProvider
 import org.slf4j.LoggerFactory

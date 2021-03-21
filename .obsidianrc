@@ -1,6 +1,9 @@
 obsidian:
   port: 3030
   password: ""
+  player-updates:
+    interval: 5000
+    send-filters: false
 
   lavaplayer:
     gc-monitoring: true
@@ -18,7 +21,9 @@ obsidian:
       playlist-page-limit: 6
 
 logging:
-  level: TRACE
+  level:
+    root: INFO
+    obsidian: INFO
 
   file:
     max-history: 30

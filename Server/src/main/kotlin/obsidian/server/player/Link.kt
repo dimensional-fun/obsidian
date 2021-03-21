@@ -71,8 +71,8 @@ class Link(
    */
   var filters: FilterChain = FilterChain(this)
     set(value) {
-      value.apply()
       field = value
+      value.apply()
     }
 
   /**
@@ -92,7 +92,7 @@ class Link(
    * Used to start sending periodic player updates.
    */
   private suspend fun startPeriodicUpdates() {
-    playerUpdater.start(config[ObsidianConfig.PlayerUpdateInterval], ::dispatchUpdate)
+    playerUpdater.start(config[ObsidianConfig.PlayerUpdates.Interval], ::dispatchUpdate)
   }
 
   /**
@@ -148,15 +148,17 @@ class Link(
   }
 
   override fun onTrackEnd(player: AudioPlayer?, track: AudioTrack?, endReason: AudioTrackEndReason?) {
-    client.launch(client.coroutineContext) {
-      playerUpdater.stop()
+    if (playerUpdater.started) {
+      client.launch(client.coroutineContext) {
+        playerUpdater.stop()
+      }
     }
   }
 
   @ObsoleteCoroutinesApi
   override fun onTrackStart(player: AudioPlayer?, track: AudioTrack?) {
-    client.launch {
-      if (!playerUpdater.started) {
+    if (!playerUpdater.started) {
+      client.launch {
         startPeriodicUpdates()
       }
     }

@@ -18,3 +18,8 @@ Content-Type: application/json
 {
   "tracks": "QAAAagIABGRhcmsADGJsb29keSB3aGl0ZQAAAAAAAW8wAAthSjFOS0NST1pDcwABACtodHRwczovL3d3dy55b3V0dWJlLmNvbS93YXRjaD92PWFKMU5LQ1JPWkNzAAd5b3V0dWJlAAAAAAAAAAA="
 }
+
+### /loadtracks
+
+GET http://localhost:3030/loadtracks?identifier=ytsearch:zacari%20mood
+Authorization: cockandballs

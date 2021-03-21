@@ -20,10 +20,6 @@ package obsidian.server
 
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
-import ch.qos.logback.classic.encoder.PatternLayoutEncoder
-import ch.qos.logback.classic.spi.ILoggingEvent
-import ch.qos.logback.core.rolling.RollingFileAppender
-import ch.qos.logback.core.rolling.TimeBasedRollingPolicy
 import com.uchuhimo.konf.Config
 import com.uchuhimo.konf.source.yaml
 import io.ktor.application.*
@@ -37,15 +33,35 @@ import io.ktor.server.engine.*
 import io.ktor.websocket.*
 import io.micrometer.prometheus.PrometheusConfig
 import io.micrometer.prometheus.PrometheusMeterRegistry
-import kotlinx.coroutines.runBlocking
 import obsidian.bedrock.Bedrock
 import obsidian.server.io.Magma.Companion.magma
 import obsidian.server.player.ObsidianPlayerManager
 import obsidian.server.util.config.LoggingConfig
 import obsidian.server.util.config.ObsidianConfig
 import org.slf4j.LoggerFactory
+import ch.qos.logback.classic.LoggerContext
+import io.ktor.auth.*
+import io.ktor.http.*
+import io.ktor.http.content.*
+import io.ktor.request.*
+import io.ktor.response.*
+import io.ktor.util.pipeline.*
+import kotlinx.serialization.json.buildJsonObject
 
 object Obsidian {
+  /**
+   * Player manager
+   */
+  val playerManager = ObsidianPlayerManager()
+
+  /**
+   * Prometheus Metrics, kinda scuffed tho
+   */
+  val metricRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+
+  /**
+   * Configuration
+   */
   val config = Config {
     addSpec(ObsidianConfig)
     addSpec(Bedrock.Config)
@@ -55,50 +71,56 @@ object Obsidian {
     .from.env()
     .from.systemProperties()
 
-  val metricRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
-  val playerManager = ObsidianPlayerManager()
+  fun configureLogging() {
+    val loggerContext = LoggerFactory.getILoggerFactory() as LoggerContext
 
-  @JvmStatic
-  fun main(args: Array<String>) {
-//    val rootLogger = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME) as Logger
-//    val rollingFileAppender = RollingFileAppender<ILoggingEvent>().apply {
-//      context = rootLogger.loggerContext
-//      rollingPolicy = TimeBasedRollingPolicy<ILoggingEvent>().apply {
-//        maxHistory = 30
-//        fileNamePattern = "logs/obsidian.%d{yyyyMMdd}.log"
-//      }
-//
-//      file = "logs/obsidian.log"
-//      encoder = PatternLayoutEncoder().apply {
-//        pattern = "%d{yyyy-MM-dd HH:mm:ss.SSS} [%20.-20thread] %-40.40logger{39} %-6level %msg%n"
-//      }
-//    }
-//
-//    rootLogger.addAppender(rollingFileAppender)
-//    rootLogger.level = Level.toLevel(config[LoggingConfig.Level])
+    val rootLogger = loggerContext.getLogger(Logger.ROOT_LOGGER_NAME) as Logger
+    rootLogger.level = Level.toLevel(config[LoggingConfig.Level.Root], Level.INFO)
 
-    val server = embeddedServer(CIO, host = config[ObsidianConfig.Host], port = config[ObsidianConfig.Port]) {
-      install(Locations)
+    val obsidianLogger = loggerContext.getLogger("obsidian") as Logger
+    obsidianLogger.level = Level.toLevel(config[LoggingConfig.Level.Obsidian], Level.INFO)
+  }
+}
 
-      install(WebSockets)
+suspend fun main(args: Array<out String>) {
+  Obsidian.configureLogging()
+  val server = embeddedServer(CIO, host = Obsidian.config[ObsidianConfig.Host], port = Obsidian.config[ObsidianConfig.Port]) {
+    install(Locations)
 
-      install(MicrometerMetrics) {
-        registry = metricRegistry
-      }
+    install(WebSockets)
 
-      @Suppress()
-      install(ContentNegotiation) {
-        json()
-      }
+    install(MicrometerMetrics) {
+      registry = Obsidian.metricRegistry
+    }
 
-      routing {
-        magma.use(this)
+    install(ContentNegotiation) {
+      json()
+    }
+
+    install(Authentication) {
+      provider {
+        pipeline.intercept(AuthenticationPipeline.RequestAuthentication) { context ->
+          val authorization = call.request.authorization()
+          if (!ObsidianConfig.validateAuth(authorization)) {
+            val cause = when(authorization) {
+              null -> AuthenticationFailedCause.NoCredentials
+              else -> AuthenticationFailedCause.InvalidCredentials
+            }
+
+            context.challenge("ObsidianAuth", cause) {
+              call.respond(HttpStatusCode.Unauthorized)
+              it.complete()
+            }
+          }
+        }
       }
     }
 
-    server.start(wait = true)
-    runBlocking {
-      magma.shutdown()
+    routing {
+      magma.use(this)
     }
   }
+
+  server.start(wait = true)
+  magma.shutdown()
 }

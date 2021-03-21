@@ -20,6 +20,17 @@ package obsidian.server.util.config
 
 import com.uchuhimo.konf.ConfigSpec
 
-object LoggingConfig : ConfigSpec() {
-  val Level by optional("INFO")
+object LoggingConfig : ConfigSpec("logging") {
+
+  object Level : ConfigSpec("level") {
+    /**
+     * Root logging level
+     */
+    val Root by optional("INFO")
+
+    /**
+     * Obsidian logging level
+     */
+    val Obsidian by optional("INFO")
+  }
 }

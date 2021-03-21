@@ -19,7 +19,6 @@
 package obsidian.bedrock
 
 import io.ktor.util.network.*
-import org.json.JSONObject
 
 open class BedrockEventAdapter : BedrockEventListener {
   override suspend fun gatewayReady(target: NetworkAddress, ssrc: Int) = Unit

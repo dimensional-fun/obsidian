@@ -15,56 +15,56 @@ ext {
 dependencies {
   /* kotlin shit */
   implementation "org.jetbrains.kotlin:kotlin-stdlib"
-  implementation "org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion"
+  implementation "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
 
   /* audio */
-  implementation "com.sedmelluq:lavaplayer:$lavaplayerVersion"
-  implementation "com.sedmelluq:lavaplayer-ext-youtube-rotator:$lavaplayerIpRotatorConfig"
+  implementation "com.sedmelluq:lavaplayer:$lavaplayer_version"
+  implementation "com.sedmelluq:lavaplayer-ext-youtube-rotator:$lavaplayer_ip_rotator_config"
   implementation "com.sedmelluq:udp-queue:1.1.0-linux64"
 
   // filters
-  implementation "com.github.natanbc:lavadsp:$lavadspVersion"
+  implementation "com.github.natanbc:lavadsp:$lavadsp_version"
 
   /* logging */
-  implementation "ch.qos.logback:logback-classic:$logbackVersion"
-  implementation "io.sentry:sentry:$sentryVersion"
-  implementation "com.github.ajalt.mordant:mordant:$mordantVersion"
+  implementation "ch.qos.logback:logback-classic:$logback_version"
+  implementation "io.sentry:sentry:$sentry_version"
+  implementation "com.github.ajalt.mordant:mordant:$mordant_version"
 
   /* config */
-  implementation "com.uchuhimo:konf:$konfVersion"
-  implementation "com.uchuhimo:konf-yaml:$konfVersion"
+  implementation "com.uchuhimo:konf:$konf_version"
+  implementation "com.uchuhimo:konf-yaml:$konf_version"
 
   /* serialization */
-  implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:$kxsJsonVersion"
+  implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:$serialization_json_version"
   implementation "org.jetbrains.kotlinx:kotlinx-serialization-core:1.1.0"
 
   /* netty */
-  implementation "io.netty:netty-transport:$nettyVersion"
-  implementation "io.netty:netty-codec-http:$nettyVersion"
-  implementation "io.netty:netty-transport-native-epoll:$nettyVersion:linux-x86_64"
+  implementation "io.netty:netty-transport:$netty_version"
+  implementation "io.netty:netty-codec-http:$netty_version"
+  implementation "io.netty:netty-transport-native-epoll:$netty_version:linux-x86_64"
 
   /* ktor */
 
   // Serialization
-  implementation "io.ktor:ktor-serialization:$ktorVersion"
+  implementation "io.ktor:ktor-serialization:$ktor_version"
 
   // Metrics
-  implementation "io.ktor:ktor-metrics-micrometer:$ktorVersion"
+  implementation "io.ktor:ktor-metrics-micrometer:$ktor_version"
   implementation "io.micrometer:micrometer-registry-prometheus:latest.release"
 
   // Server
-  implementation "io.ktor:ktor-server-core:$ktorVersion"
-  implementation "io.ktor:ktor-websockets:$ktorVersion"
-  implementation "io.ktor:ktor-server-cio:$ktorVersion"
-  implementation "io.ktor:ktor-locations:$ktorVersion"
+  implementation "io.ktor:ktor-server-core:$ktor_version"
+  implementation "io.ktor:ktor-websockets:$ktor_version"
+  implementation "io.ktor:ktor-server-cio:$ktor_version"
+  implementation "io.ktor:ktor-locations:$ktor_version"
 
   // Client
-  implementation "io.ktor:ktor-client-core:$ktorVersion"
-  implementation "io.ktor:ktor-client-websockets:$ktorVersion"
-  implementation "io.ktor:ktor-client-okhttp:$ktorVersion"
+  implementation "io.ktor:ktor-client-core:$ktor_version"
+  implementation "io.ktor:ktor-client-websockets:$ktor_version"
+  implementation "io.ktor:ktor-client-okhttp:$ktor_version"
 
   /* random */
-  implementation "org.json:json:20200518"
+  implementation "com.google.guava:guava:30.1.1-jre"
 }
 
 shadowJar {

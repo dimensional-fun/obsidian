@@ -32,35 +32,68 @@ import obsidian.bedrock.BedrockEventAdapter
 import obsidian.bedrock.MediaConnection
 import obsidian.bedrock.VoiceServerInfo
 import obsidian.bedrock.gateway.AbstractMediaGatewayConnection.Companion.asFlow
-import obsidian.bedrock.util.Interval
+import obsidian.server.io.Magma.Companion.magma
 import obsidian.server.player.Link
 import obsidian.server.player.TrackEndMarkerHandler
 import obsidian.server.player.filter.FilterChain
 import obsidian.server.util.TrackUtil
-import org.json.JSONObject
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.lang.Runnable
 import java.nio.charset.Charset
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
 import kotlin.coroutines.CoroutineContext
 import kotlin.reflect.full.*
 
 @ExperimentalCoroutinesApi
 @Suppress("unused")
 class MagmaClient(
-  private val clientId: Long,
-  private val session: WebSocketServerSession
+  val userId: Long,
+  private var session: WebSocketServerSession
 ) : CoroutineScope {
   /**
    * The Bedrock client for this Session
    */
-  val bedrock = BedrockClient(clientId)
+  val bedrock = BedrockClient(userId)
 
   /**
    * guild id -> [Link]
    */
   val links = ConcurrentHashMap<Long, Link>()
 
+  /**
+   * Whether this magma client is active
+   */
+  private var active: Boolean = false
+
+  /**
+   * Resume key
+   */
+  var resumeKey: String? = null
+
+  /**
+   * Resume timeout
+   */
+  private var resumeTimeout: Long? = null
+
+  /**
+   * Timeout future
+   */
+  private var resumeTimeoutFuture: ScheduledFuture<*>? = null
+
+  /**
+   * The dispatch buffer timeout
+   */
+  private var bufferTimeout: Long? = null
+
+
+  /**
+   * The dispatch buffer
+   */
+  private var dispatchBuffer: ConcurrentLinkedQueue<String>? = null
 
   /**
    * Events flow lol - idk kotlin
@@ -69,12 +102,6 @@ class MagmaClient(
 
   override val coroutineContext: CoroutineContext
     get() = Job() + Dispatchers.IO
-
-  /**
-   * The stats interval.
-   */
-  @ObsoleteCoroutinesApi
-  private val stats = Interval()
 
   init {
     on<SubmitVoiceUpdate> {
@@ -95,7 +122,6 @@ class MagmaClient(
       link.filters = FilterChain.from(link, this)
     }
 
-
     on<Pause> {
       val link = links.computeIfAbsent(guildId) {
         Link(this@MagmaClient, guildId)
@@ -113,7 +139,9 @@ class MagmaClient(
     }
 
     on<Destroy> {
-      links[guildId]?.player?.stopTrack()
+      val link = links.remove(guildId)
+      link?.player?.destroy()
+
       bedrock.destroyConnection(guildId)
     }
 
@@ -123,6 +151,18 @@ class MagmaClient(
       }
 
       link.player.stopTrack()
+    }
+
+    on<SetupResuming> {
+      resumeKey = key
+      resumeTimeout = timeout
+
+      logger.debug("Resuming is configured; key= $key, timeout= $timeout")
+    }
+
+    on<SetupDispatchBuffer> {
+      bufferTimeout = timeout
+      logger.debug("Dispatch buffer timeout: $timeout")
     }
 
     on<PlayTrack> {
@@ -152,8 +192,44 @@ class MagmaClient(
     }
   }
 
-  @ObsoleteCoroutinesApi
+  suspend fun handleClose() {
+    if (resumeKey != null) {
+      if (bufferTimeout?.takeIf { it > 0 } != null) {
+        dispatchBuffer = ConcurrentLinkedQueue()
+      }
+
+      val runnable = Runnable {
+        runBlocking {
+          this@MagmaClient.shutdown()
+        }
+      }
+
+      resumeTimeoutFuture = magma.executor.schedule(runnable, resumeTimeout!!, TimeUnit.MILLISECONDS)
+      logger.info("Session for $userId can be resumed within the next $resumeTimeout ms with the key \"$resumeKey\"")
+      return
+    }
+
+    magma.shutdown(this)
+  }
+
+  suspend fun resume(session: WebSocketServerSession) {
+    logger.info("Session for $userId has been resumed")
+
+    this.session = session
+    this.active = true
+    this.resumeTimeoutFuture?.cancel(false)
+    listen()
+
+    dispatchBuffer?.let {
+      for (payload in dispatchBuffer!!) {
+        send(payload)
+      }
+    }
+  }
+
   suspend fun listen() {
+    active = true
+
     session.incoming.asFlow().buffer(Channel.UNLIMITED)
       .collect {
         when (it) {
@@ -162,6 +238,8 @@ class MagmaClient(
           }
         }
       }
+
+    active = false
   }
 
   private inline fun <reified T : Operation> on(crossinline block: suspend T.() -> Unit) {
@@ -170,6 +248,7 @@ class MagmaClient(
         try {
           block.invoke(it)
         } catch (ex: Exception) {
+          logger.info("fuck you 2")
           logger.error(ex)
         }
       }
@@ -185,7 +264,7 @@ class MagmaClient(
     val json = frame.data.toString(Charset.defaultCharset())
 
     try {
-      logger.trace("$clientId >>> $json")
+      logger.trace("$userId >>> $json")
       jsonParser.decodeFromString(Operation, json)?.let { events.emit(it) }
     } catch (ex: Exception) {
       logger.error(ex)
@@ -209,14 +288,33 @@ class MagmaClient(
    */
   suspend fun send(dispatch: Dispatch) {
     val json = jsonParser.encodeToString(Dispatch.Companion, dispatch)
-    logger.trace("$clientId <- $json")
-    session.send(json)
+    if (!active) {
+      dispatchBuffer?.offer(json)
+      return
+    }
+
+    send(json)
+  }
+
+  /**
+   * Sends a JSON encoded dispatch payload to the client
+   *
+   * @param json JSON encoded dispatch payload
+   */
+  private suspend fun send(json: String) {
+    try {
+      logger.trace("$userId <<< $json")
+      session.send(json)
+    } catch (ex: Exception) {
+      logger.error(ex)
+    }
   }
 
   internal suspend fun shutdown() {
     logger.info("Shutting down ${links.size} links.")
-    for ((_, link) in links) {
-      link.player.stopTrack()
+    for ((id, link) in links) {
+      link.player.destroy()
+      links.remove(id)
     }
 
     bedrock.close()
@@ -265,21 +363,6 @@ class MagmaClient(
     }
   }
 
-  @ObsoleteCoroutinesApi
-  private suspend fun sendStats() {
-//    send(Op.STATS) {
-//      combineWith(Stats.build(this@MagmaClient))
-//    }
-
-    if (!stats.started) {
-      coroutineScope {
-        launch {
-          stats.start(60000, ::sendStats)
-        }
-      }
-    }
-  }
-
   companion object {
     /**
      * JSON parser for everything.
@@ -291,12 +374,5 @@ class MagmaClient(
     }
 
     private val logger: Logger = LoggerFactory.getLogger(MagmaClient::class.java)
-
-    private fun getGuildId(data: JSONObject): Long? =
-      try {
-        data.getLong("guild_id")
-      } catch (ex: Exception) {
-        null
-      }
   }
 }

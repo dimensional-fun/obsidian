@@ -18,27 +18,28 @@
 
 package obsidian.server.io
 
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import obsidian.server.player.FrameLossCounter
 import obsidian.server.player.Link
 import obsidian.server.util.CpuTimer
-import obsidian.server.util.buildJson
-import org.json.JSONObject
 
 object Stats {
   private val cpuTimer = CpuTimer()
 
-  fun build(client: MagmaClient? = null): JSONObject =
-    buildJson {
+  fun build(client: MagmaClient? = null): JsonObject =
+    buildJsonObject {
       val runtime = Runtime.getRuntime()
 
-      put("memory", buildJson<JSONObject> {
+      put("memory", buildJsonObject {
         put("free", runtime.freeMemory())
         put("used", runtime.totalMemory() - runtime.freeMemory())
         put("allocated", runtime.totalMemory())
         put("reservable", runtime.maxMemory())
       })
 
-      put("cpu", buildJson<JSONObject> {
+      put("cpu", buildJsonObject {
         put("cores", runtime.availableProcessors())
 
         val systemLoad = cpuTimer.systemRecentCpuUsage
@@ -49,7 +50,7 @@ object Stats {
       })
 
       if (client != null) {
-        put("links", buildJson<JSONObject> {
+        put("links", buildJsonObject {
           val active = client.links
             .filter { e: Map.Entry<Long, Link> -> e.value.playing }
             .size
@@ -73,7 +74,7 @@ object Stats {
         if (active > 0) {
           val deficit = active * FrameLossCounter.EXPECTED_PACKET_COUNT_PER_MIN - (sent + nulled)
 
-          put("frames", buildJson<JSONObject> {
+          put("frames", buildJsonObject {
             put("sent", sent / active)
             put("nulled", nulled / active)
             put("deficit", deficit / active)

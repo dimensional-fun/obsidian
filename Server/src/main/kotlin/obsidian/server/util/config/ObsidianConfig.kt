@@ -51,13 +51,6 @@ object ObsidianConfig : ConfigSpec("obsidian") {
   val ImmediatelyProvide by optional(true, "immediately-provide")
 
   /**
-   * The delay (in milliseconds) between each player update.
-   *
-   * `obsidian.player-update-interval`
-   */
-  val PlayerUpdateInterval by optional(5000L, "player-update-interval")
-
-  /**
    * Used to validate a string given as authorization.
    *
    * @param given The given authorization string.
@@ -67,6 +60,22 @@ object ObsidianConfig : ConfigSpec("obsidian") {
   fun validateAuth(given: String?): Boolean = when {
     config[Password].isEmpty() -> true
     else -> given == config[Password]
+  }
+
+  object PlayerUpdates : ConfigSpec("player-updates") {
+    /**
+     * The delay (in milliseconds) between each player update.
+     *
+     * `obsidian.player-updates.interval`
+     */
+    val Interval by optional(5000L, "interval")
+
+    /**
+     * Whether the filters object should be sent with Player Updates
+     *
+     * `obsidian.player-updates.send-filters`
+     */
+    val SendFilters by optional(true, "send-filters")
   }
 
   object Lavaplayer : ConfigSpec("lavaplayer") {

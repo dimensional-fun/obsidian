@@ -33,6 +33,8 @@ enum class Op(val code: Int) {
 
   // obsidian related.
   Stats(1),
+  SetupResuming(10),
+  SetupDispatchBuffer(11),
 
   // player information.
   PlayerEvent(2),
@@ -45,6 +47,7 @@ enum class Op(val code: Int) {
   Filters(7),
   Seek(8),
   Destroy(9);
+
 
   companion object Serializer : KSerializer<Op> {
     /**

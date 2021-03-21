@@ -15,13 +15,11 @@ Magma is the name for the WebSocket and REST server!
 As of version `1.0.0` of obsidian the REST API is only used for loading tracks. This will most likely change in future
 releases.
 
-*p.s. nothing requires authorization... this will change in a future release, you should provide the authorization
-header anyways*
-
 ###### Load Tracks
 
 ```
 GET /loadtracks?identifier=D-ocerKPufk
+Authorization: <configured password> 
 ```
 
 **Example Response**
@@ -57,6 +55,7 @@ GET /loadtracks?identifier=D-ocerKPufk
 
 ```
 GET /decodetrack?track=QAAAkQIAKF...
+Authorization: <configured password> 
 ```
 
 **Example Response**
@@ -78,6 +77,7 @@ GET /decodetrack?track=QAAAkQIAKF...
 
 ```
 POST /decodetracks
+Authorization: <configured password> 
 
 {
   "tracks": [
@@ -103,6 +103,7 @@ To connect you must have these headers assigned
 ```
 Authorization: Password configured in `.obsidianrc`
 User-Id: The user id of the bot you're playing music with
+Resume-Key: The resume key (like lavalink)
 ```
 
 **Close Codes**
@@ -129,17 +130,19 @@ User-Id: The user id of the bot you're playing music with
 ### Operations
 
 | op code/name | description |
-|:--------|:--------|
-| 0 &bull; submit voice update | allows obsidian to connect to the discord voice server |
-| 1 &bull; stats               | has resource usage for both the system and jvm, also includes player count |
-| 2 &bull; player event       | dispatched when a player event occurs, e.g. track end, track start |
-| 3 &bull; player update       | used to keep track of player state, e.g. current position and filters |
-| 4 &bull; play track          | used to play tracks |
-| 5 &bull; stop track          | stops the current track |
-| 6 &bull; pause               | configures the pause state of the player |
-| 7 &bull; filters             | configures the current filters |
-| 8 &bull; seek                | seeks to the specified position |
-| 9 &bull; destroy             | used to destroy players |
+|:--------------------------------|:--------------------|
+| 0 &bull; submit voice update    | allows obsidian to connect to the discord voice server |
+| 1 &bull; stats                  | has resource usage for both the system and jvm, also includes player count |
+| 2 &bull; player event           | dispatched when a player event occurs, e.g. track end, track start |
+| 3 &bull; player update          | used to keep track of player state, e.g. current position and filters |
+| 4 &bull; play track             | used to play tracks |
+| 5 &bull; stop track             | stops the current track |
+| 6 &bull; pause                  | configures the pause state of the player |
+| 7 &bull; filters                | configures the current filters |
+| 8 &bull; seek                   | seeks to the specified position |
+| 9 &bull; destroy                | used to destroy players |
+| 10 &bull; setup resuming        | configures resuming |
+| 11 &bull; setup dispatch buffer | configures dispatch buffer |
 
 #### Submit Voice Update
 
@@ -444,6 +447,34 @@ example lol*
     "equalizer": {
       "bands": []
     }
+  }
+}
+```
+
+#### Setup Resuming
+
+- `key` Resume key
+- `timeout` Resume timeout in milliseconds
+
+```json
+{
+  "op": 10,
+  "d": {
+    "key": "d9qd02hbd190bd801",
+    "timeout": 60000
+  }
+}
+```
+
+#### Setup Dispatch Buffer
+
+- `timeout` Buffer timeout in milliseconds
+
+```json
+{
+  "op": 11,
+  "d": {
+    "timeout": 60000
   }
 }
 ```

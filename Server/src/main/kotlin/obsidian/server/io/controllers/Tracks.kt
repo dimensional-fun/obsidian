@@ -21,6 +21,7 @@ package obsidian.server.io.controllers
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import io.ktor.application.*
+import io.ktor.auth.*
 import io.ktor.locations.*
 import io.ktor.request.*
 import io.ktor.response.*
@@ -43,25 +44,27 @@ import org.slf4j.LoggerFactory
 class Tracks(routing: Routing) {
   init {
     routing {
-      @Location("/loadtracks")
-      data class LoadTracks(val identifier: String)
+      authenticate {
+        @Location("/loadtracks")
+        data class LoadTracks(val identifier: String)
 
-      get<LoadTracks> {
-        val response = loadTracks(it.identifier)
-        context.respond(response)
-      }
+        get<LoadTracks> {
+          val response = loadTracks(it.identifier)
+          context.respond(response)
+        }
 
-      @Location("/decodetrack")
-      data class DecodeTrack(val track: String)
+        @Location("/decodetrack")
+        data class DecodeTrack(val track: String)
 
-      get<DecodeTrack> {
-        val track = TrackUtil.decode(it.track)
-        context.respond(getTrackInfo(track))
-      }
+        get<DecodeTrack> {
+          val track = TrackUtil.decode(it.track)
+          context.respond(getTrackInfo(track))
+        }
 
-      post("/decodetracks") {
-        val body = call.receive<DecodeTracksBody>()
-        context.respond(body.tracks.map(::getTrackInfo))
+        post("/decodetracks") {
+          val body = call.receive<DecodeTracksBody>()
+          context.respond(body.tracks.map(::getTrackInfo))
+        }
       }
     }
   }
@@ -75,26 +78,24 @@ class Tracks(routing: Routing) {
       logger.error("Track loading failed", result.exception)
     }
 
+    val playlist = result.playlistName?.let {
+      LoadTracksResponse.PlaylistInfo(name = it, selectedTrack = result.selectedTrack)
+    }
+
+    val exception = if (result.loadResultType == LoadType.LOAD_FAILED && result.exception != null) {
+      LoadTracksResponse.Exception(
+        message = result.exception!!.localizedMessage,
+        severity = result.exception!!.severity
+      )
+    } else {
+      null
+    }
+
     return LoadTracksResponse(
       tracks = result.tracks.map(::getTrack),
-
       type = result.loadResultType,
-
-      playlistInfo = result.playlistName?.let {
-        LoadTracksResponse.PlaylistInfo(
-          name = it,
-          selectedTrack = result.selectedTrack
-        )
-      },
-
-      exception = if (result.loadResultType == LoadType.LOAD_FAILED && result.exception != null) {
-        LoadTracksResponse.Exception(
-          message = result.exception!!.localizedMessage,
-          severity = result.exception!!.severity
-        )
-      } else {
-        null
-      }
+      playlistInfo = playlist,
+      exception = exception
     )
   }
 
@@ -120,12 +121,9 @@ class Tracks(routing: Routing) {
   data class LoadTracksResponse(
     @SerialName("load_type")
     val type: LoadType,
-
     @SerialName("playlist_info")
     val playlistInfo: PlaylistInfo?,
-
     val tracks: List<Track>,
-
     val exception: Exception?
   ) {
     @Serializable
@@ -137,7 +135,6 @@ class Tracks(routing: Routing) {
     @Serializable
     data class PlaylistInfo(
       val name: String,
-
       @SerialName("selected_track")
       val selectedTrack: Int?
     )
@@ -157,10 +154,8 @@ class Tracks(routing: Routing) {
       val identifier: String,
       val length: Long,
       val position: Long,
-
       @SerialName("is_stream")
       val isStream: Boolean,
-
       @SerialName("is_seekable")
       val isSeekable: Boolean,
     )

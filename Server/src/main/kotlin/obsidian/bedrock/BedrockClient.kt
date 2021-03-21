@@ -63,7 +63,10 @@ class BedrockClient(val clientId: Long) {
    */
   suspend fun close() {
     if (!connections.isEmpty()) {
-      connections.keys.forEach { destroyConnection(it) }
+      for ((id, conn) in connections) {
+        removeConnection(id)
+        conn.close();
+      }
     }
   }
 }

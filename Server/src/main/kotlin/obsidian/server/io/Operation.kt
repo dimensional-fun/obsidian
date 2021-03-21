@@ -54,13 +54,32 @@ sealed class Operation {
 
             1 ->
               data = when (op) {
-                Op.SubmitVoiceUpdate -> decode(SubmitVoiceUpdate.serializer())
-                Op.PlayTrack -> decode(PlayTrack.serializer())
-                Op.StopTrack -> decode(StopTrack.serializer())
-                Op.Pause -> decode(Pause.serializer())
-                Op.Filters -> decode(Filters.serializer())
-                Op.Seek -> decode(Seek.serializer())
-                Op.Destroy -> decode(Destroy.serializer())
+                Op.SubmitVoiceUpdate ->
+                  decode(SubmitVoiceUpdate.serializer())
+
+                Op.PlayTrack ->
+                  decode(PlayTrack.serializer())
+
+                Op.StopTrack ->
+                  decode(StopTrack.serializer())
+
+                Op.Pause ->
+                  decode(Pause.serializer())
+
+                Op.Filters ->
+                  decode(Filters.serializer())
+
+                Op.Seek ->
+                  decode(Seek.serializer())
+
+                Op.Destroy ->
+                  decode(Destroy.serializer())
+
+                Op.SetupResuming ->
+                  decode(SetupResuming.serializer())
+
+                Op.SetupDispatchBuffer ->
+                  decode(SetupDispatchBuffer.serializer())
 
                 else -> if (data == null) {
                   val element = decodeNullableSerializableElement(descriptor, idx, JsonElement.serializer().nullable)
@@ -149,3 +168,9 @@ data class Seek(
 
 @Serializable
 data class Destroy(@SerialName("guild_id") val guildId: Long) : Operation()
+
+@Serializable
+data class SetupResuming(val key: String, val timeout: Long?) : Operation()
+
+@Serializable
+data class SetupDispatchBuffer(val timeout: Long) : Operation()
