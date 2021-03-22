@@ -42,12 +42,12 @@ import java.net.InetAddress
 import java.util.function.Predicate
 
 class ObsidianPlayerManager : DefaultAudioPlayerManager() {
-  val enabledSources = mutableListOf<String>()
+  private val enabledSources = mutableListOf<String>()
 
   /**
    * The route planner.
    */
-  val routePlanner: AbstractRoutePlanner? by lazy {
+  private val routePlanner: AbstractRoutePlanner? by lazy {
     val ipBlockList = config[ObsidianConfig.Lavaplayer.RateLimit.IpBlocks]
     if (ipBlockList.isEmpty()) {
       return@lazy null
@@ -61,7 +61,11 @@ class ObsidianPlayerManager : DefaultAudioPlayerManager() {
       }
     }
 
-    val filter = Predicate<InetAddress> { !config[ObsidianConfig.Lavaplayer.RateLimit.ExcludedIps].contains(it) }
+    val blacklisted = config[ObsidianConfig.Lavaplayer.RateLimit.ExcludedIps].map {
+      InetAddress.getByName(it)
+    }
+
+    val filter = Predicate<InetAddress> { !blacklisted.contains(it) }
     val searchTriggersFail = config[ObsidianConfig.Lavaplayer.RateLimit.SearchTriggersFail]
 
     return@lazy when (config[ObsidianConfig.Lavaplayer.RateLimit.Strategy]) {

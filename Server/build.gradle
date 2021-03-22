@@ -4,7 +4,6 @@ apply plugin: "application"
 apply plugin: "com.github.johnrengelman.shadow"
 
 description = "A robust and performant audio sending node meant for Discord Bots."
-
 mainClassName = "obsidian.server.Obsidian"
 version "1.0.0"
 
@@ -16,6 +15,7 @@ dependencies {
   /* kotlin shit */
   implementation "org.jetbrains.kotlin:kotlin-stdlib"
   implementation "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
+  implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlinx_coroutines_version"
 
   /* audio */
   implementation "com.sedmelluq:lavaplayer:$lavaplayer_version"

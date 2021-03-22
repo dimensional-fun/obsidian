@@ -41,7 +41,7 @@ object ObsidianConfig : ConfigSpec("obsidian") {
    *
    * `obsidian.password`
    */
-  val Password by required<String>()
+  val Password by optional("")
 
   /**
    * Whether obsidian should immediately start providing frames after connecting to the voice server.

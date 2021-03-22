@@ -218,13 +218,14 @@ class MagmaClient(
     this.session = session
     this.active = true
     this.resumeTimeoutFuture?.cancel(false)
-    listen()
 
     dispatchBuffer?.let {
       for (payload in dispatchBuffer!!) {
         send(payload)
       }
     }
+
+    listen()
   }
 
   suspend fun listen() {

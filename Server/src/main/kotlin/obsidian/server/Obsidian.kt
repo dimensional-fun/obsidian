@@ -20,45 +20,35 @@ package obsidian.server
 
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.LoggerContext
 import com.uchuhimo.konf.Config
 import com.uchuhimo.konf.source.yaml
 import io.ktor.application.*
+import io.ktor.auth.*
 import io.ktor.features.*
+import io.ktor.http.*
+import io.ktor.http.content.*
 import io.ktor.locations.*
 import io.ktor.metrics.micrometer.*
+import io.ktor.request.*
+import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.serialization.*
 import io.ktor.server.cio.*
 import io.ktor.server.engine.*
+import io.ktor.util.pipeline.*
 import io.ktor.websocket.*
 import io.micrometer.prometheus.PrometheusConfig
 import io.micrometer.prometheus.PrometheusMeterRegistry
+import kotlinx.coroutines.runBlocking
 import obsidian.bedrock.Bedrock
 import obsidian.server.io.Magma.Companion.magma
 import obsidian.server.player.ObsidianPlayerManager
 import obsidian.server.util.config.LoggingConfig
 import obsidian.server.util.config.ObsidianConfig
 import org.slf4j.LoggerFactory
-import ch.qos.logback.classic.LoggerContext
-import io.ktor.auth.*
-import io.ktor.http.*
-import io.ktor.http.content.*
-import io.ktor.request.*
-import io.ktor.response.*
-import io.ktor.util.pipeline.*
-import kotlinx.serialization.json.buildJsonObject
 
 object Obsidian {
-  /**
-   * Player manager
-   */
-  val playerManager = ObsidianPlayerManager()
-
-  /**
-   * Prometheus Metrics, kinda scuffed tho
-   */
-  val metricRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
-
   /**
    * Configuration
    */
@@ -67,11 +57,76 @@ object Obsidian {
     addSpec(Bedrock.Config)
     addSpec(LoggingConfig)
   }
-    .from.yaml.file(".obsidianrc")
+    .from.yaml.file(".obsidianrc", true)
     .from.env()
     .from.systemProperties()
 
-  fun configureLogging() {
+  /**
+   * Player manager
+   */
+  val playerManager = ObsidianPlayerManager()
+
+  /**
+   * Lol i just like comments
+   */
+  private val logger = LoggerFactory.getLogger(Obsidian::class.java)
+
+  /**
+   * Prometheus Metrics, kinda scuffed tho
+   */
+  private val metricRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+
+  @JvmStatic
+  fun main(args: Array<out String>) {
+    runBlocking {
+      configureLogging()
+      val server = embeddedServer(CIO, host = config[ObsidianConfig.Host], port = config[ObsidianConfig.Port]) {
+        install(Locations)
+
+        install(WebSockets)
+
+        install(MicrometerMetrics) {
+          registry = metricRegistry
+        }
+
+        install(ContentNegotiation) {
+          json()
+        }
+
+        install(Authentication) {
+          provider {
+            pipeline.intercept(AuthenticationPipeline.RequestAuthentication) { context ->
+              val authorization = call.request.authorization()
+              if (!ObsidianConfig.validateAuth(authorization)) {
+                val cause = when (authorization) {
+                  null -> AuthenticationFailedCause.NoCredentials
+                  else -> AuthenticationFailedCause.InvalidCredentials
+                }
+
+                context.challenge("ObsidianAuth", cause) {
+                  call.respond(HttpStatusCode.Unauthorized)
+                  it.complete()
+                }
+              }
+            }
+          }
+        }
+
+        routing {
+          magma.use(this)
+        }
+      }
+
+      if (config[ObsidianConfig.Password].isEmpty()) {
+        logger.warn("No password has been configured, thus allowing no authorization for the websocket server and REST requests.")
+      }
+
+      server.start(wait = true)
+      magma.shutdown()
+    }
+  }
+
+  private fun configureLogging() {
     val loggerContext = LoggerFactory.getILoggerFactory() as LoggerContext
 
     val rootLogger = loggerContext.getLogger(Logger.ROOT_LOGGER_NAME) as Logger
@@ -80,47 +135,4 @@ object Obsidian {
     val obsidianLogger = loggerContext.getLogger("obsidian") as Logger
     obsidianLogger.level = Level.toLevel(config[LoggingConfig.Level.Obsidian], Level.INFO)
   }
-}
-
-suspend fun main(args: Array<out String>) {
-  Obsidian.configureLogging()
-  val server = embeddedServer(CIO, host = Obsidian.config[ObsidianConfig.Host], port = Obsidian.config[ObsidianConfig.Port]) {
-    install(Locations)
-
-    install(WebSockets)
-
-    install(MicrometerMetrics) {
-      registry = Obsidian.metricRegistry
-    }
-
-    install(ContentNegotiation) {
-      json()
-    }
-
-    install(Authentication) {
-      provider {
-        pipeline.intercept(AuthenticationPipeline.RequestAuthentication) { context ->
-          val authorization = call.request.authorization()
-          if (!ObsidianConfig.validateAuth(authorization)) {
-            val cause = when(authorization) {
-              null -> AuthenticationFailedCause.NoCredentials
-              else -> AuthenticationFailedCause.InvalidCredentials
-            }
-
-            context.challenge("ObsidianAuth", cause) {
-              call.respond(HttpStatusCode.Unauthorized)
-              it.complete()
-            }
-          }
-        }
-      }
-    }
-
-    routing {
-      magma.use(this)
-    }
-  }
-
-  server.start(wait = true)
-  magma.shutdown()
 }
