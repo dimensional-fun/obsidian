@@ -200,7 +200,7 @@ class MagmaClient(
 
       val runnable = Runnable {
         runBlocking {
-          this@MagmaClient.shutdown()
+          magma.shutdown(this@MagmaClient)
         }
       }
 
