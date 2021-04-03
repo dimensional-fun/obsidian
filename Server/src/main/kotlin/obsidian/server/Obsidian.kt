@@ -27,7 +27,6 @@ import io.ktor.application.*
 import io.ktor.auth.*
 import io.ktor.features.*
 import io.ktor.http.*
-import io.ktor.http.content.*
 import io.ktor.locations.*
 import io.ktor.metrics.micrometer.*
 import io.ktor.request.*
@@ -36,7 +35,6 @@ import io.ktor.routing.*
 import io.ktor.serialization.*
 import io.ktor.server.cio.*
 import io.ktor.server.engine.*
-import io.ktor.util.pipeline.*
 import io.ktor.websocket.*
 import io.micrometer.prometheus.PrometheusConfig
 import io.micrometer.prometheus.PrometheusMeterRegistry
@@ -57,7 +55,7 @@ object Obsidian {
     addSpec(Bedrock.Config)
     addSpec(LoggingConfig)
   }
-    .from.yaml.file(".obsidianrc", true)
+    .from.yaml.file("obsidian.yml", true)
     .from.env()
     .from.systemProperties()
 
@@ -98,10 +96,9 @@ object Obsidian {
             pipeline.intercept(AuthenticationPipeline.RequestAuthentication) { context ->
               val authorization = call.request.authorization()
               if (!ObsidianConfig.validateAuth(authorization)) {
-                val cause = when (authorization) {
-                  null -> AuthenticationFailedCause.NoCredentials
-                  else -> AuthenticationFailedCause.InvalidCredentials
-                }
+                val cause =
+                  if (authorization == null) AuthenticationFailedCause.NoCredentials
+                  else AuthenticationFailedCause.InvalidCredentials
 
                 context.challenge("ObsidianAuth", cause) {
                   call.respond(HttpStatusCode.Unauthorized)

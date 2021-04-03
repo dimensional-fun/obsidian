@@ -65,14 +65,14 @@ class MagmaClient(
   val links = ConcurrentHashMap<Long, Link>()
 
   /**
-   * Whether this magma client is active
-   */
-  private var active: Boolean = false
-
-  /**
    * Resume key
    */
   var resumeKey: String? = null
+
+  /**
+   * Whether this magma client is active
+   */
+  private var active: Boolean = false
 
   /**
    * Resume timeout
@@ -351,7 +351,7 @@ class MagmaClient(
       }
 
       if (lastHeartbeatNonce != nonce) {
-        logger.warn("A heartbeat was acknowledged but it wasn't the last?")
+        logger.debug("A heartbeat was acknowledged but it wasn't the last?")
         return
       }
 
