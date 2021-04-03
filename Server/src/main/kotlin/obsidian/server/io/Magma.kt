@@ -20,6 +20,7 @@ package obsidian.server.io
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import io.ktor.auth.*
+import io.ktor.features.*
 import io.ktor.http.*
 import io.ktor.http.cio.websocket.*
 import io.ktor.locations.*
@@ -29,12 +30,11 @@ import io.ktor.routing.*
 import io.ktor.util.*
 import io.ktor.util.pipeline.*
 import io.ktor.websocket.*
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import obsidian.server.io.MagmaCloseReason.CLIENT_EXISTS
 import obsidian.server.io.MagmaCloseReason.INVALID_AUTHORIZATION
 import obsidian.server.io.MagmaCloseReason.NO_USER_ID
-import obsidian.server.io.controllers.Tracks
+import obsidian.server.io.controllers.routePlanner
+import obsidian.server.io.controllers.tracks
 import obsidian.server.util.config.ObsidianConfig
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
@@ -63,36 +63,42 @@ class Magma private constructor() {
     routing {
       webSocket("/") {
         val request = call.request
+
+        /* validate authorization. */
         if (!ObsidianConfig.validateAuth(request.authorization())) {
           logger.warn("Authentication failed from ${request.local.remoteHost}")
-          close(INVALID_AUTHORIZATION)
-          return@webSocket
-        } else {
-          logger.info("Incoming request from ${request.local.remoteHost}")
+          return@webSocket close(INVALID_AUTHORIZATION)
         }
 
+        logger.info("Incoming request from ${request.local.remoteHost}")
+
+        /* check for userId */
         val userId = request.headers["User-Id"]?.toLongOrNull()
         if (userId == null) {
-          close(NO_USER_ID)
+          /* no user id was given, close the connection */
           logger.info("${request.local.remoteHost}: Missing 'User-Id' header")
-          return@webSocket
+          return@webSocket close(NO_USER_ID)
         }
 
+        /* check if a client for the provided userId already exists. */
         var client = clients[userId]
         if (client != null) {
+          /* check for a resume key, if one was given check if the client has the same resume key/ */
           val resumeKey: String? = request.headers["Resume-Key"]
           if (resumeKey != null && client.resumeKey == resumeKey) {
+            /* resume the client session */
             client.resume(this)
             return@webSocket
           }
 
-          close(CLIENT_EXISTS)
-          return@webSocket
+          return@webSocket close(CLIENT_EXISTS)
         }
 
+        /* create client */
         client = MagmaClient(userId, this)
         clients[userId] = client
 
+        /* listen for incoming messages */
         try {
           client.listen()
         } catch (ex: Throwable) {
@@ -110,7 +116,8 @@ class Magma private constructor() {
       }
     }
 
-    Tracks(routing)
+    routing.tracks()
+    routing.routePlanner()
   }
 
   /**

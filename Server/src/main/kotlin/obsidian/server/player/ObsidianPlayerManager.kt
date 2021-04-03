@@ -47,7 +47,7 @@ class ObsidianPlayerManager : DefaultAudioPlayerManager() {
   /**
    * The route planner.
    */
-  private val routePlanner: AbstractRoutePlanner? by lazy {
+  val routePlanner: AbstractRoutePlanner? by lazy {
     val ipBlockList = config[ObsidianConfig.Lavaplayer.RateLimit.IpBlocks]
     if (ipBlockList.isEmpty()) {
       return@lazy null

@@ -1,0 +1,14 @@
+### route planner status
+GET http://localhost:3030/routeplanner/status
+Accept: application/json
+
+### free single
+POST http://localhost:3030/routeplanner/free/address
+Accept: application/json
+Content-Type: application/json
+
+{
+  "address": ""
+}
+
+###
