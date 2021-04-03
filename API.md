@@ -1,6 +1,7 @@
 # Obsidian API Documentation
 
-Welcome to the Obsidian API Documentation! This document describes mostly everything about the WebSocket and HTTP server.
+Welcome to the Obsidian API Documentation! This document describes mostly everything about the WebSocket and HTTP
+server.
 
 ###### What's Magma?
 
@@ -15,7 +16,96 @@ Magma is the name for the WebSocket and REST server!
 As of version `1.0.0` of obsidian the REST API is only used for loading tracks. This will most likely change in future
 releases.
 
-###### Load Tracks
+### Route Planner
+
+Allows clients to view the route planner and free-up addresses.
+
+#### Routeplanner Status
+
+```
+GET /routeplanner/status
+Authorization: <password>
+```
+
+**Example Response**
+
+```json
+{
+  "class": "RotatingNanoIpRoutePlanner",
+  "details": {
+    "ip_block": {
+      "type": "Inet6Address",
+      "size": "1208925819614629174706176"
+    },
+    "failing_addresses": [
+      {
+        "address": "/1.0.0.0",
+        "failing_timestamp": 1573520707545,
+        "failing_time": "Mon Nov 11 20:05:07 EST 2019"
+      }
+    ],
+    "block_index": "0",
+    "current_address_index": "36792023813"
+  }
+}
+```
+
+*If no route planner was configured, both `class` and `details` will be null, the responses vary depending on what route planner was configured. Fields that are consistent:*
+
+- `class` *string* name of the route planner
+- `details.ip_block` *string* the current ip-block
+- `details.failing_addresses` *array* of objects describing a failed address.
+
+**RotatingIpRoutePlanner**
+
+- `details.rotate_index` *string* containing the number of rotations which happened since the server had started.
+- `details.ip_index` *string* containing the current offset of the ip-block.
+- `details.current_address` *string* containing the currently used ip-address.
+
+**NanoIpRoutePlanner**
+
+- `details.current_address_index` *long* representing the current offset in the ip-block.
+
+**RotatingNanoIpRoutePlanner**
+
+- `details.block_index` *string* containing the file information in which /64 block ips are chosen, this number increases on each ban.
+- `details.current_address_index` *long* representing the current offset in the ip-block.
+
+#### Unmark a failed address
+
+```
+GET /routeplanner/free/address
+Authorization: <password>
+```
+
+*body:*
+
+```json
+{
+  "address": "420.69.69.420"
+}
+```
+
+**Example Response**
+
+*204 - No Content*
+
+#### Unmark all failed addresses
+
+```
+GET /routeplanner/free/all
+Authorization: <password>
+```
+
+**Example Response**
+
+*204 - No Content*
+
+### Tracks Controller
+
+Allows non-jvm clients to search and decode tracks using Obsidian!
+
+#### Load Tracks
 
 ```
 GET /loadtracks?identifier=D-ocerKPufk
@@ -49,7 +139,7 @@ Authorization: <configured password>
 }
 ```
 
-###### Decode Track(s)
+#### Decode Track(s)
 
 **Singular**
 
@@ -78,7 +168,11 @@ Authorization: <configured password>
 ```
 POST /decodetracks
 Authorization: <configured password> 
+```
 
+*body:*
+
+```json
 {
   "tracks": [
     "..."
@@ -222,7 +316,8 @@ Dispatched when a track ends
 
 - `STOPPED`, `REPLACED`, `CLEANUP`, `LOAD_FAILED`, `FINISHED`
 
-For more information visit [**AudioTrackEndReason.java**](https://github.com/sedmelluq/lavaplayer/blob/master/main/src/main/java/com/sedmelluq/discord/lavaplayer/track/AudioTrackEndReason.java)
+For more information visit [**
+AudioTrackEndReason.java**](https://github.com/sedmelluq/lavaplayer/blob/master/main/src/main/java/com/sedmelluq/discord/lavaplayer/track/AudioTrackEndReason.java)
 
 ##### `TRACK_STUCK`
 
