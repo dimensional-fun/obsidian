@@ -198,16 +198,18 @@ To connect you must have these headers assigned
 Authorization: Password configured in `.obsidianrc`
 User-Id: The user id of the bot you're playing music with
 Resume-Key: The resume key (like lavalink), however this is only needed if the client needs to be resumed.
+Client-Name: Name of your bot or project, may be required but the node you are connecting to.
 ```
 
 **Close Codes**
 
-| close code | reason                                             |
-|:-----------|:---------------------------------------------------|
-| 4001       | You specified invalid authorization                |
-| 4002       | No `User-Id` header was specified                  |
-| 4004       | A session for the `User-Id` header already exists  |
-| 4005       | An error occurred while handling incoming frames   |
+| close code | reason                                                      |
+| :--------- | :---------------------------------------------------------- |
+| 4001       | You specified invalid authorization                         |
+| 4002       | No `User-Id` header was                                     |
+| 4004       | A session for the `User-Id` header already exists           |  
+| 4005       | An error occurred while handling incoming frames            |
+| 4006       | The server requires the `Client-Name` header to be present. |
 
 ###### Payload Structure
 
@@ -224,19 +226,19 @@ Resume-Key: The resume key (like lavalink), however this is only needed if the c
 ### Operations
 
 | op code/name | description |
-|:--------------------------------|:--------------------|
-| 0 &bull; submit voice update    | allows obsidian to connect to the discord voice server |
+| :------------------------------ | :------------------------------------------------------------------------- |
+| 0 &bull; submit voice update    | allows obsidian to connect to the discord voice server                     |
 | 1 &bull; stats                  | has resource usage for both the system and jvm, also includes player count |
-| 2 &bull; player event           | dispatched when a player event occurs, e.g. track end, track start |
-| 3 &bull; player update          | used to keep track of player state, e.g. current position and filters |
-| 4 &bull; play track             | used to play tracks |
-| 5 &bull; stop track             | stops the current track |
-| 6 &bull; pause                  | configures the pause state of the player |
-| 7 &bull; filters                | configures the current filters |
-| 8 &bull; seek                   | seeks to the specified position |
-| 9 &bull; destroy                | used to destroy players |
-| 10 &bull; setup resuming        | configures resuming |
-| 11 &bull; setup dispatch buffer | configures dispatch buffer |
+| 2 &bull; player event           | dispatched when a player event occurs, e.g. track end, track start         |
+| 3 &bull; player update          | used to keep track of player state, e.g. current position and filters      |
+| 4 &bull; play track             | used to play tracks                                                        |
+| 5 &bull; stop track             | stops the current track                                                    |
+| 6 &bull; pause                  | configures the pause state of the player                                   |
+| 7 &bull; filters                | configures the current filters                                             |
+| 8 &bull; seek                   | seeks to the specified position                                            |
+| 9 &bull; destroy                | used to destroy players                                                    |
+| 10 &bull; setup resuming        | configures resuming                                                        |
+| 11 &bull; setup dispatch buffer | configures dispatch buffer                                                 |
 
 #### Submit Voice Update
 
@@ -259,7 +261,36 @@ The equivalent of `voiceUpdate` for lavalink and `voice-state-update` for andesi
 
 #### Stats
 
-todo
+Stats on the node
+
+```json
+{
+  "op": 1,
+  "d": {
+    "memory": {
+      "free": 46609784,
+      "used": 26790536,
+      "allocated": 73400320,
+      "reservable": 2061500416
+    },
+    "cpu": {
+      "cores": 4,
+      "system_load": 0.011964233239578523,
+      "process_load": 0.15813777759120104
+    },
+    "links": { 
+      "active": 1, 
+      "total": 1
+    },
+    "frames": { 
+      "sent": 3000, 
+      "nulled": 0, 
+      "deficit": 0
+    }
+  }
+}
+```
+
 
 #### Player Events
 

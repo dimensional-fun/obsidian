@@ -30,8 +30,10 @@ import io.ktor.routing.*
 import io.ktor.util.*
 import io.ktor.util.pipeline.*
 import io.ktor.websocket.*
+import obsidian.server.Obsidian.config
 import obsidian.server.io.MagmaCloseReason.CLIENT_EXISTS
 import obsidian.server.io.MagmaCloseReason.INVALID_AUTHORIZATION
+import obsidian.server.io.MagmaCloseReason.MISSING_CLIENT_NAME
 import obsidian.server.io.MagmaCloseReason.NO_USER_ID
 import obsidian.server.io.controllers.routePlanner
 import obsidian.server.io.controllers.tracks
@@ -64,19 +66,30 @@ class Magma private constructor() {
       webSocket("/") {
         val request = call.request
 
+        /* Used within logs to easily identify different clients. */
+        val clientName = request.headers["Client-Name"]
+
+        /* check if client names are required, if so check if one is provided. */
+        if (config[ObsidianConfig.RequireClientName] && clientName.isNullOrBlank()) {
+          logger.warn("${request.local.remoteHost} - missing 'Client-Name' header")
+          return@webSocket close(MISSING_CLIENT_NAME)
+        }
+
+        val identification = "${request.local.remoteHost}${if (!clientName.isNullOrEmpty()) "($clientName)" else ""}"
+
         /* validate authorization. */
         if (!ObsidianConfig.validateAuth(request.authorization())) {
-          logger.warn("Authentication failed from ${request.local.remoteHost}")
+          logger.warn("$identification - authentication failed")
           return@webSocket close(INVALID_AUTHORIZATION)
         }
 
-        logger.info("Incoming request from ${request.local.remoteHost}")
+        logger.info("$identification - incoming connection")
 
         /* check for userId */
         val userId = request.headers["User-Id"]?.toLongOrNull()
         if (userId == null) {
           /* no user id was given, close the connection */
-          logger.info("${request.local.remoteHost}: Missing 'User-Id' header")
+          logger.info("$identification - missing 'User-Id' header")
           return@webSocket close(NO_USER_ID)
         }
 
@@ -95,14 +108,14 @@ class Magma private constructor() {
         }
 
         /* create client */
-        client = MagmaClient(userId, this)
+        client = MagmaClient(clientName, userId, this)
         clients[userId] = client
 
         /* listen for incoming messages */
         try {
           client.listen()
         } catch (ex: Throwable) {
-          logger.error(ex)
+          logger.error("${client.identification} -", ex)
           close(CloseReason(4005, ex.message ?: "unknown exception"))
         }
 
@@ -111,7 +124,7 @@ class Magma private constructor() {
 
       authenticate {
         get("/stats") {
-          context.respond(Stats.build())
+          context.respond(StatsBuilder.build())
         }
       }
     }
@@ -120,16 +133,9 @@ class Magma private constructor() {
     routing.routePlanner()
   }
 
-  /**
-   * Removes a client
-   */
-  fun remove(clientId: Long) {
-    clients.remove(clientId)
-  }
-
   suspend fun shutdown(client: MagmaClient) {
     client.shutdown()
-    clients.remove(client.userId)
+    clients.remove(client.clientId)
   }
 
   suspend fun shutdown() {

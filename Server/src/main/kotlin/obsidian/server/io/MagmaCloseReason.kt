@@ -24,4 +24,5 @@ object MagmaCloseReason {
   val INVALID_AUTHORIZATION = CloseReason(4001, "Invalid Authorization")
   val NO_USER_ID = CloseReason(4002, "No user id provided.")
   val CLIENT_EXISTS = CloseReason(4004, "A client for the provided user already exists.")
+  val MISSING_CLIENT_NAME = CloseReason(4006, "This server requires the 'Client-Name' to be present.")
 }

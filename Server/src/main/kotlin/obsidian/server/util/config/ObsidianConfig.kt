@@ -51,6 +51,13 @@ object ObsidianConfig : ConfigSpec("obsidian") {
   val ImmediatelyProvide by optional(true, "immediately-provide")
 
   /**
+   * Whether the `Client-Name` header is required for Clients.
+   *
+   * `require-client-name`
+   */
+  val RequireClientName by optional(false, "require-client-name")
+
+  /**
    * Used to validate a string given as authorization.
    *
    * @param given The given authorization string.
