@@ -206,7 +206,7 @@ Client-Name: Name of your bot or project, may be required but the node you are c
 | close code | reason                                                      |
 | :--------- | :---------------------------------------------------------- |
 | 4001       | You specified invalid authorization                         |
-| 4002       | No `User-Id` header was                                     |
+| 4002       | No `User-Id` header was specified                           |
 | 4004       | A session for the `User-Id` header already exists           |  
 | 4005       | An error occurred while handling incoming frames            |
 | 4006       | The server requires the `Client-Name` header to be present. |
