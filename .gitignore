@@ -2,10 +2,11 @@
 .idea/
 .settings/
 
-/logs/
 /build/
+/logs/
 /test/
 /target/
+/Server/bin
 /Server/build
 
 .obsidianrc
