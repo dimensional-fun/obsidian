@@ -45,6 +45,11 @@ sealed class Dispatch {
     override fun serialize(encoder: Encoder, value: Dispatch) {
       with(encoder.beginStructure(descriptor)) {
         when (value) {
+          is Stats -> {
+            encodeSerializableElement(descriptor, 0, Op, Op.Stats)
+            encodeSerializableElement(descriptor, 1, Stats.serializer(), value)
+          }
+
           is PlayerUpdate -> {
             encodeSerializableElement(descriptor, 0, Op, Op.PlayerUpdate)
             encodeSerializableElement(descriptor, 1, PlayerUpdate.serializer(), value)
@@ -204,6 +209,27 @@ data class TrackExceptionEvent(
     val severity: FriendlyException.Severity,
     val cause: String?
   )
+}
+
+@Serializable
+data class Stats(val memory: Memory, val cpu: CPU, val links: Links?, val frames: Frames?) : Dispatch() {
+  @Serializable
+  data class CPU(
+    val cores: Int,
+    @SerialName("system_load")
+    val systemLoad: Double,
+    @SerialName("process_load")
+    val processLoad: Double
+  )
+
+  @Serializable
+  data class Memory(val free: Long, val used: Long, val allocated: Long, val reservable: Long)
+
+  @Serializable
+  data class Links(val active: Int, val total: Int)
+
+  @Serializable
+  data class Frames(val sent: Int, val nulled: Int, val deficit: Int)
 }
 
 enum class PlayerEventType {

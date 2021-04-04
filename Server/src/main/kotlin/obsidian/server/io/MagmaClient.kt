@@ -18,6 +18,7 @@
 
 package obsidian.server.io
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.sedmelluq.discord.lavaplayer.track.TrackMarker
 import io.ktor.http.cio.websocket.*
 import io.ktor.util.*
@@ -41,23 +42,25 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.lang.Runnable
 import java.nio.charset.Charset
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.ScheduledFuture
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.*
 import kotlin.coroutines.CoroutineContext
 import kotlin.reflect.full.*
 
-@ExperimentalCoroutinesApi
-@Suppress("unused")
 class MagmaClient(
-  val userId: Long,
+  val clientName: String?,
+  val clientId: Long,
   private var session: WebSocketServerSession
 ) : CoroutineScope {
   /**
+   * Identification for this Client.
+   */
+  val identification: String
+     get() = "${clientName ?: clientId}"
+
+  /**
    * The Bedrock client for this Session
    */
-  val bedrock = BedrockClient(userId)
+  val bedrock = BedrockClient(clientId)
 
   /**
    * guild id -> [Link]
@@ -68,6 +71,13 @@ class MagmaClient(
    * Resume key
    */
   var resumeKey: String? = null
+
+  /**
+   * Stats interval.
+   */
+  private var stats = Executors.newSingleThreadScheduledExecutor(ThreadFactoryBuilder()
+    .setNameFormat("Obsidian Stats Dispatcher %d")
+    .build())
 
   /**
    * Whether this magma client is active
@@ -157,12 +167,12 @@ class MagmaClient(
       resumeKey = key
       resumeTimeout = timeout
 
-      logger.debug("Resuming is configured; key= $key, timeout= $timeout")
+      logger.debug("$identification - resuming is configured; key= $key, timeout= $timeout")
     }
 
     on<SetupDispatchBuffer> {
       bufferTimeout = timeout
-      logger.debug("Dispatch buffer timeout: $timeout")
+      logger.debug("$identification - dispatch buffer timeout: $timeout")
     }
 
     on<PlayTrack> {
@@ -171,7 +181,7 @@ class MagmaClient(
       }
 
       if (link.player.playingTrack != null && noReplace) {
-        logger.info("Skipping PLAY_TRACK operation")
+        logger.info("$identification - skipping PLAY_TRACK operation")
         return@on
       }
 
@@ -205,7 +215,7 @@ class MagmaClient(
       }
 
       resumeTimeoutFuture = magma.executor.schedule(runnable, resumeTimeout!!, TimeUnit.MILLISECONDS)
-      logger.info("Session for $userId can be resumed within the next $resumeTimeout ms with the key \"$resumeKey\"")
+      logger.info("$identification - session can be resumed within the next $resumeTimeout ms with the key \"$resumeKey\"")
       return
     }
 
@@ -213,7 +223,7 @@ class MagmaClient(
   }
 
   suspend fun resume(session: WebSocketServerSession) {
-    logger.info("Session for $userId has been resumed")
+    logger.info("$identification - session has been resumed")
 
     this.session = session
     this.active = true
@@ -231,6 +241,10 @@ class MagmaClient(
   suspend fun listen() {
     active = true
 
+    /* starting sending stats. */
+    stats.scheduleAtFixedRate(this::sendStats, 0, 1, TimeUnit.MINUTES)
+
+    /* listen for incoming frames. */
     session.incoming.asFlow().buffer(Channel.UNLIMITED)
       .collect {
         when (it) {
@@ -240,7 +254,17 @@ class MagmaClient(
         }
       }
 
+    /* connection has been closed. */
     active = false
+  }
+
+  /**
+   * Sends node stats to the Client.
+   */
+  private fun sendStats() {
+    launch {
+      send(StatsBuilder.build(this@MagmaClient))
+    }
   }
 
   private inline fun <reified T : Operation> on(crossinline block: suspend T.() -> Unit) {
@@ -249,8 +273,7 @@ class MagmaClient(
         try {
           block.invoke(it)
         } catch (ex: Exception) {
-          logger.info("fuck you 2")
-          logger.error(ex)
+          logger.error("$identification -", ex)
         }
       }
       .launchIn(this)
@@ -265,10 +288,10 @@ class MagmaClient(
     val json = frame.data.toString(Charset.defaultCharset())
 
     try {
-      logger.trace("$userId >>> $json")
+      logger.info("$identification >>> $json")
       jsonParser.decodeFromString(Operation, json)?.let { events.emit(it) }
     } catch (ex: Exception) {
-      logger.error(ex)
+      logger.error("$identification -", ex)
     }
   }
 
@@ -304,15 +327,15 @@ class MagmaClient(
    */
   private suspend fun send(json: String) {
     try {
-      logger.trace("$userId <<< $json")
+      logger.trace("$identification <<< $json")
       session.send(json)
     } catch (ex: Exception) {
-      logger.error(ex)
+      logger.error("$identification -", ex)
     }
   }
 
   internal suspend fun shutdown() {
-    logger.info("Shutting down ${links.size} links.")
+    logger.info("$identification - shutting down ${links.size} links.")
     for ((id, link) in links) {
       link.player.destroy()
       links.remove(id)
@@ -351,11 +374,11 @@ class MagmaClient(
       }
 
       if (lastHeartbeatNonce != nonce) {
-        logger.debug("A heartbeat was acknowledged but it wasn't the last?")
+        logger.debug("$identification - a heartbeat was acknowledged but it wasn't the last?")
         return
       }
 
-      logger.debug("Voice WebSocket latency is ${System.currentTimeMillis() - lastHeartbeat!!}ms")
+      logger.debug("$identification - voice WebSocket latency is ${System.currentTimeMillis() - lastHeartbeat!!}ms")
     }
 
     override suspend fun heartbeatDispatched(nonce: Long) {
