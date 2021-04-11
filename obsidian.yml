@@ -1,7 +1,7 @@
 obsidian:
   port: 3030
   password: ""
-  require-client-name: true
+  require-client-name: false
   player-updates:
     interval: 5000
     send-filters: false
