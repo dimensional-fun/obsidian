@@ -18,9 +18,17 @@ dependencies {
   implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlinx_coroutines_version"
 
   /* audio */
-  implementation "com.sedmelluq:lavaplayer:$lavaplayer_version"
-  implementation "com.sedmelluq:lavaplayer-ext-youtube-rotator:$lavaplayer_ip_rotator_config"
-  implementation "com.sedmelluq:udp-queue:1.1.0-linux64"
+  implementation ("com.sedmelluq:lavaplayer:$lavaplayer_version") {
+    exclude group: "com.sedmelluq", module: "lavaplayer-natives"
+  }
+
+  implementation("com.sedmelluq:lavaplayer-ext-youtube-rotator:$lavaplayer_ip_rotator_config") {
+    exclude group: "com.sedmelluq", module: "lavaplayer"
+  }
+
+  // native library loading
+  implementation "com.github.natanbc:native-loader:$native_loader_version"
+  implementation "com.github.natanbc:lp-cross:$lpcross_version"
 
   // filters
   implementation "com.github.natanbc:lavadsp:$lavadsp_version"
@@ -53,15 +61,15 @@ dependencies {
   implementation "io.micrometer:micrometer-registry-prometheus:latest.release"
 
   // Server
-  implementation "io.ktor:ktor-server-core:$ktor_version"
+  implementation "io.ktor:ktor-locations:$ktor_version"
   implementation "io.ktor:ktor-websockets:$ktor_version"
   implementation "io.ktor:ktor-server-cio:$ktor_version"
-  implementation "io.ktor:ktor-locations:$ktor_version"
+  implementation "io.ktor:ktor-server-core:$ktor_version"
 
   // Client
   implementation "io.ktor:ktor-client-core:$ktor_version"
-  implementation "io.ktor:ktor-client-websockets:$ktor_version"
   implementation "io.ktor:ktor-client-okhttp:$ktor_version"
+  implementation "io.ktor:ktor-client-websockets:$ktor_version"
 
   /* random */
   implementation "com.google.guava:guava:30.1.1-jre"

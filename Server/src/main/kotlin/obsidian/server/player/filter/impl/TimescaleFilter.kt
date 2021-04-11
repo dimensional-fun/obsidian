@@ -22,7 +22,7 @@ import com.sedmelluq.discord.lavaplayer.format.AudioDataFormat
 import kotlinx.serialization.Serializable
 import obsidian.server.player.filter.Filter
 import obsidian.server.player.filter.Filter.Companion.isSet
-import obsidian.server.player.filter.FilterChain
+import obsidian.server.util.NativeUtil
 
 @Serializable
 data class TimescaleFilter(
@@ -36,7 +36,7 @@ data class TimescaleFilter(
 ) : Filter {
   override val enabled: Boolean
     get() =
-      FilterChain.TIMESCALE_ENABLED
+      NativeUtil.timescaleAvailable
         && (isSet(pitch, 1f)
         || isSet(speed, 1f)
         || isSet(rate, 1f))

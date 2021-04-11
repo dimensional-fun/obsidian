@@ -54,6 +54,8 @@ subprojects {
     lavadsp_version = "0.7.7"
     netty_version = "4.1.56.Final"
     lavaplayer_ip_rotator_config = "0.2.3"
+    native_loader_version = "0.7.0"
+    lpcross_version = "0.1.1"
 
     // logging
     logback_version = "1.2.3"
@@ -67,7 +69,7 @@ subprojects {
     konf_version = "1.0.0"
 
     // ktor
-    ktor_version = "1.5.1"
+    ktor_version = "1.5.3"
   }
 }
 

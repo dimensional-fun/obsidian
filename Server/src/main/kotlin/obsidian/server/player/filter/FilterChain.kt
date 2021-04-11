@@ -80,18 +80,6 @@ class FilterChain(val link: Link) {
   }
 
   companion object {
-    /**
-     * Whether the timescale filter is enabled.
-     */
-    val TIMESCALE_ENABLED: Boolean by lazy {
-      try {
-        TimescaleNativeLibLoader.loadTimescaleLibrary()
-        true
-      } catch (ex: Throwable) {
-        false
-      }
-    }
-
     fun from(link: Link, filters: Filters): FilterChain {
       return FilterChain(link).apply {
         channelMix = filters.channelMix

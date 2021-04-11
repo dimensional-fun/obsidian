@@ -19,6 +19,9 @@ package obsidian.server
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.LoggerContext
+import com.github.natanbc.nativeloader.NativeLibLoader
+import com.github.natanbc.nativeloader.SystemNativeLibraryProperties
+import com.github.natanbc.nativeloader.system.SystemType
 import com.uchuhimo.konf.Config
 import com.uchuhimo.konf.source.yaml
 import io.ktor.application.*
@@ -40,9 +43,11 @@ import kotlinx.coroutines.runBlocking
 import obsidian.bedrock.Bedrock
 import obsidian.server.io.Magma.Companion.magma
 import obsidian.server.player.ObsidianPlayerManager
+import obsidian.server.util.NativeUtil
 import obsidian.server.util.config.LoggingConfig
 import obsidian.server.util.config.ObsidianConfig
 import org.slf4j.LoggerFactory
+import kotlin.system.exitProcess
 
 object Obsidian {
   /**
@@ -75,7 +80,32 @@ object Obsidian {
   @JvmStatic
   fun main(args: Array<out String>) {
     runBlocking {
+      /* setup logging */
       configureLogging()
+
+      /* native library loading lololol */
+      try {
+        val type = SystemType.detect(SystemNativeLibraryProperties(null, "nativeloader."))
+
+        logger.info("Detected System: type = ${type.osType()}, arch = ${type.architectureType()}")
+        logger.info("Processor Information: ${NativeLibLoader.loadSystemInfo()}")
+      } catch (e: Exception) {
+        val message =
+          "Unable to load system info" + if (e is UnsatisfiedLinkError || e is RuntimeException && e.cause is UnsatisfiedLinkError)
+            ", this isn't an error" else "."
+
+        logger.warn(message, e)
+      }
+
+      try {
+        logger.info("Loading Native Libraries")
+        NativeUtil.load()
+      } catch (ex: Exception) {
+        logger.error("Fatal exception while loading native libraries.", ex)
+        exitProcess(1)
+      }
+
+      /* setup server */
       val server = embeddedServer(CIO, host = config[ObsidianConfig.Host], port = config[ObsidianConfig.Port]) {
         install(Locations)
 
