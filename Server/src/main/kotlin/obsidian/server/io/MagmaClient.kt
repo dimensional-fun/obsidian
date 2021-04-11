@@ -97,7 +97,6 @@ class MagmaClient(
    */
   private var bufferTimeout: Long? = null
 
-
   /**
    * The dispatch buffer
    */
@@ -109,7 +108,7 @@ class MagmaClient(
   private val events = MutableSharedFlow<Operation>(extraBufferCapacity = Int.MAX_VALUE)
 
   override val coroutineContext: CoroutineContext
-    get() = Job() + Dispatchers.IO
+    get() = Dispatchers.IO + SupervisorJob()
 
   init {
     on<SubmitVoiceUpdate> {

@@ -56,7 +56,7 @@ abstract class AbstractMediaGatewayConnection(
    * Coroutine context
    */
   override val coroutineContext: CoroutineContext
-    get() = Job() + Dispatchers.IO
+    get() = Dispatchers.IO + SupervisorJob()
 
   /**
    * Broadcast channel
