@@ -32,10 +32,10 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonTransformingSerializer
 import obsidian.server.Obsidian
-import obsidian.server.io.AudioTrackSerializer
 import obsidian.server.io.search.AudioLoader
 import obsidian.server.io.search.LoadType
 import obsidian.server.util.TrackUtil
+import obsidian.server.util.kxs.AudioTrackSerializer
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
