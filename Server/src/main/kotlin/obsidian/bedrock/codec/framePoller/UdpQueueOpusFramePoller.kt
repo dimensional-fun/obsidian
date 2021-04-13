@@ -16,23 +16,28 @@
 
 package obsidian.bedrock.codec.framePoller
 
-import com.sedmelluq.discord.lavaplayer.format.StandardAudioDataFormats
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.runBlocking
 import obsidian.bedrock.MediaConnection
 import obsidian.bedrock.codec.OpusCodec
 import obsidian.bedrock.handler.DiscordUDPConnection
 import obsidian.bedrock.media.IntReference
 import java.net.InetSocketAddress
-import java.nio.ByteBuffer
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.CoroutineContext
 
 class UdpQueueOpusFramePoller(
   private val wrapper: QueueManagerPool.UdpQueueWrapper,
   connection: MediaConnection
-) : AbstractFramePoller(connection) {
+) : AbstractFramePoller(connection), CoroutineScope {
   private val timestamp = IntReference()
   private var lastFrame: Long = 0
+
+  override val coroutineContext: CoroutineContext
+    get() = eventLoopDispatcher + Job()
 
   override suspend fun start() {
     if (polling) {
@@ -41,9 +46,7 @@ class UdpQueueOpusFramePoller(
 
     polling = true
     lastFrame = System.currentTimeMillis()
-    GlobalScope.launch {
-      populateQueue()
-    }
+    populateQueue()
   }
 
   override fun stop() {
@@ -57,21 +60,19 @@ class UdpQueueOpusFramePoller(
       return
     }
 
-    val remaining: Int = wrapper.remainingCapacity
-
     val handler = connection.connectionHandler as DiscordUDPConnection?
     val frameProvider = connection.frameProvider
     val codec = OpusCodec.INSTANCE
 
-    for (i in 0 until remaining) {
-
+    for (i in 0 until wrapper.remainingCapacity) {
       if (frameProvider != null && handler != null && frameProvider.canSendFrame(codec)) {
         val buf = allocator.buffer()
         val start = buf.writerIndex()
+
         frameProvider.retrieve(codec, buf, timestamp)
 
-        val len = buf.writerIndex() - start
-        val packet = handler.createPacket(OpusCodec.PAYLOAD_TYPE, timestamp.get(), buf, len, false)
+        val packet =
+          handler.createPacket(OpusCodec.PAYLOAD_TYPE, timestamp.get(), buf, buf.writerIndex() - start, false)
 
         if (packet != null) {
           wrapper.queuePacket(packet.nioBuffer(), handler.serverAddress as InetSocketAddress)
@@ -83,13 +84,10 @@ class UdpQueueOpusFramePoller(
     }
 
     val frameDelay = 40 - (System.currentTimeMillis() - lastFrame)
-
     if (frameDelay > 0) {
-      eventLoop.schedule({
-        GlobalScope.launch {
-          loop()
-        }
-      }, frameDelay, TimeUnit.MILLISECONDS)
+      eventLoop.schedule(frameDelay) {
+        runBlocking(coroutineContext) { loop() }
+      }
     } else {
       loop()
     }
@@ -103,5 +101,14 @@ class UdpQueueOpusFramePoller(
     }
 
     populateQueue()
+  }
+
+  companion object {
+    fun ScheduledExecutorService.schedule(
+      delay: Long,
+      timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
+      block: Runnable
+    ): ScheduledFuture<*> =
+      schedule(block, delay, timeUnit)
   }
 }

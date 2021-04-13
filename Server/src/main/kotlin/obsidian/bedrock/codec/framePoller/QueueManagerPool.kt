@@ -22,33 +22,37 @@ import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.concurrent.thread
 
 class QueueManagerPool(
   size: Int,
   bufferDuration: Int
 ) {
   private val queueKeySeq = AtomicLong()
-  private val managers: MutableList<UdpQueueManager>
+  private val managers: List<UdpQueueManager>
   private var closed = false
 
   init {
-    if (size <= 0) {
-      throw IllegalArgumentException("Pool size must be higher or equal to 1.")
+    require(size > 0) {
+      "Pool size must be higher or equal to 1."
     }
 
-    managers = MutableList(size) {
+    managers = List(size) {
       val queueManager = UdpQueueManager(
         bufferDuration / OpusCodec.FRAME_DURATION,
         TimeUnit.MILLISECONDS.toNanos(OpusCodec.FRAME_DURATION.toLong()),
         UdpQueueFramePollerFactory.MAXIMUM_PACKET_SIZE
       )
 
-      Thread(queueManager::process, "QueueManagerPool-$it").apply {
-        priority = (Thread.NORM_PRIORITY + Thread.MAX_PRIORITY) / 2
-        isDaemon = true
-        start()
-      }
+      /* create thread */
+      thread(
+        name = "Queue Manager Pool $it",
+        isDaemon = true,
+        priority = (Thread.NORM_PRIORITY + Thread.MAX_PRIORITY) / 2,
+        block = queueManager::process
+      )
 
+      /* return queue manager */
       queueManager
     }
   }

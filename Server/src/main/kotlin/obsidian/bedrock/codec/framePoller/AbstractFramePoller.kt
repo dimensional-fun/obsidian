@@ -18,6 +18,8 @@ package obsidian.bedrock.codec.framePoller
 
 import io.netty.buffer.ByteBufAllocator
 import io.netty.channel.EventLoopGroup
+import kotlinx.coroutines.ExecutorCoroutineDispatcher
+import kotlinx.coroutines.asCoroutineDispatcher
 import obsidian.bedrock.Bedrock
 import obsidian.bedrock.MediaConnection
 
@@ -36,4 +38,9 @@ abstract class AbstractFramePoller(protected val connection: MediaConnection) : 
    * The [EventLoopGroup] being used.
    */
   protected val eventLoop: EventLoopGroup = Bedrock.eventLoopGroup
+
+  /**
+   * The [eventLoop] as a [ExecutorCoroutineDispatcher]
+   */
+  protected val eventLoopDispatcher = eventLoop.asCoroutineDispatcher()
 }
