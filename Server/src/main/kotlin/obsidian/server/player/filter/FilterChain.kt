@@ -16,7 +16,6 @@
 
 package obsidian.server.player.filter
 
-import com.github.natanbc.lavadsp.natives.TimescaleNativeLibLoader
 import com.sedmelluq.discord.lavaplayer.filter.AudioFilter
 import com.sedmelluq.discord.lavaplayer.filter.FloatPcmAudioFilter
 import com.sedmelluq.discord.lavaplayer.filter.PcmFilterFactory
@@ -56,7 +55,7 @@ class FilterChain(val link: Link) {
    * Applies all enabled filters to the player.
    */
   fun apply() {
-    link.player.setFilterFactory(getFilterFactory())
+    link.audioPlayer.setFilterFactory(getFilterFactory())
   }
 
   inner class FilterFactory : PcmFilterFactory {

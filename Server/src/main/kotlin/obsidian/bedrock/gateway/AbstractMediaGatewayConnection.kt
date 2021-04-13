@@ -106,10 +106,7 @@ abstract class AbstractMediaGatewayConnection(
           url(websocketUrl)
         }
       } catch (ex: Exception) {
-        if (ex is ClientRequestException) {
-          logger.error("WebSocket closed.", ex)
-        }
-
+        logger.error("WebSocket closed.", ex)
         open = false
         break
       }

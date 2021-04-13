@@ -18,7 +18,6 @@ package obsidian.bedrock.handler
 
 import io.ktor.util.network.*
 import io.netty.buffer.ByteBuf
-import obsidian.bedrock.codec.Codec
 import obsidian.bedrock.gateway.event.SessionDescription
 import java.io.Closeable
 
