@@ -37,8 +37,7 @@ class Interval(private val dispatcher: CoroutineDispatcher = Dispatchers.Default
    * The coroutine context.
    */
   override val coroutineContext: CoroutineContext
-    get() = Job() + dispatcher
-
+    get() = dispatcher + Job()
 
   /**
    * Whether this interval has been started.

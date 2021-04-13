@@ -54,11 +54,20 @@ sealed class Event {
 
             1 -> data =
               when (op) {
-                Op.Hello -> decode(Hello.serializer())
-                Op.Ready -> decode(Ready.serializer())
-                Op.HeartbeatAck -> decode(HeartbeatAck.serializer())
-                Op.SessionDescription -> decode(SessionDescription.serializer())
-                Op.ClientConnect -> decode(ClientConnect.serializer())
+                Op.Hello ->
+                  decode(Hello.serializer())
+
+                Op.Ready ->
+                  decode(Ready.serializer())
+
+                Op.HeartbeatAck ->
+                  decode(HeartbeatAck.serializer())
+
+                Op.SessionDescription ->
+                  decode(SessionDescription.serializer())
+
+                Op.ClientConnect ->
+                  decode(ClientConnect.serializer())
 
                 else -> {
                   decodeNullableSerializableElement(Operation.descriptor, idx, JsonElement.serializer().nullable)
@@ -113,13 +122,10 @@ data class SessionDescription(
 data class ClientConnect(
   @SerialName("user_id")
   val userId: String,
-
   @SerialName("audio_ssrc")
   val audioSsrc: Int = 0,
-
   @SerialName("video_ssrc")
   val videoSsrc: Int = 0,
-
   @SerialName("rtx_ssrc")
   val rtxSsrc: Int = 0,
 ) : Event()

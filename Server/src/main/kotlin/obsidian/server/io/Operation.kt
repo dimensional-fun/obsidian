@@ -170,7 +170,6 @@ data class Seek(
 
 @Serializable
 data class Configure(
-  @Serializable(with=LongAsStringSerializer::class)
   @SerialName("guild_id")
   val guildId: Long,
   val pause: Boolean?,

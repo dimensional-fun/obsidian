@@ -26,20 +26,15 @@ import kotlinx.serialization.encoding.Encoder
 enum class Op(val code: Int) {
   Unknown(Int.MIN_VALUE),
 
-  // sent
   Identify(0),
   SelectProtocol(1),
-  Heartbeat(3),
-  Speaking(5),
-
-  // received & sent
-  ClientConnect(12),
-
-  // received
   Ready(2),
+  Heartbeat(3),
   SessionDescription(4),
+  Speaking(5),
   HeartbeatAck(6),
-  Hello(8);
+  Hello(8),
+  ClientConnect(12);
 
   companion object Serializer : KSerializer<Op> {
     /**

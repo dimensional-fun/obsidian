@@ -19,10 +19,10 @@ package obsidian.bedrock.gateway
 import obsidian.bedrock.MediaConnection
 import obsidian.bedrock.VoiceServerInfo
 
-typealias MediaGatewayConnectionFactory = (mediaConnection: MediaConnection, voiceServerInfo: VoiceServerInfo) -> MediaGatewayConnection
+typealias MediaGatewayConnectionFactory = (MediaConnection, VoiceServerInfo) -> MediaGatewayConnection
 
 enum class GatewayVersion(private val factory: MediaGatewayConnectionFactory) {
-  V4({ mc, vsi -> MediaGatewayV4Connection(mc, vsi) });
+  V4({ a, b -> MediaGatewayV4Connection(a, b) });
 
   /**
    * Creates a new [MediaGatewayConnection]

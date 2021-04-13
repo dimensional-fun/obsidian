@@ -16,7 +16,9 @@
 
 package obsidian.bedrock.gateway
 
-interface MediaGatewayConnection {
+import kotlinx.coroutines.CoroutineScope
+
+interface MediaGatewayConnection : CoroutineScope {
   /**
    * Whether the gateway connection is opened.
    */

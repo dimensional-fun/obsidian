@@ -20,7 +20,6 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationStrategy
-import kotlinx.serialization.builtins.LongAsStringSerializer
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
@@ -33,15 +32,10 @@ import java.util.*
 
 sealed class Command {
   @Serializable
-  internal data class ClientConnect(
-    @SerialName("audio_ssrc")
-    val audioSsrc: Int,
-
-    @SerialName("video_ssrc")
-    val videoSsrc: Int,
-
-    @SerialName("rtx_ssrc")
-    val rtxSsrc: Int,
+  data class ClientConnect(
+    @SerialName("audio_ssrc") val audioSsrc: Int,
+    @SerialName("video_ssrc") val videoSsrc: Int,
+    @SerialName("rtx_ssrc") val rtxSsrc: Int,
   ) : Command()
 
   companion object : SerializationStrategy<Command> {
@@ -125,18 +119,14 @@ data class Heartbeat(
   }
 }
 
+
 @Serializable
 data class Identify(
   val token: String,
-
-  @Serializable(with = LongAsStringSerializer::class)
   @SerialName("server_id")
   val guildId: Long,
-
-  @Serializable(with = LongAsStringSerializer::class)
   @SerialName("user_id")
   val userId: Long,
-
   @SerialName("session_id")
   val sessionId: String
 ) : Command()

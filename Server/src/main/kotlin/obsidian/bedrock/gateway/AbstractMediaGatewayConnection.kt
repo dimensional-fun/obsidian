@@ -28,6 +28,7 @@ import io.ktor.util.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BroadcastChannel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.*
 import obsidian.bedrock.MediaConnection
@@ -45,7 +46,7 @@ abstract class AbstractMediaGatewayConnection(
   val mediaConnection: MediaConnection,
   val voiceServerInfo: VoiceServerInfo,
   version: Int
-) : MediaGatewayConnection, CoroutineScope {
+) : MediaGatewayConnection {
 
   /**
    * Whether the websocket is open
@@ -198,12 +199,14 @@ abstract class AbstractMediaGatewayConnection(
    *
    * @param frame Frame that was received
    */
-  private suspend fun handleFrame(frame: Frame) {
+  private fun handleFrame(frame: Frame) {
     val json = frame.data.toString(Charset.defaultCharset())
 
     try {
       logger.trace("VS >>> $json")
-      jsonParser.decodeFromString(Event.Companion, json)?.let { channel.send(it) }
+      jsonParser.decodeFromString(Event.Companion, json)?.let { channel.offer(it) }
+    } catch (ex: ClosedSendChannelException) {
+      // fuck off
     } catch (ex: Exception) {
       logger.error(ex)
     }
