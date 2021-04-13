@@ -44,8 +44,8 @@ enum class Op(val code: Int) {
   Pause(6),
   Filters(7),
   Seek(8),
-  Destroy(9);
-
+  Destroy(9),
+  Configure(10);
 
   companion object Serializer : KSerializer<Op> {
     /**

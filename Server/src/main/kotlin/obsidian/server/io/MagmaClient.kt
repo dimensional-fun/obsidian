@@ -16,7 +16,6 @@
 
 package obsidian.server.io
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.sedmelluq.discord.lavaplayer.track.TrackMarker
 import io.ktor.http.cio.websocket.*
 import io.ktor.util.*
@@ -36,13 +35,13 @@ import obsidian.server.player.Link
 import obsidian.server.player.TrackEndMarkerHandler
 import obsidian.server.player.filter.FilterChain
 import obsidian.server.util.TrackUtil
+import obsidian.server.util.threadFactory
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.lang.Runnable
 import java.nio.charset.Charset
 import java.util.concurrent.*
 import kotlin.coroutines.CoroutineContext
-import kotlin.reflect.full.*
 
 class MagmaClient(
   val clientName: String?,
@@ -53,7 +52,7 @@ class MagmaClient(
    * Identification for this Client.
    */
   val identification: String
-     get() = "${clientName ?: clientId}"
+    get() = "${clientName ?: clientId}"
 
   /**
    * The Bedrock client for this Session
@@ -73,9 +72,7 @@ class MagmaClient(
   /**
    * Stats interval.
    */
-  private var stats = Executors.newSingleThreadScheduledExecutor(ThreadFactoryBuilder()
-    .setNameFormat("Obsidian Stats Dispatcher %d")
-    .build())
+  private var stats = Executors.newSingleThreadScheduledExecutor(threadFactory("Magma Stats Dispatcher %d"))
 
   /**
    * Whether this magma client is active
@@ -134,7 +131,7 @@ class MagmaClient(
         Link(this@MagmaClient, guildId)
       }
 
-      link.player.isPaused = state
+      link.audioPlayer.isPaused = state
     }
 
     on<Seek> {
@@ -147,7 +144,7 @@ class MagmaClient(
 
     on<Destroy> {
       val link = links.remove(guildId)
-      link?.player?.destroy()
+      link?.audioPlayer?.destroy()
 
       bedrock.destroyConnection(guildId)
     }
@@ -157,7 +154,7 @@ class MagmaClient(
         Link(this@MagmaClient, guildId)
       }
 
-      link.player.stopTrack()
+      link.audioPlayer.stopTrack()
     }
 
     on<SetupResuming> {
@@ -172,12 +169,24 @@ class MagmaClient(
       logger.debug("$identification - dispatch buffer timeout: $timeout")
     }
 
+    on<Configure> {
+      val link = links.computeIfAbsent(guildId) {
+        Link(this@MagmaClient, guildId)
+      }
+
+      pause?.let { link.audioPlayer.isPaused = it }
+
+      filters?.let { link.filters = FilterChain.from(link, it) }
+
+      sendPlayerUpdates?.let { link.playerUpdates.enabled = it }
+    }
+
     on<PlayTrack> {
       val link = links.computeIfAbsent(guildId) {
         Link(this@MagmaClient, guildId)
       }
 
-      if (link.player.playingTrack != null && noReplace) {
+      if (link.audioPlayer.playingTrack != null && noReplace) {
         logger.info("$identification - skipping PLAY_TRACK operation")
         return@on
       }
@@ -334,7 +343,7 @@ class MagmaClient(
   internal suspend fun shutdown() {
     logger.info("$identification - shutting down ${links.size} links.")
     for ((id, link) in links) {
-      link.player.destroy()
+      link.audioPlayer.destroy()
       links.remove(id)
     }
 
@@ -346,23 +355,13 @@ class MagmaClient(
     private var lastHeartbeatNonce: Long? = null
 
     override suspend fun gatewayReady(target: NetworkAddress, ssrc: Int) {
-      send(
-        WebSocketOpenEvent(
-          guildId = guildId,
-          ssrc = ssrc,
-          target = target.hostname
-        )
-      )
+      val dispatch = WebSocketOpenEvent(guildId = guildId, ssrc = ssrc, target = target.hostname)
+      send(dispatch)
     }
 
     override suspend fun gatewayClosed(code: Short, reason: String?) {
-      send(
-        WebSocketClosedEvent(
-          guildId = guildId,
-          reason = reason,
-          code = code
-        )
-      )
+      val dispatch = WebSocketClosedEvent(guildId = guildId, reason = reason, code = code)
+      send(dispatch)
     }
 
     override suspend fun heartbeatAcknowledged(nonce: Long) {

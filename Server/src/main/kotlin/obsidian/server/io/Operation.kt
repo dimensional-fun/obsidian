@@ -17,6 +17,7 @@
 package obsidian.server.io
 
 import kotlinx.serialization.*
+import kotlinx.serialization.builtins.LongAsStringSerializer
 import kotlinx.serialization.builtins.nullable
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.buildClassSerialDescriptor
@@ -78,6 +79,9 @@ sealed class Operation {
 
                 Op.SetupDispatchBuffer ->
                   decode(SetupDispatchBuffer.serializer())
+
+                Op.Configure ->
+                  decode(Configure.serializer())
 
                 else -> if (data == null) {
                   val element = decodeNullableSerializableElement(descriptor, idx, JsonElement.serializer().nullable)
@@ -162,6 +166,17 @@ data class Seek(
   @SerialName("guild_id")
   val guildId: Long,
   val position: Long
+) : Operation()
+
+@Serializable
+data class Configure(
+  @Serializable(with=LongAsStringSerializer::class)
+  @SerialName("guild_id")
+  val guildId: Long,
+  val pause: Boolean?,
+  val filters: Filters?,
+  @SerialName("send_player_updates")
+  val sendPlayerUpdates: Boolean?
 ) : Operation()
 
 @Serializable

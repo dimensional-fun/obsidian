@@ -18,43 +18,36 @@ package obsidian.server.player
 
 import com.sedmelluq.discord.lavaplayer.format.StandardAudioDataFormats
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayer
-import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter
 import com.sedmelluq.discord.lavaplayer.player.event.AudioEventListener
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
-import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason
 import com.sedmelluq.discord.lavaplayer.track.playback.MutableAudioFrame
 import io.netty.buffer.ByteBuf
-import kotlinx.coroutines.ObsoleteCoroutinesApi
-import kotlinx.coroutines.launch
 import obsidian.bedrock.MediaConnection
 import obsidian.bedrock.media.OpusAudioFrameProvider
-import obsidian.bedrock.util.Interval
-import obsidian.server.Obsidian.config
 import obsidian.server.Obsidian.playerManager
-import obsidian.server.io.CurrentTrack
-import obsidian.server.io.Frames
 import obsidian.server.io.MagmaClient
-import obsidian.server.io.PlayerUpdate
 import obsidian.server.player.filter.FilterChain
-import obsidian.server.util.TrackUtil
-import obsidian.server.util.config.ObsidianConfig
 import java.nio.ByteBuffer
 
 class Link(
   val client: MagmaClient,
   val guildId: Long
-) : AudioEventAdapter() {
+) {
+  /**
+   * Handles sending of player updates
+   */
+  val playerUpdates = PlayerUpdates(this)
 
   /**
    * The frame counter.
    */
-  val frameCounter = FrameLossCounter()
+  val frameCounter = FrameLossTracker()
 
   /**
    * The lavaplayer filter.
    */
-  val player: AudioPlayer = playerManager.createPlayer()
-    .registerListener(this)
+  val audioPlayer: AudioPlayer = playerManager.createPlayer()
+    .registerListener(playerUpdates)
     .registerListener(frameCounter)
     .registerListener(PlayerEvents(this))
 
@@ -62,7 +55,7 @@ class Link(
    * Whether the player is currently playing a track.
    */
   val playing: Boolean
-    get() = player.playingTrack != null && !player.isPaused
+    get() = audioPlayer.playingTrack != null && !audioPlayer.isPaused
 
   /**
    * The current filter chain.
@@ -74,66 +67,30 @@ class Link(
     }
 
   /**
-   * The player update interval.
-   */
-  private val playerUpdater = Interval()
-
-  /**
    * Plays the provided [track] and dispatches a Player Update
    */
   suspend fun play(track: AudioTrack) {
-    player.playTrack(track)
-    dispatchUpdate()
-  }
-
-  /**
-   * Used to start sending periodic player updates.
-   */
-  private suspend fun startPeriodicUpdates() {
-    playerUpdater.start(config[ObsidianConfig.PlayerUpdates.Interval], ::dispatchUpdate)
-  }
-
-  /**
-   * Sends a player update to the client.
-   */
-  private suspend fun dispatchUpdate() {
-    val currentTrack = CurrentTrack(
-      track = TrackUtil.encode(player.playingTrack),
-      paused = player.isPaused,
-      position = player.playingTrack.position
-    )
-
-    val frames = Frames(
-      sent = frameCounter.lastSuccess,
-      lost = frameCounter.lastLoss,
-    )
-
-    client.send(
-      PlayerUpdate(
-        guildId = guildId,
-        currentTrack = currentTrack,
-        frames = frames
-      )
-    )
+    audioPlayer.playTrack(track)
+    playerUpdates.sendUpdate()
   }
 
   /**
    * Used to seek
    */
   fun seekTo(position: Long) {
-    require(player.playingTrack != null) {
+    require(audioPlayer.playingTrack != null) {
       "A track must be playing in order to seek."
     }
 
-    require(player.playingTrack.isSeekable) {
+    require(audioPlayer.playingTrack.isSeekable) {
       "The playing track is not seekable."
     }
 
-    require(position in 0..player.playingTrack.duration) {
+    require(position in 0..audioPlayer.playingTrack.duration) {
       "The given position must be within 0 and the current playing track's duration."
     }
 
-    player.playingTrack.position = position
+    audioPlayer.playingTrack.position = position
   }
 
   /**
@@ -145,23 +102,6 @@ class Link(
     mediaConnection.frameProvider = LinkFrameProvider(mediaConnection)
   }
 
-  override fun onTrackEnd(player: AudioPlayer?, track: AudioTrack?, endReason: AudioTrackEndReason?) {
-    if (playerUpdater.started) {
-      client.launch(client.coroutineContext) {
-        playerUpdater.stop()
-      }
-    }
-  }
-
-  @ObsoleteCoroutinesApi
-  override fun onTrackStart(player: AudioPlayer?, track: AudioTrack?) {
-    if (!playerUpdater.started) {
-      client.launch {
-        startPeriodicUpdates()
-      }
-    }
-  }
-
   inner class LinkFrameProvider(mediaConnection: MediaConnection) : OpusAudioFrameProvider(mediaConnection) {
     private val lastFrame = MutableAudioFrame().apply {
       val frameBuffer = ByteBuffer.allocate(StandardAudioDataFormats.DISCORD_OPUS.maximumChunkSize())
@@ -169,7 +109,7 @@ class Link(
     }
 
     override fun canProvide(): Boolean {
-      val frame = player.provide(lastFrame)
+      val frame = audioPlayer.provide(lastFrame)
       if (!frame) {
         frameCounter.loss()
       }
