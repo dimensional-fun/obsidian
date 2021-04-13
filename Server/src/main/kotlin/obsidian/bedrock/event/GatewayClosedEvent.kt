@@ -14,14 +14,16 @@
  * limitations under the License.
  */
 
-package obsidian.bedrock
+package obsidian.bedrock.event
 
-import io.ktor.util.network.*
+import obsidian.bedrock.BedrockClient
+import obsidian.bedrock.MediaConnection
 
-open class BedrockEventAdapter : BedrockEventListener {
-  override suspend fun gatewayReady(target: NetworkAddress, ssrc: Int) = Unit
-  override suspend fun gatewayClosed(code: Short, reason: String?) = Unit
-  override suspend fun userConnected(id: String?, audioSSRC: Int, videoSSRC: Int, rtxSSRC: Int) = Unit
-  override suspend fun heartbeatDispatched(nonce: Long) = Unit
-  override suspend fun heartbeatAcknowledged(nonce: Long) = Unit
+class GatewayClosedEvent(
+  override val mediaConnection: MediaConnection,
+  val code: Short,
+  val reason: String?
+) : Event {
+  override val client: BedrockClient
+    get() = mediaConnection.bedrockClient
 }

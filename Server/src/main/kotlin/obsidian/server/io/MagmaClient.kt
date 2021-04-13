@@ -25,10 +25,11 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.serialization.json.Json
-import obsidian.bedrock.BedrockClient
-import obsidian.bedrock.BedrockEventAdapter
-import obsidian.bedrock.MediaConnection
-import obsidian.bedrock.VoiceServerInfo
+import obsidian.bedrock.*
+import obsidian.bedrock.event.GatewayClosedEvent
+import obsidian.bedrock.event.GatewayReadyEvent
+import obsidian.bedrock.event.HeartbeatAcknowledgedEvent
+import obsidian.bedrock.event.HeartbeatSentEvent
 import obsidian.bedrock.gateway.AbstractMediaGatewayConnection.Companion.asFlow
 import obsidian.server.io.Magma.Companion.magma
 import obsidian.server.player.Link
@@ -305,7 +306,7 @@ class MagmaClient(
     var mediaConnection = bedrock.getConnection(guildId)
     if (mediaConnection == null) {
       mediaConnection = bedrock.createConnection(guildId)
-      mediaConnection.eventDispatcher.register(EventListener(guildId))
+      EventListener(mediaConnection)
     }
 
     return mediaConnection
@@ -341,8 +342,13 @@ class MagmaClient(
   }
 
   internal suspend fun shutdown() {
+    /* shut down stats task */
+    stats.shutdown()
+
+    /* shut down all links */
     logger.info("$identification - shutting down ${links.size} links.")
     for ((id, link) in links) {
+      link.playerUpdates.stop()
       link.audioPlayer.destroy()
       links.remove(id)
     }
@@ -350,36 +356,38 @@ class MagmaClient(
     bedrock.close()
   }
 
-  inner class EventListener(private val guildId: Long) : BedrockEventAdapter() {
+  inner class EventListener(mediaConnection: MediaConnection) {
     private var lastHeartbeat: Long? = null
     private var lastHeartbeatNonce: Long? = null
 
-    override suspend fun gatewayReady(target: NetworkAddress, ssrc: Int) {
-      val dispatch = WebSocketOpenEvent(guildId = guildId, ssrc = ssrc, target = target.hostname)
-      send(dispatch)
-    }
-
-    override suspend fun gatewayClosed(code: Short, reason: String?) {
-      val dispatch = WebSocketClosedEvent(guildId = guildId, reason = reason, code = code)
-      send(dispatch)
-    }
-
-    override suspend fun heartbeatAcknowledged(nonce: Long) {
-      if (lastHeartbeatNonce == null || lastHeartbeat == null) {
-        return
+    init {
+      mediaConnection.on<GatewayReadyEvent> {
+        val dispatch = WebSocketOpenEvent(guildId = guildId, ssrc = ssrc, target = target.hostname)
+        send(dispatch)
       }
 
-      if (lastHeartbeatNonce != nonce) {
-        logger.debug("$identification - a heartbeat was acknowledged but it wasn't the last?")
-        return
+      mediaConnection.on<GatewayClosedEvent> {
+        val dispatch = WebSocketClosedEvent(guildId = guildId, reason = reason, code = code)
+        send(dispatch)
       }
 
-      logger.debug("$identification - voice WebSocket latency is ${System.currentTimeMillis() - lastHeartbeat!!}ms")
-    }
+      mediaConnection.on<HeartbeatAcknowledgedEvent> {
+        if (lastHeartbeatNonce == null || lastHeartbeat == null) {
+          return@on
+        }
 
-    override suspend fun heartbeatDispatched(nonce: Long) {
-      lastHeartbeat = System.currentTimeMillis()
-      lastHeartbeatNonce = nonce
+        if (lastHeartbeatNonce != nonce) {
+          logger.debug("$identification - a heartbeat was acknowledged but it wasn't the last?")
+          return@on
+        }
+
+        logger.debug("$identification - voice WebSocket latency is ${System.currentTimeMillis() - lastHeartbeat!!}ms")
+      }
+
+      mediaConnection.on<HeartbeatSentEvent> {
+        lastHeartbeat = System.currentTimeMillis()
+        lastHeartbeatNonce = nonce
+      }
     }
   }
 

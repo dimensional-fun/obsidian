@@ -17,11 +17,12 @@
 package obsidian.bedrock.media
 
 import io.netty.buffer.ByteBuf
-import obsidian.bedrock.BedrockEventAdapter
 import obsidian.bedrock.MediaConnection
 import obsidian.bedrock.codec.Codec
 import obsidian.bedrock.codec.OpusCodec
+import obsidian.bedrock.event.UserConnectedEvent
 import obsidian.bedrock.gateway.SpeakingFlags
+import obsidian.bedrock.on
 
 abstract class OpusAudioFrameProvider(val connection: MediaConnection) : MediaFrameProvider {
   override var frameInterval = OpusCodec.FRAME_DURATION
@@ -33,11 +34,14 @@ abstract class OpusAudioFrameProvider(val connection: MediaConnection) : MediaFr
   private var lastFramePolled: Long = 0
   private var speaking = false
 
-  private val hackListener: Op12HackListener =
-    Op12HackListener().also(connection.eventDispatcher::register)
+  private val userConnectedJob = connection.on<UserConnectedEvent> {
+    if (speaking) {
+      connection.updateSpeakingState(speakingMask)
+    }
+  }
 
   override fun dispose() {
-    connection.eventDispatcher.unregister(hackListener);
+    userConnectedJob.cancel()
   }
 
   override fun canSendFrame(codec: Codec): Boolean {
@@ -109,13 +113,6 @@ abstract class OpusAudioFrameProvider(val connection: MediaConnection) : MediaFr
     }
   }
 
-  inner class Op12HackListener : BedrockEventAdapter() {
-    override suspend fun userConnected(id: String?, audioSSRC: Int, videoSSRC: Int, rtxSSRC: Int) {
-      if (speaking) {
-        connection.updateSpeakingState(speakingMask)
-      }
-    }
-  }
 
   /**
    * Called every time Opus frame poller tries to retrieve an Opus audio frame.

@@ -14,18 +14,15 @@
  * limitations under the License.
  */
 
-package obsidian.bedrock.util
+package obsidian.bedrock.event
 
-import io.netty.util.concurrent.Future
-import io.netty.util.concurrent.GenericFutureListener
-import java.util.concurrent.CompletableFuture
+import obsidian.bedrock.BedrockClient
+import obsidian.bedrock.MediaConnection
 
-class NettyFutureWrapper<V>(private val completableFuture: CompletableFuture<V>) : GenericFutureListener<Future<V>> {
-  override fun operationComplete(future: Future<V>) {
-    if (future.isSuccess) {
-      completableFuture.complete(future.get())
-    } else {
-      completableFuture.completeExceptionally(future.cause())
-    }
-  }
+class HeartbeatAcknowledgedEvent(
+  override val mediaConnection: MediaConnection,
+  val nonce: Long
+) : Event {
+  override val client: BedrockClient
+    get() = mediaConnection.bedrockClient
 }

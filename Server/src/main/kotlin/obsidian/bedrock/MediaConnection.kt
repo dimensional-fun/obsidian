@@ -16,15 +16,25 @@
 
 package obsidian.bedrock
 
+import io.ktor.util.*
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.*
 import obsidian.bedrock.codec.Codec
 import obsidian.bedrock.codec.OpusCodec
 import obsidian.bedrock.codec.framePoller.FramePoller
+import obsidian.bedrock.event.Event
 import obsidian.bedrock.gateway.MediaGatewayConnection
 import obsidian.bedrock.handler.ConnectionHandler
 import obsidian.bedrock.media.MediaFrameProvider
 import org.slf4j.LoggerFactory
+import kotlin.coroutines.CoroutineContext
 
-class MediaConnection(val bedrockClient: BedrockClient, val id: Long) {
+class MediaConnection(
+  val bedrockClient: BedrockClient,
+  val id: Long,
+  private val dispatcher: CoroutineDispatcher = Dispatchers.Default
+) : CoroutineScope {
 
   /**
    * The [ConnectionHandler].
@@ -49,9 +59,12 @@ class MediaConnection(val bedrockClient: BedrockClient, val id: Long) {
     }
 
   /**
-   * The [EventDispatcher].
+   * Event flow
    */
-  val eventDispatcher = EventDispatcher()
+  val events = MutableSharedFlow<Event>(extraBufferCapacity = Int.MAX_VALUE)
+
+  override val coroutineContext: CoroutineContext
+    get() = dispatcher + SupervisorJob()
 
   /**
    * The [MediaGatewayConnection].
@@ -141,10 +154,26 @@ class MediaConnection(val bedrockClient: BedrockClient, val id: Long) {
     }
 
     disconnect()
+    coroutineContext.cancel()
     bedrockClient.removeConnection(id)
   }
 
   companion object {
-    private val logger = LoggerFactory.getLogger(MediaConnection::class.java)
+    val logger = LoggerFactory.getLogger(MediaConnection::class.java)
   }
+}
+
+/**
+ * Convenience method that calls [block] whenever event [T] is emitted on [MediaConnection.events]
+ *
+ * @param scope Scope to launch the job in
+ * @param block Block to call when [T] is emitted
+ *
+ * @return A [Job] that can be used to cancel any further processing of event [T]
+ */
+inline fun <reified T> MediaConnection.on(scope: CoroutineScope = this, crossinline block: suspend T.() -> Unit): Job {
+  return events.buffer(Channel.UNLIMITED).filterIsInstance<T>().onEach { event ->
+    event.runCatching { block() }
+      .onFailure { MediaConnection.logger.error(it) }
+  }.launchIn(scope)
 }

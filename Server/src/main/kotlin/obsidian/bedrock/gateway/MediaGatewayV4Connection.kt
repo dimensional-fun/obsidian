@@ -22,6 +22,7 @@ import obsidian.bedrock.MediaConnection
 import obsidian.bedrock.VoiceServerInfo
 import obsidian.bedrock.codec.OpusCodec
 import obsidian.bedrock.crypto.EncryptionMode
+import obsidian.bedrock.event.*
 import obsidian.bedrock.gateway.event.*
 import obsidian.bedrock.handler.DiscordUDPConnection
 import obsidian.bedrock.util.Interval
@@ -48,17 +49,20 @@ class MediaGatewayV4Connection(
     on<Ready> {
       logger.debug("Received READY, ssrc: $ssrc")
 
-      // update state
+      /* update state */
       this@MediaGatewayV4Connection.ssrc = ssrc
       address = NetworkAddress(ip, port)
       encryptionModes = modes
 
-      mediaConnection.eventDispatcher.gatewayReady(address!!, ssrc)
+      /* emit event */
+      mediaConnection.events.emit(GatewayReadyEvent(mediaConnection, ssrc, address!!))
+
+      /* select protocol */
       selectProtocol("udp")
     }
 
     on<HeartbeatAck> {
-      mediaConnection.eventDispatcher.heartbeatAcknowledged(nonce)
+      mediaConnection.events.emit(HeartbeatAcknowledgedEvent(mediaConnection, nonce))
     }
 
     on<SessionDescription> {
@@ -70,7 +74,7 @@ class MediaGatewayV4Connection(
     }
 
     on<ClientConnect> {
-      mediaConnection.eventDispatcher.userConnected(userId, audioSsrc, videoSsrc, rtxSsrc)
+      mediaConnection.events.emit(UserConnectedEvent(mediaConnection, this))
     }
   }
 
@@ -134,7 +138,8 @@ class MediaGatewayV4Connection(
       interval.stop()
     }
 
-    mediaConnection.eventDispatcher.gatewayClosed(code, reason)
+    val event = GatewayClosedEvent(mediaConnection, code, reason)
+    mediaConnection.events.emit(event)
   }
 
   /**
@@ -159,7 +164,12 @@ class MediaGatewayV4Connection(
   private suspend fun startHeartbeating(delay: Double) {
     interval.start(delay.toLong()) {
       val nonce = System.currentTimeMillis()
-      mediaConnection.eventDispatcher.heartbeatDispatched(nonce)
+
+      /* emit event */
+      val event = HeartbeatSentEvent(mediaConnection, nonce)
+      mediaConnection.events.tryEmit(event)
+
+      /* send payload */
       sendPayload(Heartbeat(nonce))
     }
   }
