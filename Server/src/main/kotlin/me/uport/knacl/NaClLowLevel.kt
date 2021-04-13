@@ -17,8 +17,7 @@ import kotlin.math.roundToLong
  * This port is not complete and has not gone through a complete audit.
  * Use at your own risk.**
  */
-@Suppress("unused")
-internal object NaClLowLevel {
+object NaClLowLevel {
 
   private val _0: ByteArray = ByteArray(16) {
     0
@@ -64,14 +63,6 @@ internal object NaClLowLevel {
   )
 
   private fun L32(x: Int, c: Int): Int = ((x shl c) or (x ushr (32 - c)))
-
-  //FIXME: this should be set by a higher level API
-  fun randomBytes(size: Int): ByteArray {
-    val arr = ByteArray(size)
-    randomBytes(arr, size)
-
-    return arr
-  }
 
   private fun randomBytes(x: ByteArray, size: Int) {
     require(x.size >= size) {
