@@ -19,19 +19,15 @@ package obsidian.server.io
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationStrategy
 import kotlinx.serialization.builtins.LongAsStringSerializer
-import kotlinx.serialization.descriptors.PrimitiveKind
-import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.buildClassSerialDescriptor
-import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonObject
-import obsidian.server.util.TrackUtil
+import obsidian.server.util.kxs.AudioTrackSerializer
 
 sealed class Dispatch {
   companion object : SerializationStrategy<Dispatch> {
@@ -115,7 +111,8 @@ data class CurrentTrack(
 @Serializable
 data class Frames(
   val lost: Int,
-  val sent: Int
+  val sent: Int,
+  val usable: Boolean
 )
 
 // Player Event lol
@@ -210,24 +207,43 @@ data class TrackExceptionEvent(
 }
 
 @Serializable
-data class Stats(val memory: Memory, val cpu: CPU, val links: Links?, val frames: Frames?) : Dispatch() {
+data class Stats(val memory: Memory, val cpu: CPU, val threads: Threads, val frames: List<FrameStats>, val players: Players?) : Dispatch() {
+  @Serializable
+  data class Memory(
+    @SerialName("heap_used") val heapUsed: Usage,
+    @SerialName("non_heap_used") val nonHeapUsed: Usage
+  ) {
+    @Serializable
+    data class Usage(val init: Long, val max: Long, val committed: Long, val used: Long)
+  }
+
+  @Serializable
+  data class Players(val active: Int, val total: Int)
+
   @Serializable
   data class CPU(
     val cores: Int,
-    @SerialName("system_load")
-    val systemLoad: Double,
-    @SerialName("process_load")
-    val processLoad: Double
+    @SerialName("system_load") val systemLoad: Double,
+    @SerialName("process_load") val processLoad: Double
   )
 
   @Serializable
-  data class Memory(val free: Long, val used: Long, val allocated: Long, val reservable: Long)
+  data class Threads(
+    val running: Int,
+    val daemon: Int,
+    val peak: Int,
+    @SerialName("total_started") val totalStarted: Long
+  )
 
   @Serializable
-  data class Links(val active: Int, val total: Int)
-
-  @Serializable
-  data class Frames(val sent: Int, val nulled: Int, val deficit: Int)
+  data class FrameStats(
+    @Serializable(with = LongAsStringSerializer::class)
+    @SerialName("guild_id")
+    val guildId: Long,
+    val usable: Boolean,
+    val lost: Int,
+    val sent: Int
+  )
 }
 
 enum class PlayerEventType {
@@ -237,17 +253,4 @@ enum class PlayerEventType {
   TRACK_END,
   TRACK_STUCK,
   TRACK_EXCEPTION
-}
-
-object AudioTrackSerializer : KSerializer<AudioTrack> {
-  override val descriptor: SerialDescriptor =
-    PrimitiveSerialDescriptor("AudioTrack", PrimitiveKind.STRING)
-
-  override fun serialize(encoder: Encoder, value: AudioTrack) {
-    encoder.encodeString(TrackUtil.encode(value))
-  }
-
-  override fun deserialize(decoder: Decoder): AudioTrack {
-    return TrackUtil.decode(decoder.decodeString())
-  }
 }

@@ -16,67 +16,74 @@
 
 package obsidian.server.io
 
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
-import obsidian.server.player.FrameLossCounter
-import obsidian.server.player.Link
 import obsidian.server.util.CpuTimer
+import java.lang.management.ManagementFactory
 
 object StatsBuilder {
   private val cpuTimer = CpuTimer()
+  private var OS_BEAN_CLASS: Class<*>? = null
+
+  init {
+    try {
+      OS_BEAN_CLASS = Class.forName("com.sun.management.OperatingSystemMXBean")
+    } catch (ex: Exception) {
+
+    }
+  }
 
   fun build(client: MagmaClient? = null): Stats {
-    val runtime = Runtime.getRuntime()
 
     /* memory stats. */
-    val memory = Stats.Memory(
-      free = runtime.freeMemory(),
-      used = runtime.totalMemory() - runtime.freeMemory(),
-      allocated = runtime.totalMemory(),
-      reservable = runtime.maxMemory()
-    )
+    val memory = ManagementFactory.getMemoryMXBean().let { bean ->
+      val heapUsed = bean.heapMemoryUsage.let {
+        Stats.Memory.Usage(committed = it.committed, max = it.max, init = it.init, used = it.used)
+      }
+
+      val nonHeapUsed = bean.nonHeapMemoryUsage.let {
+        Stats.Memory.Usage(committed = it.committed, max = it.max, init = it.init, used = it.used)
+      }
+
+      Stats.Memory(heapUsed = heapUsed, nonHeapUsed = nonHeapUsed)
+    }
 
     /* cpu stats */
+    val os = ManagementFactory.getOperatingSystemMXBean()
     val cpu = Stats.CPU(
-      cores = runtime.availableProcessors(),
+      cores = os.availableProcessors,
       processLoad = cpuTimer.systemRecentCpuUsage,
       systemLoad = cpuTimer.processRecentCpuUsage
     )
 
-    /* links */
-    val links: Stats.Links? = client?.let {
-      Stats.Links(
-        active = client.links.filter { e: Map.Entry<Long, Link> -> e.value.playing }.size,
+    /* threads */
+    val threads = with(ManagementFactory.getThreadMXBean()) {
+      Stats.Threads(
+        running = threadCount,
+        daemon = daemonThreadCount,
+        peak = peakThreadCount,
+        totalStarted = totalStartedThreadCount
+      )
+    }
+
+    /* player count */
+    val players: Stats.Players? = client?.let {
+      Stats.Players(
+        active = client.links.count { (_, l) -> l.playing },
         total = client.links.size
       )
     }
 
-    /* frame stats */
-    val frames: Stats.Frames? = client?.let {
-      var sent = 0
-      var nulled = 0
-      var active = 0
-
-      client.links.values.forEach {
-        if (it.frameCounter.dataUsable) {
-          active++
-          sent += it.frameCounter.lastSuccess
-          nulled += it.frameCounter.lastLoss
-        }
+    /* frames */
+    val frames: List<Stats.FrameStats> = client?.let {
+      it.links.map { (_, link) ->
+        Stats.FrameStats(
+          usable = link.frameCounter.dataUsable,
+          guildId = link.guildId,
+          sent = link.frameCounter.success.sum(),
+          lost = link.frameCounter.loss.sum(),
+        )
       }
+    } ?: emptyList()
 
-      if (active <= 0) {
-        return@let null
-      }
-
-      Stats.Frames(
-        sent = sent / active,
-        nulled = nulled / active,
-        deficit = (active * FrameLossCounter.EXPECTED_PACKET_COUNT_PER_MIN - (sent + nulled)) / active,
-      )
-    }
-
-    /* return stats object */
-    return Stats(memory = memory, cpu = cpu, links = links, frames = frames)
+    return Stats(cpu = cpu, memory = memory, threads = threads, frames = frames, players = players)
   }
 }
