@@ -16,7 +16,6 @@
 
 package obsidian.server.io
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder
 import io.ktor.auth.*
 import io.ktor.features.*
 import io.ktor.http.*
@@ -36,22 +35,18 @@ import obsidian.server.io.MagmaCloseReason.NO_USER_ID
 import obsidian.server.io.controllers.routePlanner
 import obsidian.server.io.controllers.tracks
 import obsidian.server.util.config.ObsidianConfig
+import obsidian.server.util.threadFactory
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
-import kotlin.reflect.full.*
 
 class Magma private constructor() {
   /**
    * Executor
    */
-  val executor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor(
-    ThreadFactoryBuilder()
-      .setNameFormat("Magma-Cleanup")
-      .setDaemon(true)
-      .build()
-  )
+  val executor: ScheduledExecutorService =
+    Executors.newSingleThreadScheduledExecutor(threadFactory("Magma Cleanup", daemon = true))
 
   /**
    * All connected clients.
@@ -66,6 +61,7 @@ class Magma private constructor() {
 
         /* Used within logs to easily identify different clients. */
         val clientName = request.headers["Client-Name"]
+          ?: request.queryParameters["client-name"]
 
         /* check if client names are required, if so check if one is provided. */
         if (config[ObsidianConfig.RequireClientName] && clientName.isNullOrBlank()) {
@@ -76,7 +72,10 @@ class Magma private constructor() {
         val identification = "${request.local.remoteHost}${if (!clientName.isNullOrEmpty()) "($clientName)" else ""}"
 
         /* validate authorization. */
-        if (!ObsidianConfig.validateAuth(request.authorization())) {
+        val auth = request.authorization()
+          ?: request.queryParameters["auth"]
+
+        if (!ObsidianConfig.validateAuth(auth)) {
           logger.warn("$identification - authentication failed")
           return@webSocket close(INVALID_AUTHORIZATION)
         }
@@ -85,6 +84,8 @@ class Magma private constructor() {
 
         /* check for userId */
         val userId = request.headers["User-Id"]?.toLongOrNull()
+          ?: request.queryParameters["user-id"]?.toLongOrNull()
+
         if (userId == null) {
           /* no user id was given, close the connection */
           logger.info("$identification - missing 'User-Id' header")
