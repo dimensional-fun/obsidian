@@ -29,7 +29,6 @@ import io.ktor.auth.*
 import io.ktor.features.*
 import io.ktor.http.*
 import io.ktor.locations.*
-import io.ktor.metrics.micrometer.*
 import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
@@ -37,8 +36,6 @@ import io.ktor.serialization.*
 import io.ktor.server.cio.*
 import io.ktor.server.engine.*
 import io.ktor.websocket.*
-import io.micrometer.prometheus.PrometheusConfig
-import io.micrometer.prometheus.PrometheusMeterRegistry
 import kotlinx.coroutines.runBlocking
 import obsidian.bedrock.Bedrock
 import obsidian.server.io.Magma.Companion.magma
@@ -71,11 +68,6 @@ object Obsidian {
    * Lol i just like comments
    */
   private val logger = LoggerFactory.getLogger(Obsidian::class.java)
-
-  /**
-   * Prometheus Metrics, kinda scuffed tho
-   */
-  private val metricRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
 
   @JvmStatic
   fun main(args: Array<out String>) {
@@ -110,10 +102,6 @@ object Obsidian {
         install(Locations)
 
         install(WebSockets)
-
-        install(MicrometerMetrics) {
-          registry = metricRegistry
-        }
 
         install(ContentNegotiation) {
           json()
