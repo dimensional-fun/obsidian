@@ -22,7 +22,7 @@ import obsidian.bedrock.MediaConnection
 import obsidian.bedrock.VoiceServerInfo
 import obsidian.bedrock.codec.OpusCodec
 import obsidian.bedrock.crypto.EncryptionMode
-import obsidian.bedrock.event.*
+import obsidian.bedrock.*
 import obsidian.bedrock.gateway.event.*
 import obsidian.bedrock.handler.DiscordUDPConnection
 import obsidian.bedrock.util.Interval

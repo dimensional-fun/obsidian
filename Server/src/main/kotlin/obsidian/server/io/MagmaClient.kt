@@ -26,10 +26,6 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.serialization.json.Json
 import obsidian.bedrock.*
-import obsidian.bedrock.event.GatewayClosedEvent
-import obsidian.bedrock.event.GatewayReadyEvent
-import obsidian.bedrock.event.HeartbeatAcknowledgedEvent
-import obsidian.bedrock.event.HeartbeatSentEvent
 import obsidian.bedrock.gateway.AbstractMediaGatewayConnection.Companion.asFlow
 import obsidian.server.io.Magma.Companion.magma
 import obsidian.server.player.Link

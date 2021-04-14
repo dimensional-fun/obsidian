@@ -23,10 +23,10 @@ import kotlinx.coroutines.flow.*
 import obsidian.bedrock.codec.Codec
 import obsidian.bedrock.codec.OpusCodec
 import obsidian.bedrock.codec.framePoller.FramePoller
-import obsidian.bedrock.event.Event
 import obsidian.bedrock.gateway.MediaGatewayConnection
 import obsidian.bedrock.handler.ConnectionHandler
 import obsidian.bedrock.media.MediaFrameProvider
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import kotlin.coroutines.CoroutineContext
 
@@ -109,7 +109,10 @@ class MediaConnection(
     }
 
     if (connectionHandler != null) {
-      connectionHandler?.close()
+      withContext(Dispatchers.IO) {
+        connectionHandler?.close()
+      }
+
       connectionHandler = null
     }
   }
@@ -159,7 +162,7 @@ class MediaConnection(
   }
 
   companion object {
-    val logger = LoggerFactory.getLogger(MediaConnection::class.java)
+    val logger: Logger = LoggerFactory.getLogger(MediaConnection::class.java)
   }
 }
 
@@ -171,9 +174,16 @@ class MediaConnection(
  *
  * @return A [Job] that can be used to cancel any further processing of event [T]
  */
-inline fun <reified T> MediaConnection.on(scope: CoroutineScope = this, crossinline block: suspend T.() -> Unit): Job {
-  return events.buffer(Channel.UNLIMITED).filterIsInstance<T>().onEach { event ->
-    event.runCatching { block() }
-      .onFailure { MediaConnection.logger.error(it) }
-  }.launchIn(scope)
+inline fun <reified T : Event> MediaConnection.on(
+  scope: CoroutineScope = this,
+  crossinline block: suspend T.() -> Unit
+): Job {
+  return events.buffer(Channel.UNLIMITED)
+    .filterIsInstance<T>()
+    .onEach { event ->
+      event
+        .runCatching { block() }
+        .onFailure { MediaConnection.logger.error(it) }
+    }
+    .launchIn(scope)
 }

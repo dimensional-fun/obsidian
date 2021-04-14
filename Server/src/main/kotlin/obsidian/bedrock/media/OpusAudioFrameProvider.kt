@@ -20,7 +20,7 @@ import io.netty.buffer.ByteBuf
 import obsidian.bedrock.MediaConnection
 import obsidian.bedrock.codec.Codec
 import obsidian.bedrock.codec.OpusCodec
-import obsidian.bedrock.event.UserConnectedEvent
+import obsidian.bedrock.UserConnectedEvent
 import obsidian.bedrock.gateway.SpeakingFlags
 import obsidian.bedrock.on
 

@@ -57,7 +57,7 @@ object Bedrock {
       "netty" -> ByteBufAllocator.DEFAULT
       "unpooled" -> UnpooledByteBufAllocator.DEFAULT
       else -> {
-        logger.warn("Invalid byte buf allocator \"$allocator\", defaulting to the 'pooled' byte buf allocator.")
+        logger.warn("Invalid byte buf allocator '$allocator', defaulting to the 'pooled' byte buf allocator.")
         PooledByteBufAllocator.DEFAULT
       }
     }
