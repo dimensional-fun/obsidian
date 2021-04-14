@@ -35,11 +35,11 @@ class PlayerUpdates(val link: Link) : AudioEventAdapter() {
    */
   var enabled: Boolean = true
     set(value) {
+      field = value
+
       link.client.launch {
         if (value) start() else stop()
       }
-
-      field = value
     }
 
   /**
