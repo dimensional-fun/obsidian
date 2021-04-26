@@ -6,6 +6,21 @@
 - Uses [**Lavaplayer**](https://github.com/sedmelluq/lavaplayer)
 - Performant, low memory and cpu footprint.
 
+## Usage.
+
+For obsidian to work correctly you must use **Java 11** or above. 
+
+- Goto the [releases page](/releases).
+- Download the **Latest Jar File**
+- Make an [`obsidian.yml`](/obsidian.yml) file in the same directory as the jar file
+- Open a prompt in the same directory as the jar file.
+
+```sh
+java -jar Obsidian.jar
+```
+
+Now go make a bot with the language and client of your choice!
+
 ## Clients
 
 > Clients are used to interface with Magma, Obsidian's WebSocket and REST API.
