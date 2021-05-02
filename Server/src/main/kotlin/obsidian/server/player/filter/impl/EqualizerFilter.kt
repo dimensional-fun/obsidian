@@ -19,14 +19,15 @@ package obsidian.server.player.filter.impl
 import com.sedmelluq.discord.lavaplayer.filter.FloatPcmAudioFilter
 import com.sedmelluq.discord.lavaplayer.filter.equalizer.Equalizer
 import com.sedmelluq.discord.lavaplayer.format.AudioDataFormat
-import kotlinx.serialization.Serializable
 import obsidian.server.player.filter.Filter
-import obsidian.server.player.filter.Filter.Companion.isSet
+import kotlinx.serialization.Serializable
 
 @Serializable
 data class EqualizerFilter(val bands: List<Band>) : Filter {
   override val enabled: Boolean
-    get() = bands.any { isSet(it.gain, 0f) }
+    get() = bands.any {
+      Filter.isSet(it.gain, 0f)
+    }
 
   override fun build(format: AudioDataFormat, downstream: FloatPcmAudioFilter): FloatPcmAudioFilter? {
     if (!Equalizer.isCompatible(format)) {

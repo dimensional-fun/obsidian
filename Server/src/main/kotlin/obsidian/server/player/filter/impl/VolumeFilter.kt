@@ -21,22 +21,18 @@ import com.sedmelluq.discord.lavaplayer.filter.FloatPcmAudioFilter
 import com.sedmelluq.discord.lavaplayer.format.AudioDataFormat
 import kotlinx.serialization.Serializable
 import obsidian.server.player.filter.Filter
-import obsidian.server.player.filter.Filter.Companion.isSet
 
 @Serializable
-data class VolumeFilter(
-  val volume: Float
-) : Filter {
+data class VolumeFilter(val volume: Float) : Filter {
   override val enabled: Boolean
-    get() = isSet(volume, 1f)
+    get() = Filter.isSet(volume, 1f)
 
   init {
     require(volume in 0.0..5.0) {
-      "'volume' must be >= 0 and <= 5."
+      "'volume' must be 0 <= x <= 5"
     }
   }
 
-  override fun build(format: AudioDataFormat, downstream: FloatPcmAudioFilter): FloatPcmAudioFilter =
-    VolumePcmAudioFilter(downstream)
-      .setVolume(volume)
+  override fun build(format: AudioDataFormat, downstream: FloatPcmAudioFilter): FloatPcmAudioFilter? =
+    VolumePcmAudioFilter(downstream).setVolume(volume)
 }
