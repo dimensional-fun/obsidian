@@ -21,15 +21,14 @@ import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason
 import kotlinx.coroutines.launch
-import obsidian.bedrock.util.Interval
-import obsidian.server.Obsidian.config
-import obsidian.server.io.CurrentTrack
-import obsidian.server.io.Frames
-import obsidian.server.io.PlayerUpdate
+import obsidian.server.Application.config
+import obsidian.server.io.ws.CurrentTrack
+import obsidian.server.io.ws.PlayerUpdate
+import obsidian.server.util.Interval
+import obsidian.server.util.Obsidian
 import obsidian.server.util.TrackUtil
-import obsidian.server.util.config.ObsidianConfig
 
-class PlayerUpdates(val link: Link) : AudioEventAdapter() {
+class PlayerUpdates(val player: Player) : AudioEventAdapter() {
   /**
    * Whether player updates should be sent.
    */
@@ -37,16 +36,10 @@ class PlayerUpdates(val link: Link) : AudioEventAdapter() {
     set(value) {
       field = value
 
-      link.client.launch {
+      player.client.websocket?.launch {
         if (value) start() else stop()
       }
     }
-
-  /**
-   * Whether a track is currently being played.
-   */
-  val playing: Boolean
-    get() = link.playing
 
   private val interval = Interval()
 
@@ -55,7 +48,7 @@ class PlayerUpdates(val link: Link) : AudioEventAdapter() {
    */
   suspend fun start() {
     if (!interval.started && enabled) {
-      interval.start(config[ObsidianConfig.PlayerUpdates.Interval], ::sendUpdate)
+      interval.start(config[Obsidian.PlayerUpdates.Interval], ::sendUpdate)
     }
   }
 
@@ -69,32 +62,35 @@ class PlayerUpdates(val link: Link) : AudioEventAdapter() {
   }
 
   suspend fun sendUpdate() {
-    val currentTrack = CurrentTrack(
-      track = TrackUtil.encode(link.audioPlayer.playingTrack),
-      paused = link.audioPlayer.isPaused,
-      position = link.audioPlayer.playingTrack.position
+    val update = PlayerUpdate(
+      guildId = player.guildId,
+      currentTrack = currentTrackFor(player),
+      frames = player.frameLossTracker.payload
     )
 
-    val frames = Frames(
-      sent = link.frameCounter.success.sum(),
-      lost = link.frameCounter.loss.sum(),
-      usable = link.frameCounter.dataUsable
-    )
-
-    link.client.send(
-      PlayerUpdate(
-        guildId = link.guildId,
-        currentTrack = currentTrack,
-        frames = frames
-      )
-    )
+    player.client.websocket?.send(update)
   }
 
   override fun onTrackStart(player: AudioPlayer?, track: AudioTrack?) {
-    link.client.launch { start() }
+    this.player.client.websocket?.launch { start() }
   }
 
   override fun onTrackEnd(player: AudioPlayer?, track: AudioTrack?, endReason: AudioTrackEndReason?) {
-    link.client.launch { stop() }
+    this.player.client.websocket?.launch { stop() }
+  }
+
+  companion object {
+    /**
+     * Returns a [CurrentTrack] for the provided [Player].
+     *
+     * @param player
+     *   Player to get the current track from
+     */
+    fun currentTrackFor(player: Player): CurrentTrack =
+      CurrentTrack(
+        track = TrackUtil.encode(player.audioPlayer.playingTrack),
+        paused = player.audioPlayer.isPaused,
+        position = player.audioPlayer.playingTrack.position
+      )
   }
 }

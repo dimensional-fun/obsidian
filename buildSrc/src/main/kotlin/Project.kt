@@ -14,19 +14,7 @@
  * limitations under the License.
  */
 
-package obsidian.server.util
-
-import java.util.*
-import java.util.concurrent.ThreadFactory
-import java.util.concurrent.atomic.AtomicInteger
-
-fun threadFactory(name: String, daemon: Boolean = false, priority: Int? = null): ThreadFactory {
-  val counter = AtomicInteger()
-  return ThreadFactory { runnable ->
-    Thread(runnable).apply {
-      this.name = name.format(Locale.ROOT, counter.getAndIncrement())
-      this.isDaemon = daemon
-      priority?.let { this.priority = it }
-    }
-  }
+object Project {
+  const val jvmTarget = "11"
+  const val mainClassName = "obsidian.server.Application"
 }

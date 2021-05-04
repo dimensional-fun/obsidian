@@ -14,19 +14,14 @@
  * limitations under the License.
  */
 
-package obsidian.server.util
+package obsidian.server.io.ws
 
-import java.util.*
-import java.util.concurrent.ThreadFactory
-import java.util.concurrent.atomic.AtomicInteger
+import io.ktor.http.cio.websocket.*
 
-fun threadFactory(name: String, daemon: Boolean = false, priority: Int? = null): ThreadFactory {
-  val counter = AtomicInteger()
-  return ThreadFactory { runnable ->
-    Thread(runnable).apply {
-      this.name = name.format(Locale.ROOT, counter.getAndIncrement())
-      this.isDaemon = daemon
-      priority?.let { this.priority = it }
-    }
-  }
+object CloseReasons {
+  val INVALID_AUTHORIZATION = CloseReason(4001, "Invalid or missing authorization header or query parameter.")
+  val MISSING_CLIENT_NAME = CloseReason(4002, "Missing 'Client-Name' header or query parameter")
+  val MISSING_USER_ID = CloseReason(4003, "Missing 'User-Id' header or query parameter")
+  val DUPLICATE_SESSION = CloseReason(4005, "A session for the supplied user already exists.")
+  // 4006
 }

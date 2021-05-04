@@ -16,387 +16,133 @@
 
 package obsidian.server.io
 
-import com.sedmelluq.discord.lavaplayer.track.TrackMarker
 import io.ktor.http.cio.websocket.*
-import io.ktor.util.*
-import io.ktor.util.network.*
-import io.ktor.websocket.*
-import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.*
-import kotlinx.serialization.json.Json
-import obsidian.bedrock.*
-import obsidian.bedrock.gateway.AbstractMediaGatewayConnection.Companion.asFlow
-import obsidian.server.io.Magma.Companion.magma
-import obsidian.server.player.Link
-import obsidian.server.player.TrackEndMarkerHandler
-import obsidian.server.player.filter.FilterChain
-import obsidian.server.util.TrackUtil
-import obsidian.server.util.threadFactory
+import kotlinx.coroutines.launch
+import moe.kyokobot.koe.KoeClient
+import moe.kyokobot.koe.KoeEventAdapter
+import moe.kyokobot.koe.MediaConnection
+import obsidian.server.io.ws.WebSocketClosedEvent
+import obsidian.server.io.ws.WebSocketHandler
+import obsidian.server.io.ws.WebSocketOpenEvent
+import obsidian.server.player.Player
+import obsidian.server.util.KoeUtil
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.lang.Runnable
-import java.nio.charset.Charset
-import java.util.concurrent.*
-import kotlin.coroutines.CoroutineContext
+import java.net.InetSocketAddress
+import java.util.concurrent.ConcurrentHashMap
 
-class MagmaClient(
-  val clientName: String?,
-  val clientId: Long,
-  private var session: WebSocketServerSession
-) : CoroutineScope {
-  /**
-   * Identification for this Client.
-   */
-  val identification: String
-    get() = "${clientName ?: clientId}"
+class MagmaClient(val userId: Long) {
 
   /**
-   * The Bedrock client for this Session
+   * The name of this client.
    */
-  val bedrock = BedrockClient(clientId)
+  var name: String? = null
 
   /**
-   * guild id -> [Link]
+   * The display name for this client.
    */
-  val links = ConcurrentHashMap<Long, Link>()
+  val displayName: String
+    get() = "${name ?: userId}"
 
   /**
-   * Resume key
+   * The koe client used to send audio frames.
    */
-  var resumeKey: String? = null
+  val koe: KoeClient by lazy {
+    KoeUtil.koe.newClient(userId)
+  }
 
   /**
-   * Stats interval.
+   * The websocket handler for this client, or null if one hasn't been initialized.
    */
-  private var stats = Executors.newSingleThreadScheduledExecutor(threadFactory("Magma Stats Dispatcher %d"))
+  var websocket: WebSocketHandler? = null
 
   /**
-   * Whether this magma client is active
+   * Current players
    */
-  private var active: Boolean = false
+  var players = ConcurrentHashMap<Long, Player>()
 
   /**
-   * Resume timeout
+   * Convenience method for ensuring that a player with the supplied guild id exists.
+   *
+   * @param guildId ID of the guild.
    */
-  private var resumeTimeout: Long? = null
-
-  /**
-   * Timeout future
-   */
-  private var resumeTimeoutFuture: ScheduledFuture<*>? = null
-
-  /**
-   * The dispatch buffer timeout
-   */
-  private var bufferTimeout: Long? = null
-
-  /**
-   * The dispatch buffer
-   */
-  private var dispatchBuffer: ConcurrentLinkedQueue<String>? = null
-
-  /**
-   * Events flow lol - idk kotlin
-   */
-  private val events = MutableSharedFlow<Operation>(extraBufferCapacity = Int.MAX_VALUE)
-
-  override val coroutineContext: CoroutineContext
-    get() = Dispatchers.IO + SupervisorJob()
-
-  init {
-    on<SubmitVoiceUpdate> {
-      val conn = mediaConnectionFor(guildId)
-      val link = links.computeIfAbsent(guildId) {
-        Link(this@MagmaClient, guildId)
-      }
-
-      conn.connect(VoiceServerInfo(sessionId, token, endpoint))
-      link.provideTo(conn)
-    }
-
-    on<Filters> {
-      val link = links.computeIfAbsent(guildId) {
-        Link(this@MagmaClient, guildId)
-      }
-
-      link.filters = FilterChain.from(link, this)
-    }
-
-    on<Pause> {
-      val link = links.computeIfAbsent(guildId) {
-        Link(this@MagmaClient, guildId)
-      }
-
-      link.audioPlayer.isPaused = state
-    }
-
-    on<Seek> {
-      val link = links.computeIfAbsent(guildId) {
-        Link(this@MagmaClient, guildId)
-      }
-
-      link.seekTo(position)
-    }
-
-    on<Destroy> {
-      val link = links.remove(guildId)
-      link?.audioPlayer?.destroy()
-
-      bedrock.destroyConnection(guildId)
-    }
-
-    on<StopTrack> {
-      val link = links.computeIfAbsent(guildId) {
-        Link(this@MagmaClient, guildId)
-      }
-
-      link.audioPlayer.stopTrack()
-    }
-
-    on<SetupResuming> {
-      resumeKey = key
-      resumeTimeout = timeout
-
-      logger.debug("$identification - resuming is configured; key= $key, timeout= $timeout")
-    }
-
-    on<SetupDispatchBuffer> {
-      bufferTimeout = timeout
-      logger.debug("$identification - dispatch buffer timeout: $timeout")
-    }
-
-    on<Configure> {
-      val link = links.computeIfAbsent(guildId) {
-        Link(this@MagmaClient, guildId)
-      }
-
-      pause?.let { link.audioPlayer.isPaused = it }
-
-      filters?.let { link.filters = FilterChain.from(link, it) }
-
-      sendPlayerUpdates?.let { link.playerUpdates.enabled = it }
-    }
-
-    on<PlayTrack> {
-      val link = links.computeIfAbsent(guildId) {
-        Link(this@MagmaClient, guildId)
-      }
-
-      if (link.audioPlayer.playingTrack != null && noReplace) {
-        logger.info("$identification - skipping PLAY_TRACK operation")
-        return@on
-      }
-
-      val track = TrackUtil.decode(track)
-
-      // handle "end_time" and "start_time" parameters
-      if (startTime in 0..track.duration) {
-        track.position = startTime
-      }
-
-      if (endTime in 0..track.duration) {
-        val handler = TrackEndMarkerHandler(link)
-        val marker = TrackMarker(endTime, handler)
-        track.setMarker(marker)
-      }
-
-      link.play(track)
+  fun playerFor(guildId: Long): Player {
+    return players.computeIfAbsent(guildId) {
+      Player(guildId, this)
     }
   }
 
-  suspend fun handleClose() {
-    if (resumeKey != null) {
-      if (bufferTimeout?.takeIf { it > 0 } != null) {
-        dispatchBuffer = ConcurrentLinkedQueue()
-      }
+  /**
+   * Returns a [MediaConnection] for the supplied [guildId]
+   *
+   * @param guildId ID of the guild to get a media connection for.
+   */
+  fun mediaConnectionFor(guildId: Long): MediaConnection {
+    var connection = koe.getConnection(guildId)
+    if (connection == null) {
+      connection = koe.createConnection(guildId)
+      connection.registerListener(EventAdapterImpl(connection))
+    }
 
-      val runnable = Runnable {
-        runBlocking {
-          magma.shutdown(this@MagmaClient)
-        }
-      }
+    return connection
+  }
 
-      resumeTimeoutFuture = magma.executor.schedule(runnable, resumeTimeout!!, TimeUnit.MILLISECONDS)
-      logger.info("$identification - session can be resumed within the next $resumeTimeout ms with the key \"$resumeKey\"")
+  /**
+   * Shutdown this magma client.
+   *
+   * @param safe
+   *   Whether we should be cautious about shutting down.
+   */
+  suspend fun shutdown(safe: Boolean = true) {
+    websocket?.session?.close(CloseReason(1000, "shutting down"))
+    websocket = null
+
+    val activePlayers = players.count { (_, player) ->
+      player.audioPlayer.playingTrack != null
+    }
+
+    if (safe && activePlayers != 0) {
       return
     }
 
-    magma.shutdown(this)
+    /* no players are active so it's safe to remove the client. */
+
+    for ((id, player) in players) {
+      player.destroy()
+      players.remove(id)
+    }
+
+    koe.close()
   }
 
-  suspend fun resume(session: WebSocketServerSession) {
-    logger.info("$identification - session has been resumed")
+  inner class EventAdapterImpl(val connection: MediaConnection) : KoeEventAdapter() {
+    override fun gatewayReady(target: InetSocketAddress, ssrc: Int) {
+      websocket?.launch {
+        val event = WebSocketOpenEvent(
+          guildId = connection.guildId,
+          ssrc = ssrc,
+          target = target.toString(),
+        )
 
-    this.session = session
-    this.active = true
-    this.resumeTimeoutFuture?.cancel(false)
-
-    dispatchBuffer?.let {
-      for (payload in dispatchBuffer!!) {
-        send(payload)
+        websocket?.send(event)
       }
     }
 
-    listen()
-  }
+    override fun gatewayClosed(code: Int, reason: String?, byRemote: Boolean) {
+      websocket?.launch {
+        val event = WebSocketClosedEvent(
+          guildId = connection.guildId,
+          code = code,
+          reason = reason,
+          byRemote = byRemote
+        )
 
-  suspend fun listen() {
-    active = true
-
-    /* starting sending stats. */
-    stats.scheduleAtFixedRate(this::sendStats, 0, 1, TimeUnit.MINUTES)
-
-    /* listen for incoming frames. */
-    session.incoming.asFlow().buffer(Channel.UNLIMITED)
-      .collect {
-        when (it) {
-          is Frame.Binary, is Frame.Text -> handleIncomingFrame(it)
-          else -> { // no-op
-          }
-        }
-      }
-
-    /* connection has been closed. */
-    active = false
-  }
-
-  /**
-   * Sends node stats to the Client.
-   */
-  private fun sendStats() {
-    launch {
-      send(StatsBuilder.build(this@MagmaClient))
-    }
-  }
-
-  private inline fun <reified T : Operation> on(crossinline block: suspend T.() -> Unit) {
-    events.filterIsInstance<T>()
-      .onEach {
-        try {
-          block.invoke(it)
-        } catch (ex: Exception) {
-          logger.error("$identification -", ex)
-        }
-      }
-      .launchIn(this)
-  }
-
-  /**
-   * Handles an incoming [Frame].
-   *
-   * @param frame The received text or binary frame.
-   */
-  private suspend fun handleIncomingFrame(frame: Frame) {
-    val json = frame.data.toString(Charset.defaultCharset())
-
-    try {
-      logger.info("$identification >>> $json")
-      jsonParser.decodeFromString(Operation, json)?.let { events.emit(it) }
-    } catch (ex: Exception) {
-      logger.error("$identification -", ex)
-    }
-  }
-
-  private fun mediaConnectionFor(guildId: Long): MediaConnection {
-    var mediaConnection = bedrock.getConnection(guildId)
-    if (mediaConnection == null) {
-      mediaConnection = bedrock.createConnection(guildId)
-      EventListener(mediaConnection)
-    }
-
-    return mediaConnection
-  }
-
-  /**
-   * Send a JSON payload to the client.
-   *
-   * @param dispatch The dispatch instance
-   */
-  suspend fun send(dispatch: Dispatch) {
-    val json = jsonParser.encodeToString(Dispatch.Companion, dispatch)
-    if (!active) {
-      dispatchBuffer?.offer(json)
-      return
-    }
-
-    send(json)
-  }
-
-  /**
-   * Sends a JSON encoded dispatch payload to the client
-   *
-   * @param json JSON encoded dispatch payload
-   */
-  private suspend fun send(json: String) {
-    try {
-      logger.trace("$identification <<< $json")
-      session.send(json)
-    } catch (ex: Exception) {
-      logger.error("$identification -", ex)
-    }
-  }
-
-  internal suspend fun shutdown() {
-    /* shut down stats task */
-    stats.shutdown()
-
-    /* shut down all links */
-    logger.info("$identification - shutting down ${links.size} links.")
-    for ((id, link) in links) {
-      link.playerUpdates.stop()
-      link.audioPlayer.destroy()
-      links.remove(id)
-    }
-
-    bedrock.close()
-  }
-
-  inner class EventListener(mediaConnection: MediaConnection) {
-    private var lastHeartbeat: Long? = null
-    private var lastHeartbeatNonce: Long? = null
-
-    init {
-      mediaConnection.on<GatewayReadyEvent> {
-        val dispatch = WebSocketOpenEvent(guildId = guildId, ssrc = ssrc, target = target.hostname)
-        send(dispatch)
-      }
-
-      mediaConnection.on<GatewayClosedEvent> {
-        val dispatch = WebSocketClosedEvent(guildId = guildId, reason = reason, code = code)
-        send(dispatch)
-      }
-
-      mediaConnection.on<HeartbeatAcknowledgedEvent> {
-        if (lastHeartbeatNonce == null || lastHeartbeat == null) {
-          return@on
-        }
-
-        if (lastHeartbeatNonce != nonce) {
-          logger.debug("$identification - a heartbeat was acknowledged but it wasn't the last?")
-          return@on
-        }
-
-        logger.debug("$identification - voice WebSocket latency is ${System.currentTimeMillis() - lastHeartbeat!!}ms")
-      }
-
-      mediaConnection.on<HeartbeatSentEvent> {
-        lastHeartbeat = System.currentTimeMillis()
-        lastHeartbeatNonce = nonce
+        websocket?.send(event)
       }
     }
   }
 
   companion object {
-    /**
-     * JSON parser for everything.
-     */
-    val jsonParser = Json {
-      ignoreUnknownKeys = true
-      isLenient = true
-      encodeDefaults = true
-    }
-
-    private val logger: Logger = LoggerFactory.getLogger(MagmaClient::class.java)
+    val log: Logger = LoggerFactory.getLogger(MagmaClient::class.java)
   }
 }

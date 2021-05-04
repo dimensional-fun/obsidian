@@ -19,12 +19,26 @@ package obsidian.server.util
 import com.sedmelluq.discord.lavaplayer.tools.io.MessageInput
 import com.sedmelluq.discord.lavaplayer.tools.io.MessageOutput
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
-import obsidian.server.Obsidian.playerManager
+import obsidian.server.Application.players
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.util.*
 
 object TrackUtil {
+  /**
+   * Base64 decoder used by [decode]
+   */
+  private val decoder: Base64.Decoder by lazy {
+    Base64.getDecoder()
+  }
+
+  /**
+   * Base64 encoder used by [encode]
+   */
+  private val encoder: Base64.Encoder by lazy {
+    Base64.getEncoder()
+  }
+
   /**
    * Decodes a base64 encoded string into a usable [AudioTrack]
    *
@@ -33,14 +47,10 @@ object TrackUtil {
    * @return The decoded [AudioTrack]
    */
   fun decode(encodedTrack: String): AudioTrack {
-    val decoded = Base64.getDecoder()
-      .decode(encodedTrack)
-
-    val inputStream = ByteArrayInputStream(decoded)
-    val track = playerManager.decodeTrack(MessageInput(inputStream))!!.decodedTrack
-
-    inputStream.close()
-    return track
+    val inputStream = ByteArrayInputStream(decoder.decode(encodedTrack))
+    return inputStream.use {
+      players.decodeTrack(MessageInput(it))!!.decodedTrack
+    }
   }
 
   /**
@@ -52,12 +62,9 @@ object TrackUtil {
    */
   fun encode(track: AudioTrack): String {
     val outputStream = ByteArrayOutputStream()
-    playerManager.encodeTrack(MessageOutput(outputStream), track)
-
-    val encoded = Base64.getEncoder()
-      .encodeToString(outputStream.toByteArray())
-
-    outputStream.close()
-    return encoded
+    return outputStream.use {
+      players.encodeTrack(MessageOutput(it), track)
+      encoder.encodeToString(it.toByteArray())
+    }
   }
 }

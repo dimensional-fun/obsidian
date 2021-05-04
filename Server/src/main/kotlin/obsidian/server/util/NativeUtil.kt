@@ -18,9 +18,10 @@ package obsidian.server.util
 
 import com.github.natanbc.lavadsp.natives.TimescaleNativeLibLoader
 import com.github.natanbc.nativeloader.NativeLibLoader
+import com.sedmelluq.discord.lavaplayer.natives.ConnectorNativeLibLoader
+import com.sedmelluq.discord.lavaplayer.udpqueue.natives.UdpQueueManagerLibrary
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import com.sedmelluq.discord.lavaplayer.natives.ConnectorNativeLibLoader
 
 /**
  * Based on https://github.com/natanbc/andesite/blob/master/src/main/java/andesite/util/NativeUtils.java
@@ -30,12 +31,14 @@ import com.sedmelluq.discord.lavaplayer.natives.ConnectorNativeLibLoader
 
 object NativeUtil {
   var timescaleAvailable: Boolean = false
+  var udpQueueAvailable: Boolean = false
 
   /* private shit */
   private val logger: Logger = LoggerFactory.getLogger(NativeUtil::class.java)
 
   // loaders
   private val CONNECTOR_LOADER: NativeLibLoader = NativeLibLoader.create(NativeUtil::class.java, "connector")
+  private val UDP_QUEUE_LOADER: NativeLibLoader = NativeLibLoader.create(NativeUtil::class.java, "udpqueue")
 
   // class names
   private const val LOAD_RESULT_NAME = "com.sedmelluq.lava.common.natives.NativeLibraryLoader\$LoadResult"
@@ -56,6 +59,7 @@ object NativeUtil {
    */
   fun load() {
     loadConnector()
+    udpQueueAvailable = loadUdpQueue()
     timescaleAvailable = loadTimescale()
   }
 
@@ -90,6 +94,27 @@ object NativeUtil {
     } catch (ex: Exception) {
       logger.error("Connected failed to load", ex)
     }
+  }
+
+  /**
+   * Loads udp-queue natives
+   */
+  private fun loadUdpQueue() = try {
+    /* Load the lp-cross version of the library. */
+    UDP_QUEUE_LOADER.load()
+
+    /* mark lavaplayer's loader as loaded to avoid failing when loading mpg123 on windows/attempting to load connector again. */
+    with(UdpQueueManagerLibrary::class.java.getDeclaredField("nativeLoader")) {
+      isAccessible = true
+      markLoaded(get(null))
+    }
+
+    /* return true */
+    logger.info("Loaded udp-queue library.")
+    true
+  } catch (ex: Throwable) {
+    logger.warn("Error loading udp-queue library.", ex)
+    false
   }
 
   private fun markLoaded(loader: Any) {

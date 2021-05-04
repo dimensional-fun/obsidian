@@ -23,6 +23,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import obsidian.server.player.filter.Filter
 import obsidian.server.player.filter.Filter.Companion.isSet
+import obsidian.server.util.NativeUtil
 
 @Serializable
 data class TimescaleFilter(

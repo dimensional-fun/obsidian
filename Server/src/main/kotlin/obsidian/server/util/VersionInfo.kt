@@ -16,17 +16,19 @@
 
 package obsidian.server.util
 
-import java.util.*
-import java.util.concurrent.ThreadFactory
-import java.util.concurrent.atomic.AtomicInteger
+object VersionInfo {
+  private val stream = VersionInfo::class.java.classLoader.getResourceAsStream("version.txt")
+  private val versionTxt = stream?.reader()?.readText()?.split('\n')
 
-fun threadFactory(name: String, daemon: Boolean = false, priority: Int? = null): ThreadFactory {
-  val counter = AtomicInteger()
-  return ThreadFactory { runnable ->
-    Thread(runnable).apply {
-      this.name = name.format(Locale.ROOT, counter.getAndIncrement())
-      this.isDaemon = daemon
-      priority?.let { this.priority = it }
-    }
-  }
+  /**
+   * Current version of Mixtape.
+   */
+  val VERSION = versionTxt?.get(0)
+    ?: "1.0.0"
+
+  /**
+   * Current git revision.
+   */
+  val GIT_REVISION = versionTxt?.get(1)
+    ?: "unknown"
 }

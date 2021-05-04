@@ -20,12 +20,24 @@ import com.sedmelluq.discord.lavaplayer.player.AudioPlayer
 import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason
+import obsidian.server.io.ws.Frames
 import obsidian.server.util.ByteRingBuffer
 import java.util.concurrent.TimeUnit
 
 class FrameLossTracker : AudioEventAdapter() {
+  /**
+   *
+   */
   var success = ByteRingBuffer(60)
+
+  /**
+   *
+   */
   var loss = ByteRingBuffer(60)
+
+  /**
+   *
+   */
   val dataUsable: Boolean
     get() {
       if (lastTrackStarted - lastTrackEnded > ACCEPTABLE_TRACK_SWITCH_TIME && lastTrackEnded != Long.MAX_VALUE) {
@@ -34,6 +46,16 @@ class FrameLossTracker : AudioEventAdapter() {
 
       return TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - playingSince) >= 60
     }
+
+  /**
+   *
+   */
+  val payload: Frames
+    get() = Frames(
+      sent = success.sum(),
+      lost = loss.sum(),
+      usable = dataUsable
+    )
 
   private var curSuccess: Byte = 0
   private var curLoss: Byte = 0

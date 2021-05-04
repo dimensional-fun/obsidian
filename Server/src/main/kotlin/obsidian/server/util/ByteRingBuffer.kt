@@ -19,7 +19,7 @@ package obsidian.server.util
 import kotlin.math.min
 
 /**
- * Based off
+ * Based off of
  * https://github.com/natanbc/andesite/blob/master/api/src/main/java/andesite/util/ByteRingBuffer.java
  */
 
