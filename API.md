@@ -9,12 +9,9 @@ Magma is the name for the WebSocket and REST server!
 
 ---
 
-- **Current Version:** 1.0.0-pre
+- **Current Version:** 2.0.0
 
 ## Magma REST
-
-As of version `1.0.0` of obsidian the REST API is only used for loading tracks. This will most likely change in future
-releases.
 
 ### Route Planner
 
@@ -101,6 +98,22 @@ Authorization: <password>
 
 *204 - No Content*
 
+### Player Controller
+
+Each request must have a `User-Id` header or query parameter containing your bot's user id
+
+- **Base Path:** `/players/{guild id}`
+
+<sub>The `Client-Name` header or query parameter may be required if the node you're using requires it.</sub>
+
+| endpoint | description                |
+| :------- | :------------------------- |
+| /        | returns info on the player |
+| /play    | plays 
+|
+|
+|
+
 ### Tracks Controller
 
 Allows non-jvm clients to search and decode tracks using Obsidian!
@@ -131,7 +144,8 @@ Authorization: <configured password>
         "length": 270000,
         "position": 0,
         "is_stream": false,
-        "is_seekable": true
+        "is_seekable": true,
+        "source_name": "youtube"
       }
     }
   ],
