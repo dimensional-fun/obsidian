@@ -1,12 +1,10 @@
-allprojects {
-  repositories {
-    maven("https://jitpack.io")
-    maven("https://oss.sonatype.org/content/repositories/snapshots/")
-    maven("https://m2.dv8tion.net/releases")
-    mavenCentral()
-  }
+plugins {
+  idea
+  java
+}
 
-  group = "gg.mixtape.obsidian"
+allprojects {
+  group = "obsidian"
   apply(plugin = "idea")
 }
 
@@ -18,8 +16,8 @@ subprojects {
     }
 
     dependencies {
-      classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:${Versions.kotlin}")
-      classpath("org.jetbrains.kotlin:kotlin-serialization:${Versions.kotlin}")
+      classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.5.10")
+      classpath("org.jetbrains.kotlin:kotlin-serialization:1.5.10")
     }
   }
 

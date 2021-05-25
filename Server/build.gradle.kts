@@ -1,10 +1,10 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.io.ByteArrayOutputStream
 
 plugins {
   application
-  id("com.github.johnrengelman.shadow") version Versions.shadow
+  id("com.github.johnrengelman.shadow") version "7.0.0"
 }
 
 apply(plugin = "kotlin")
@@ -14,55 +14,53 @@ description = "A robust and performant audio sending node meant for Discord Bots
 version = "2.0.0"
 
 application {
-  mainClass.set(Project.mainClassName)
-}
-
-repositories {
-  jcenter()
+  mainClass.set("obsidian.server.Application")
 }
 
 dependencies {
   /* kotlin */
-  implementation(Dependencies.kotlin)
-  implementation(Dependencies.kotlinxCoroutines)
-  implementation(Dependencies.kotlinxCoroutinesJdk8)
-  implementation(Dependencies.kotlinxSerialization)
+  implementation("org.jetbrains.kotlin:kotlin-stdlib:1.5.10")
+  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.0")
+  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:1.5.0")
+  implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.2.1")
 
   /* ktor, server related */
-  implementation(Dependencies.ktorServerCore)
-  implementation(Dependencies.ktorServerCio)
-  implementation(Dependencies.ktorLocations)
-  implementation(Dependencies.ktorWebSockets)
-  implementation(Dependencies.ktorSerialization)
+  val ktorVersion = "1.5.4"
+  implementation("io.ktor:ktor-server-core:$ktorVersion")   // ktor server core
+  implementation("io.ktor:ktor-server-cio:$ktorVersion")    // ktor cio engine
+  implementation("io.ktor:ktor-locations:$ktorVersion")     // ktor locations
+  implementation("io.ktor:ktor-websockets:$ktorVersion")    // ktor websockets
+  implementation("io.ktor:ktor-serialization:$ktorVersion") // ktor serialization
 
   /* media library */
-  implementation(Dependencies.koeCore) {
+  implementation("moe.kyokobot.koe:core:master-SNAPSHOT") {
     exclude(group = "org.slf4j", module = "slf4j-api")
   }
 
   /*  */
-  implementation(Dependencies.lavaplayer)/*{
+  implementation("com.sedmelluq:lavaplayer:1.3.77") {
     exclude(group = "com.sedmelluq", module = "lavaplayer-natives")
-  } */
+  }
 
-  implementation(Dependencies.lavaplayerIpRotator) {
+  implementation("com.sedmelluq:lavaplayer-ext-youtube-rotator:0.2.3") {
     exclude(group = "com.sedmelluq", module = "lavaplayer")
   }
 
   /* audio filters */
-  implementation(Dependencies.lavadsp)
+  implementation("com.github.natanbc:lavadsp:0.7.7")
 
   /* native libraries */
-  implementation(Dependencies.nativeLoader)
-//  implementation(Dependencies.lpCross)
+  implementation("com.github.natanbc:native-loader:0.7.0") // native loader
+  implementation("com.github.natanbc:lp-cross:0.1.3")      // lp-cross natives
 
   /* logging */
-  implementation(Dependencies.logback)
-  implementation(Dependencies.mordant)
+  implementation("ch.qos.logback:logback-classic:1.2.3")         // slf4j logging backend
+  implementation("com.github.ajalt.mordant:mordant:2.0.0-beta1") // terminal coloring & styling
 
   /* configuration */
-  implementation(Dependencies.konfCore)
-  implementation(Dependencies.konfYaml)
+  val konfVersion = "1.1.2"
+  implementation("com.github.uchuhimo.konf:konf-core:$konfVersion") // konf core shit
+  implementation("com.github.uchuhimo.konf:konf-yaml:$konfVersion") // yaml source
 }
 
 tasks.withType<ShadowJar> {
@@ -71,17 +69,17 @@ tasks.withType<ShadowJar> {
 }
 
 tasks.withType<KotlinCompile> {
-  sourceCompatibility = Project.jvmTarget
-  targetCompatibility = Project.jvmTarget
+  sourceCompatibility = "16"
+  targetCompatibility = "16"
 
   kotlinOptions {
-    jvmTarget = Project.jvmTarget
+    jvmTarget = "16"
     incremental = true
     freeCompilerArgs = listOf(
-      CompilerArgs.experimentalCoroutinesApi,
-      CompilerArgs.experimentalLocationsApi,
-      CompilerArgs.experimentalStdlibApi,
-      CompilerArgs.obsoleteCoroutinesApi
+      "-Xopt-in=kotlin.ExperimentalStdlibApi",
+      "-Xopt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
+      "-Xopt-in=io.ktor.locations.KtorExperimentalLocationsAPI",
+      "-Xopt-in=kotlinx.coroutines.ObsoleteCoroutinesApi"
     )
   }
 }
