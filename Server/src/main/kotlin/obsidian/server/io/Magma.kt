@@ -23,11 +23,10 @@ import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.websocket.*
-import kotlinx.coroutines.launch
 import obsidian.server.Application.config
-import obsidian.server.io.routes.planner
-import obsidian.server.io.routes.players
-import obsidian.server.io.routes.tracks
+import obsidian.server.io.rest.Players.players
+import obsidian.server.io.rest.planner
+import obsidian.server.io.rest.tracks
 import obsidian.server.io.ws.CloseReasons
 import obsidian.server.io.ws.StatsTask
 import obsidian.server.io.ws.WebSocketHandler
@@ -37,6 +36,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
 import kotlin.text.Typography.mdash
 
 object Magma {
@@ -49,10 +49,10 @@ object Magma {
   /**
    * Executor used for cleaning up un-resumed sessions.
    */
-  val cleanupExecutor =
+  val cleanupExecutor: ScheduledExecutorService =
     Executors.newSingleThreadScheduledExecutor(threadFactory("Obsidian Magma-Cleanup"))
 
-  val log: Logger = LoggerFactory.getLogger(Magma::class.java)
+  private val log: Logger = LoggerFactory.getLogger(Magma::class.java)
 
   /**
    * Adds REST endpoint routes and websocket route
@@ -147,7 +147,7 @@ object Magma {
    * @param request
    *   [ApplicationRequest] to extract the user id from.
    */
-  fun extractUserId(request: ApplicationRequest): Long? {
+  private fun extractUserId(request: ApplicationRequest): Long? {
     return request.headers["user-id"]?.toLongOrNull()
       ?: request.queryParameters["user-id"]?.toLongOrNull()
   }
@@ -161,7 +161,7 @@ object Magma {
    * @param request
    *   [ApplicationRequest] to extract the client name from.
    */
-  fun extractClientName(request: ApplicationRequest): String? {
+  private fun extractClientName(request: ApplicationRequest): String? {
     return request.headers["Client-Name"]
       ?: request.queryParameters["client-name"]
   }
@@ -172,7 +172,7 @@ object Magma {
   /**
    * Handles a [WebSocketServerSession] for the supplied [client]
    */
-  suspend fun handleWebsocket(client: MagmaClient, wss: WebSocketServerSession) {
+  private suspend fun handleWebsocket(client: MagmaClient, wss: WebSocketServerSession) {
     val wsh = WebSocketHandler(client, wss).also {
       client.websocket = it
     }

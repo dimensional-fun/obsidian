@@ -39,6 +39,11 @@ class MagmaClient(val userId: Long) {
   var name: String? = null
 
   /**
+   * The websocket handler for this client, or null if one hasn't been initialized.
+   */
+  var websocket: WebSocketHandler? = null
+
+  /**
    * The display name for this client.
    */
   val displayName: String
@@ -52,14 +57,11 @@ class MagmaClient(val userId: Long) {
   }
 
   /**
-   * The websocket handler for this client, or null if one hasn't been initialized.
-   */
-  var websocket: WebSocketHandler? = null
-
-  /**
    * Current players
    */
-  var players = ConcurrentHashMap<Long, Player>()
+  val players: ConcurrentHashMap<Long, Player> by lazy {
+    ConcurrentHashMap()
+  }
 
   /**
    * Convenience method for ensuring that a player with the supplied guild id exists.

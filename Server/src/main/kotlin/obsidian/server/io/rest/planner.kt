@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package obsidian.server.io.routes
+package obsidian.server.io.rest
 
 import io.ktor.auth.*
 import io.ktor.http.*

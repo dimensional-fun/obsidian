@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package obsidian.server.io.routes
+package obsidian.server.io.rest
 
 import io.ktor.application.*
 import io.ktor.auth.*
@@ -34,91 +34,127 @@ import obsidian.server.io.Handlers
 import obsidian.server.io.Magma
 import obsidian.server.io.Magma.clientName
 import obsidian.server.io.Magma.userId
+import obsidian.server.io.MagmaClient
 import obsidian.server.io.ws.CurrentTrack
 import obsidian.server.io.ws.Frames
 import obsidian.server.player.PlayerUpdates.Companion.currentTrackFor
 import obsidian.server.player.filter.Filters
 import obsidian.server.util.Obsidian
 
-val UserIdAttributeKey = AttributeKey<Long>("User-Id")
-val ClientNameAttributeKey = AttributeKey<String>("Client-Name")
+object Players {
+  private val ClientAttr = AttributeKey<MagmaClient>("MagmaClient")
+  private val GuildAttr = AttributeKey<Long>("Guild-Id")
 
-fun Routing.players() = this.authenticate {
-  this.route("/players/{guild}") {
-    intercept(ApplicationCallPipeline.Call) {
-      /* extract user id from the http request */
-      val userId = call.request.userId()
-        ?: return@intercept respondAndFinish(BadRequest, Response("Missing 'User-Id' header or query parameter."))
+  fun Routing.players() = this.authenticate {
+    this.route("/players/{guild}") {
+      /**
+       * Extracts useful information from each application call.
+       */
+      intercept(ApplicationCallPipeline.Call) {
+        /* get the guild id */
+        val guildId = call.parameters["guild"]?.toLongOrNull()
+          ?: return@intercept respondAndFinish(BadRequest, Response("Invalid or missing guild parameter."))
 
-      context.attributes.put(UserIdAttributeKey, userId)
+        context.attributes.put(GuildAttr, guildId)
 
-      /* extract client name from the request */
-      val clientName = call.request.clientName()
-      if (clientName != null) {
-        context.attributes.put(ClientNameAttributeKey, clientName)
-      } else if (config[Obsidian.requireClientName]) {
-        return@intercept respondAndFinish(BadRequest, Response("Missing 'Client-Name' header or query parameter."))
+        /* extract user id from the http request */
+        val userId = call.request.userId()
+          ?: return@intercept respondAndFinish(BadRequest, Response("Missing 'User-Id' header or query parameter."))
+
+        /* extract client name from the request */
+        val clientName = call.request.clientName()
+        if (clientName == null && config[Obsidian.requireClientName]) {
+          return@intercept respondAndFinish(BadRequest, Response("Missing 'Client-Name' header or query parameter."))
+        }
+
+        context.attributes.put(ClientAttr, Magma.getClient(userId, clientName))
+      }
+
+      /**
+       *
+       */
+      get {
+        val guildId = context.attributes[GuildAttr]
+
+        /* get the requested player */
+        val player = context.attributes[ClientAttr].players[guildId]
+          ?: return@get respondAndFinish(NotFound, Response("Unknown player for guild '$guildId'"))
+
+        /* respond */
+        val response = GetPlayerResponse(currentTrackFor(player), player.filters, player.frameLossTracker.payload)
+        call.respond(response)
+      }
+
+      /**
+       *
+       */
+      put("/submit-voice-server") {
+        val vsi = call.receive<SubmitVoiceServer>().vsi
+        Handlers.submitVoiceServer(context.attributes[ClientAttr], context.attributes[GuildAttr], vsi)
+        call.respond(Response("successfully queued connection", success = true))
+      }
+
+      /**
+       *
+       */
+      put("/filters") {
+        val filters = call.receive<Filters>()
+        Handlers.configure(context.attributes[ClientAttr], context.attributes[GuildAttr], filters)
+        call.respond(Response("applied filters", success = true))
+      }
+
+      /**
+       *
+       */
+      put("/seek") {
+        val (position) = call.receive<Seek>()
+        Handlers.seek(context.attributes[ClientAttr], context.attributes[GuildAttr], position)
+        call.respond(Response("seeked to $position", success = true))
+      }
+
+      /**
+       *
+       */
+      post("/play") {
+        val client = context.attributes[ClientAttr]
+
+        /* connect to the voice server described in the request body */
+        val (track, start, end, noReplace) = call.receive<PlayTrack>()
+        Handlers.playTrack(client, context.attributes[GuildAttr], track, start, end, noReplace)
+
+        /* respond */
+        call.respond(Response("playback has started", success = true))
+      }
+
+      /**
+       *
+       */
+      post("/stop") {
+        Handlers.stopTrack(context.attributes[ClientAttr], context.attributes[GuildAttr])
+        call.respond(Response("stopped the current track, if any.", success = true))
       }
     }
-
-    get {
-      /* get the guild id */
-      val guildId = call.parameters["guild"]?.toLongOrNull()
-        ?: return@get respondAndFinish(BadRequest, Response("Invalid or missing guild parameter."))
-
-      /* get a client for this. */
-      val client = Magma.getClient(context.attributes[UserIdAttributeKey], context.attributes[ClientNameAttributeKey])
-
-      /* get the requested player */
-      val player = client.players[guildId]
-        ?: return@get respondAndFinish(NotFound, Response("Unknown player for guild '$guildId'"))
-
-      /* respond */
-      val response = GetPlayer(currentTrackFor(player), player.filters, player.frameLossTracker.payload)
-      call.respond(response)
-    }
-
-    put("/submit-voice-server") {
-      /* get the guild id */
-      val guildId = call.parameters["guild"]?.toLongOrNull()
-        ?: return@put respondAndFinish(BadRequest, Response("Invalid or missing guild parameter."))
-
-      /* get a client for this. */
-      val client =
-        Magma.getClient(context.attributes[UserIdAttributeKey], context.attributes.getOrNull(ClientNameAttributeKey))
-
-      /* connect to the voice server described in the request body */
-      val (session, token, endpoint) = call.receive<SubmitVoiceServer>()
-      Handlers.submitVoiceServer(client, guildId, VoiceServerInfo(session, endpoint, token))
-
-      /* respond */
-      call.respond(Response("successfully queued connection", success = true))
-    }
-
-    post("/play") {
-      /* get the guild id */
-      val guildId = call.parameters["guild"]?.toLongOrNull()
-        ?: return@post respondAndFinish(BadRequest, Response("Invalid or missing guild parameter."))
-
-      /* get a client for this. */
-      val client =
-        Magma.getClient(context.attributes[UserIdAttributeKey], context.attributes.getOrNull(ClientNameAttributeKey))
-
-      /* connect to the voice server described in the request body */
-      val (track, start, end, noReplace) = call.receive<PlayTrack>()
-      Handlers.playTrack(client, guildId, track, start, end, noReplace)
-
-      /* respond */
-      call.respond(Response("playback has started", success = true))
-    }
   }
+
 }
 
 /**
  * Body for `PUT /player/{guild}/submit-voice-server`
  */
 @Serializable
-data class SubmitVoiceServer(@SerialName("session_id") val sessionId: String, val token: String, val endpoint: String)
+data class SubmitVoiceServer(@SerialName("session_id") val sessionId: String, val token: String, val endpoint: String) {
+  /**
+   * The voice server info instance
+   */
+  val vsi: VoiceServerInfo
+    get() = VoiceServerInfo(sessionId, endpoint, token)
+}
+
+/**
+ * Body for `PUT /player/{guild}/seek`
+ */
+@Serializable
+data class Seek(val position: Long)
 
 /**
  *
@@ -131,11 +167,17 @@ data class PlayTrack(
   @SerialName("no_replace") val noReplace: Boolean = false
 )
 
+@Serializable
+data class StopTrackResponse(
+  val track: Track?,
+  val success: Boolean
+)
+
 /**
  * Response for `GET /player/{guild}`
  */
 @Serializable
-data class GetPlayer(
+data class GetPlayerResponse(
   @SerialName("current_track") val currentTrack: CurrentTrack,
   val filters: Filters?,
   val frames: Frames

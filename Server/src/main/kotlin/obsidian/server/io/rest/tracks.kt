@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package obsidian.server.io.routes
+package obsidian.server.io.rest
 
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack

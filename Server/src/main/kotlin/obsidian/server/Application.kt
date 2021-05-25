@@ -16,6 +16,7 @@
 
 package obsidian.server
 
+import com.github.natanbc.lavadsp.natives.TimescaleNativeLibLoader
 import com.github.natanbc.nativeloader.SystemNativeLibraryProperties
 import com.github.natanbc.nativeloader.system.SystemType
 import com.uchuhimo.konf.Config
@@ -23,6 +24,7 @@ import com.uchuhimo.konf.source.yaml
 import io.ktor.application.*
 import io.ktor.auth.*
 import io.ktor.features.*
+import io.ktor.http.HttpHeaders.Server
 import io.ktor.http.HttpStatusCode.Companion.InternalServerError
 import io.ktor.locations.*
 import io.ktor.response.*
@@ -31,12 +33,15 @@ import io.ktor.serialization.*
 import io.ktor.server.cio.*
 import io.ktor.server.engine.*
 import io.ktor.websocket.*
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import obsidian.server.io.Magma
 import obsidian.server.io.Magma.magma
 import obsidian.server.player.ObsidianAPM
 import obsidian.server.util.AuthorizationPipeline.obsidianProvider
+import obsidian.server.util.NativeUtil
 import obsidian.server.util.Obsidian
 import obsidian.server.util.VersionInfo
 import org.slf4j.Logger
@@ -73,7 +78,7 @@ object Application {
   }
 
   @JvmStatic
-  fun main(args: Array<out String>) {
+  fun main(args: Array<out String>) = runBlocking {
 
     /* native library loading lololol */
     try {
@@ -91,6 +96,8 @@ object Application {
 
     try {
       log.info("Loading Native Libraries")
+      TimescaleNativeLibLoader.loadTimescaleLibrary()
+      NativeUtil.timescaleAvailable = true
 //      NativeUtil.load()
     } catch (ex: Exception) {
       log.error("Fatal exception while loading native libraries.", ex)
@@ -130,6 +137,7 @@ object Application {
       install(DefaultHeaders) {
         header("Obsidian-Version", VersionInfo.VERSION)
         header("Obsidian-Version-Commit", VersionInfo.GIT_REVISION)
+        header(Server, "obsidian-magma/v${VersionInfo.VERSION}-${VersionInfo.GIT_REVISION}")
       }
 
       /* use content negotiation for REST endpoints */
@@ -147,15 +155,18 @@ object Application {
     shutdown()
   }
 
-  fun shutdown() {
-
+  suspend fun shutdown() {
+    Magma.clients.forEach { (_, client) ->
+      client.shutdown(false)
+    }
   }
 }
 
 @Serializable
 data class ExceptionResponse(
   val error: Error,
-  @SerialName("stack_trace") val stackTrace: String
+  @SerialName("stack_trace") val stackTrace: String,
+  val success: Boolean = false
 ) {
   @Serializable
   data class Error(
