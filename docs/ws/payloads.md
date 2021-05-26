@@ -345,13 +345,13 @@ List of current player events. *Example:*
   - `depth` Effect depth &bull; `0 < x ≤ 1`
 
 
-- `rotation` This filter simulates an audio source rotating around the listener
-  - `rotation_hz` The frequency the audio should rotate around the listener, in Hertz
+- `rotation` The frequency the audio should rotate around the listener, in Hertz
+  - This filter simulates an audio source rotating around the listener.
 
 
-- `low_pass` Higher frequencies get suppressed, while lower frequencies pass through this filter, thus the name low pass
-  - `smoothing` Smoothing to use. 20 is the default
-  - 
+- `low_pass` Smoothing to use. 20 is the default
+  - Higher frequencies get suppressed, while lower frequencies pass through this filter, thus the name low pass
+
 ```json
 {
   "op": 9,
@@ -359,14 +359,14 @@ List of current player events. *Example:*
     "guild_id": "751571246189379610",
     "filters": {
       "distortion": {},
-      "equalizer": { "bands": [] },
+      "equalizer": [],
       "karaoke": {},
-      "low_pass": {},
-      "rotation": {},
+      "low_pass": 20.0,
+      "rotation": 5.0,
       "timescale": {},
       "tremolo": {},
       "vibrato": {},
-      "volume": { "volume": 1.0 },
+      "volume": 1.0
     }
   }
 }

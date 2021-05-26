@@ -23,7 +23,8 @@ import kotlinx.serialization.Serializable
 import obsidian.server.player.filter.Filter
 
 @Serializable
-data class LowPassFilter(val smoothing: Float = 20f) : Filter {
+@JvmInline
+value class LowPassFilter(val smoothing: Float = 20f) : Filter {
   override val enabled: Boolean
     get() = Filter.isSet(smoothing, 20f)
 

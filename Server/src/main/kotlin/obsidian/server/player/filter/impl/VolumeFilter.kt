@@ -23,7 +23,8 @@ import kotlinx.serialization.Serializable
 import obsidian.server.player.filter.Filter
 
 @Serializable
-data class VolumeFilter(val volume: Float) : Filter {
+@JvmInline
+value class VolumeFilter(val volume: Float) : Filter {
   override val enabled: Boolean
     get() = Filter.isSet(volume, 1f)
 

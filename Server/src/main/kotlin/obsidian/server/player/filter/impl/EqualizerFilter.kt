@@ -23,7 +23,8 @@ import obsidian.server.player.filter.Filter
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class EqualizerFilter(val bands: List<Band>) : Filter {
+@JvmInline
+value class EqualizerFilter(val bands: List<Band>) : Filter {
   override val enabled: Boolean
     get() = bands.any {
       Filter.isSet(it.gain, 0f)

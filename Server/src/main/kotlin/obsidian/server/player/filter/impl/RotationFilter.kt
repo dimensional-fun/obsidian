@@ -24,10 +24,8 @@ import kotlinx.serialization.Serializable
 import obsidian.server.player.filter.Filter
 
 @Serializable
-data class RotationFilter(
-  @SerialName("rotation_hz")
-  val rotationHz: Float = 5f
-) : Filter {
+@JvmInline
+value class RotationFilter(val rotationHz: Float = 5f) : Filter {
   override val enabled: Boolean
     get() = Filter.isSet(rotationHz, 5f)
 
