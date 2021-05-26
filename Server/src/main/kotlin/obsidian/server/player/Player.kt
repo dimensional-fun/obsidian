@@ -18,25 +18,25 @@ package obsidian.server.player
 
 import com.sedmelluq.discord.lavaplayer.format.StandardAudioDataFormats
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayer
+import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter
 import com.sedmelluq.discord.lavaplayer.player.event.AudioEventListener
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason
 import com.sedmelluq.discord.lavaplayer.track.playback.MutableAudioFrame
 import io.netty.buffer.ByteBuf
-import kotlinx.coroutines.Dispatchers
 import moe.kyokobot.koe.MediaConnection
 import moe.kyokobot.koe.media.OpusAudioFrameProvider
 import obsidian.server.Application.players
 import obsidian.server.io.MagmaClient
+import obsidian.server.io.ws.TrackEndEvent
 import obsidian.server.io.ws.TrackExceptionEvent
 import obsidian.server.io.ws.TrackStartEvent
 import obsidian.server.io.ws.TrackStuckEvent
 import obsidian.server.player.filter.Filters
-import obsidian.server.util.CoroutineAudioEventAdapter
 import java.nio.ByteBuffer
 
-class Player(val guildId: Long, val client: MagmaClient) : CoroutineAudioEventAdapter(Dispatchers.IO) {
+class Player(val guildId: Long, val client: MagmaClient) : AudioEventAdapter() {
 
   /**
    * Handles all updates for this player.
@@ -78,7 +78,7 @@ class Player(val guildId: Long, val client: MagmaClient) : CoroutineAudioEventAd
   /**
    * Plays the provided [track] and dispatches a Player Update
    */
-  suspend fun play(track: AudioTrack) {
+  fun play(track: AudioTrack) {
     audioPlayer.playTrack(track)
     updates.sendUpdate()
   }
@@ -112,7 +112,7 @@ class Player(val guildId: Long, val client: MagmaClient) : CoroutineAudioEventAd
   /**
    *
    */
-  override suspend fun onTrackStuck(thresholdMs: Long, track: AudioTrack, player: AudioPlayer) {
+  override fun onTrackStuck(player: AudioPlayer?, track: AudioTrack?, thresholdMs: Long) {
     client.websocket?.let {
       val event = TrackStuckEvent(
         guildId = guildId,
@@ -127,7 +127,7 @@ class Player(val guildId: Long, val client: MagmaClient) : CoroutineAudioEventAd
   /**
    *
    */
-  override suspend fun onTrackException(exception: FriendlyException, track: AudioTrack, player: AudioPlayer) {
+  override fun onTrackException(player: AudioPlayer?, track: AudioTrack, exception: FriendlyException) {
     client.websocket?.let {
       val event = TrackExceptionEvent(
         guildId = guildId,
@@ -142,7 +142,7 @@ class Player(val guildId: Long, val client: MagmaClient) : CoroutineAudioEventAd
   /**
    *
    */
-  override suspend fun onTrackStart(track: AudioTrack, player: AudioPlayer) {
+  override fun onTrackStart(player: AudioPlayer?, track: AudioTrack) {
     client.websocket?.let {
       val event = TrackStartEvent(
         guildId = guildId,
@@ -156,10 +156,11 @@ class Player(val guildId: Long, val client: MagmaClient) : CoroutineAudioEventAd
   /**
    * Sends a track end player event to the websocket connection, if any.
    */
-  override suspend fun onTrackEnd(track: AudioTrack, reason: AudioTrackEndReason, player: AudioPlayer) {
+  override fun onTrackEnd(player: AudioPlayer?, track: AudioTrack, reason: AudioTrackEndReason) {
     client.websocket?.let {
-      val event = TrackStartEvent(
+      val event = TrackEndEvent(
         track = track,
+        endReason = reason,
         guildId = guildId
       )
 

@@ -19,8 +19,8 @@ package obsidian.server.util
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.pattern.CompositeConverter
-import com.github.ajalt.mordant.rendering.TextColors.*
-import com.github.ajalt.mordant.rendering.TextStyles.*
+
+fun interface Convert { fun take(str: String): String }
 
 class LogbackColorConverter : CompositeConverter<ILoggingEvent>() {
   override fun transform(event: ILoggingEvent, element: String): String {
@@ -28,20 +28,24 @@ class LogbackColorConverter : CompositeConverter<ILoggingEvent>() {
       ?: ANSI_COLORS[LEVELS[event.level.toInt()]]
       ?: ANSI_COLORS["green"]
 
-    return option!!(element)
+    return option!!.take(element)
   }
 
   companion object {
-    private val ANSI_COLORS = mapOf<String, (text: String) -> String>(
-      "red" to { t -> red(t) },
-      "green" to { t -> green(t) },
-      "yellow" to { t -> yellow(t) },
-      "blue" to { t -> blue(t) },
-      "magenta" to { t -> magenta(t) },
-      "cyan" to { t -> cyan(t) },
-      "gray" to { t -> gray(t) },
-      "faint" to { t -> dim(t) }
+    val Number.ansi: String
+      get() = "\u001b[${this}m"
+
+    private val ANSI_COLORS = mutableMapOf(
+      "gray" to Convert { t -> "${90.ansi}$t${39.ansi}" },
+      "faint" to Convert { t -> "${2.ansi}$t${22.ansi}" }
     )
+
+    init {
+      val names = listOf("red", "green", "yellow", "blue", "magenta", "cyan")
+      for ((idx, code) in (31..36).withIndex()) {
+        ANSI_COLORS[names[idx]] = Convert { t -> "${code.ansi}$t${39.ansi}" }
+      }
+    }
 
     private val LEVELS = mapOf<Int, String>(
       Level.ERROR_INTEGER to "red",

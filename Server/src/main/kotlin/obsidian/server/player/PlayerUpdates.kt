@@ -62,15 +62,17 @@ class PlayerUpdates(val player: Player) : CoroutineAudioEventAdapter() {
     }
   }
 
-  suspend fun sendUpdate() {
-    val update = PlayerUpdate(
-      guildId = player.guildId,
-      currentTrack = currentTrackFor(player),
-      frames = player.frameLossTracker.payload,
-      filters = player.filters
-    )
+  fun sendUpdate() {
+    player.client.websocket?.let {
+      val update = PlayerUpdate(
+        guildId = player.guildId,
+        currentTrack = currentTrackFor(player),
+        frames = player.frameLossTracker.payload,
+        filters = player.filters
+      )
 
-    player.client.websocket?.send(update)
+      it.send(update)
+    }
   }
 
   override suspend fun onTrackStart(track: AudioTrack, player: AudioPlayer) {

@@ -16,7 +16,6 @@
 
 package obsidian.server.io
 
-import io.ktor.http.cio.websocket.*
 import kotlinx.coroutines.launch
 import moe.kyokobot.koe.KoeClient
 import moe.kyokobot.koe.KoeEventAdapter

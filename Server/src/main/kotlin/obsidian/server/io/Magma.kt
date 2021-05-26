@@ -26,6 +26,7 @@ import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
 import io.ktor.websocket.*
+import kotlinx.coroutines.isActive
 import obsidian.server.Application.config
 import obsidian.server.io.rest.Players.players
 import obsidian.server.io.ws.CloseReasons
@@ -204,8 +205,10 @@ object Magma {
     try {
       wsh.listen()
     } catch (ex: Exception) {
-      log.error("${client.displayName} threw an error", ex)
-      wss.close(CloseReason(4006, ex.message ?: ex.cause?.message ?: "unknown error"))
+      log.error("${client.displayName} - An error occurred while listening for frames.", ex)
+      if (wss.isActive) {
+        wss.close(CloseReason(4006, ex.message ?: ex.cause?.message ?: "unknown error"))
+      }
     }
 
     wsh.handleClose()

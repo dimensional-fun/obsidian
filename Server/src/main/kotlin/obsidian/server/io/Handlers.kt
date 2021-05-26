@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory
 
 object Handlers {
 
-  val log: Logger = LoggerFactory.getLogger(Handlers::class.java)
+  private val log: Logger = LoggerFactory.getLogger(Handlers::class.java)
 
   fun submitVoiceServer(client: MagmaClient, guildId: Long, vsi: VoiceServerInfo) {
     val connection = client.mediaConnectionFor(guildId)
@@ -45,7 +45,7 @@ object Handlers {
     client.koe.destroyConnection(guildId)
   }
 
-  suspend fun playTrack(
+  fun playTrack(
     client: MagmaClient,
     guildId: Long,
     track: String,

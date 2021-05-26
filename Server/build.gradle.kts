@@ -28,8 +28,8 @@ dependencies {
   implementation("io.ktor:ktor-server-core:$ktorVersion")   // ktor server core
   implementation("io.ktor:ktor-server-cio:$ktorVersion")    // ktor cio engine
   implementation("io.ktor:ktor-locations:$ktorVersion")     // ktor locations
-  implementation("io.ktor:ktor-websockets:$ktorVersion")    // ktor websockets
   implementation("io.ktor:ktor-serialization:$ktorVersion") // ktor serialization
+  implementation("io.ktor:ktor-websockets:$ktorVersion")    // ktor websockets
 
   implementation("moe.kyokobot.koe:core:master-SNAPSHOT") { // discord send system
     exclude(group = "org.slf4j", module = "slf4j-api")
@@ -48,7 +48,6 @@ dependencies {
   implementation("com.github.natanbc:lp-cross:0.1.3-1")    // lp-cross natives
 
   implementation("ch.qos.logback:logback-classic:1.2.3")         // slf4j logging backend
-  implementation("com.github.ajalt.mordant:mordant:2.0.0-beta1") // terminal coloring & styling
 
   val konfVersion = "1.1.2"
   implementation("com.github.uchuhimo.konf:konf-core:$konfVersion") // konf core shit
