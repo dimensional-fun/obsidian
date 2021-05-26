@@ -25,7 +25,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 
 @Serializable(with = Op.Serializer::class)
-enum class Op(val code: Int) {
+enum class Op(val code: Short) {
   SUBMIT_VOICE_UPDATE(0),
   STATS(1),
 
@@ -47,15 +47,15 @@ enum class Op(val code: Int) {
 
   companion object Serializer : KSerializer<Op> {
     override val descriptor: SerialDescriptor =
-      PrimitiveSerialDescriptor("MagmaOperation", PrimitiveKind.INT)
+      PrimitiveSerialDescriptor("MagmaOperation", PrimitiveKind.SHORT)
 
     override fun deserialize(decoder: Decoder): Op {
-      val code = decoder.decodeInt()
+      val code = decoder.decodeShort()
       return values().firstOrNull { it.code == code } ?: UNKNOWN
     }
 
     override fun serialize(encoder: Encoder, value: Op) {
-      encoder.encodeInt(value.code)
+      encoder.encodeShort(value.code)
     }
   }
 }
