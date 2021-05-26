@@ -28,7 +28,6 @@ import obsidian.server.Application.json
 import obsidian.server.io.Handlers
 import obsidian.server.io.Magma.cleanupExecutor
 import obsidian.server.io.MagmaClient
-import obsidian.server.util.Interval
 import obsidian.server.util.threadFactory
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -36,11 +35,9 @@ import java.lang.Runnable
 import java.util.concurrent.*
 import java.util.concurrent.CancellationException
 import kotlin.coroutines.CoroutineContext
-import kotlin.coroutines.suspendCoroutine
-import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 
-class WebSocketHandler(val client: MagmaClient, var session: WebSocketServerSession) : CoroutineScope {
+class WebSocketHandler(val client: MagmaClient, private var session: WebSocketServerSession) : CoroutineScope {
 
   /**
    * Resume key
@@ -50,7 +47,8 @@ class WebSocketHandler(val client: MagmaClient, var session: WebSocketServerSess
   /**
    * Stats interval.
    */
-  private var stats = Executors.newSingleThreadScheduledExecutor(threadFactory("Magma Stats-Dispatcher %d", daemon = true))
+  private var stats =
+    Executors.newSingleThreadScheduledExecutor(threadFactory("Magma Stats-Dispatcher %d", daemon = true))
 
   /**
    * Whether this magma client is active
@@ -83,7 +81,7 @@ class WebSocketHandler(val client: MagmaClient, var session: WebSocketServerSess
   private val events = MutableSharedFlow<Operation>(extraBufferCapacity = Int.MAX_VALUE)
 
   override val coroutineContext: CoroutineContext
-    get() = Dispatchers.IO + SupervisorJob()
+    get() = Dispatchers.IO + Job()
 
   init {
     /* websocket and rest operations */
@@ -125,12 +123,12 @@ class WebSocketHandler(val client: MagmaClient, var session: WebSocketServerSess
       resumeKey = key
       resumeTimeout = timeout
 
-      logger.debug("${client.displayName} - Resuming has been configured; key= $key, timeout= $timeout")
+      log.debug("${client.displayName} - Resuming has been configured; key= $key, timeout= $timeout")
     }
 
     on<SetupDispatchBuffer> {
       bufferTimeout = timeout
-      logger.debug("${client.displayName} - Dispatch buffer timeout: $timeout")
+      log.debug("${client.displayName} - Dispatch buffer timeout: $timeout")
     }
 
   }
@@ -158,6 +156,8 @@ class WebSocketHandler(val client: MagmaClient, var session: WebSocketServerSess
         }
       }
 
+    log.info("${client.displayName} - web-socket session has closed.")
+
     /* connection has been closed. */
     active = false
   }
@@ -178,7 +178,7 @@ class WebSocketHandler(val client: MagmaClient, var session: WebSocketServerSess
       }
 
       resumeTimeoutFuture = cleanupExecutor.schedule(runnable, resumeTimeout!!, TimeUnit.MILLISECONDS)
-      logger.info("${client.displayName} - Session can be resumed within the next $resumeTimeout ms with the key \"$resumeKey\"")
+      log.info("${client.displayName} - Session can be resumed within the next $resumeTimeout ms with the key \"$resumeKey\"")
       return
     }
 
@@ -189,7 +189,7 @@ class WebSocketHandler(val client: MagmaClient, var session: WebSocketServerSess
    * Resumes this session
    */
   suspend fun resume(session: WebSocketServerSession) {
-    logger.info("${client.displayName} - session has been resumed")
+    log.info("${client.displayName} - session has been resumed")
 
     this.session = session
     this.active = true
@@ -209,9 +209,9 @@ class WebSocketHandler(val client: MagmaClient, var session: WebSocketServerSess
    *
    * @param dispatch The dispatch instance
    */
-  suspend fun send(dispatch: Dispatch) {
+  fun send(dispatch: Dispatch) {
     val json = json.encodeToString(Dispatch.Companion, dispatch)
-    if (!active) {
+    if (!session.isActive) {
       dispatchBuffer?.offer(json)
       return
     }
@@ -224,8 +224,19 @@ class WebSocketHandler(val client: MagmaClient, var session: WebSocketServerSess
    */
   suspend fun shutdown() {
     stats.shutdownNow()
-    currentCoroutineContext().cancel()
-    session.close(CloseReason(1000, "shutting down"))
+
+    /* cancel this coroutine context */
+    try {
+      currentCoroutineContext().cancelChildren()
+      currentCoroutineContext().cancel()
+    } catch (ex: Exception) {
+      log.warn("${client.displayName} - Error occurred while cancelling this coroutine scope")
+    }
+
+    /* close the websocket session, if not already */
+    if (active) {
+      session.close(CloseReason(1000, "shutting down"))
+    }
   }
 
   /**
@@ -233,12 +244,12 @@ class WebSocketHandler(val client: MagmaClient, var session: WebSocketServerSess
    *
    * @param json JSON encoded dispatch payload
    */
-  private suspend fun send(json: String, payloadName: String? = null) {
+  private fun send(json: String, payloadName: String? = null) {
     try {
-      logger.trace("${client.displayName} ${payloadName?.let { "$it " } ?: ""}<<< $json")
-      session.send(json)
+      log.trace("${client.displayName} ${payloadName?.let { "$it " } ?: ""}<<< $json")
+      session.outgoing.trySend(Frame.Text(json))
     } catch (ex: Exception) {
-      logger.error("${client.displayName} - An exception occurred while sending a json payload", ex)
+      log.error("${client.displayName} - An exception occurred while sending a json payload", ex)
     }
   }
 
@@ -252,7 +263,7 @@ class WebSocketHandler(val client: MagmaClient, var session: WebSocketServerSess
           try {
             block.invoke(it)
           } catch (ex: Exception) {
-            logger.error("${client.displayName} - An exception occurred while handling a command", ex)
+            log.error("${client.displayName} - An exception occurred while handling a command", ex)
           }
         }
       }
@@ -264,14 +275,14 @@ class WebSocketHandler(val client: MagmaClient, var session: WebSocketServerSess
    *
    * @param frame The received text or binary frame.
    */
-  private suspend fun handleIncomingFrame(frame: Frame) {
+  private fun handleIncomingFrame(frame: Frame) {
     val data = frame.data.toString(Charset.defaultCharset())
 
     try {
-      logger.info("${client.displayName} >>> $data")
-      json.decodeFromString(Operation, data)?.let { events.emit(it) }
+      log.info("${client.displayName} >>> $data")
+      json.decodeFromString(Operation, data)?.let { events.tryEmit(it) }
     } catch (ex: Exception) {
-      logger.error("${client.displayName} - An exception occurred while handling an incoming frame", ex)
+      log.error("${client.displayName} - An exception occurred while handling an incoming frame", ex)
     }
   }
 
@@ -284,6 +295,6 @@ class WebSocketHandler(val client: MagmaClient, var session: WebSocketServerSess
       }
     }
 
-    private val logger: Logger = LoggerFactory.getLogger(MagmaClient::class.java)
+    private val log: Logger = LoggerFactory.getLogger(MagmaClient::class.java)
   }
 }
