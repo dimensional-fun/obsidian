@@ -26,6 +26,7 @@ import moe.kyokobot.koe.codec.netty.NettyFramePollerFactory
 import moe.kyokobot.koe.codec.udpqueue.UdpQueueFramePollerFactory
 import moe.kyokobot.koe.gateway.GatewayVersion
 import obsidian.server.Application.config
+import obsidian.server.config.spec.Obsidian
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 

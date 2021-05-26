@@ -30,7 +30,7 @@ import obsidian.server.io.rest.tracks
 import obsidian.server.io.ws.CloseReasons
 import obsidian.server.io.ws.StatsTask
 import obsidian.server.io.ws.WebSocketHandler
-import obsidian.server.util.Obsidian
+import obsidian.server.config.spec.Obsidian
 import obsidian.server.util.threadFactory
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory

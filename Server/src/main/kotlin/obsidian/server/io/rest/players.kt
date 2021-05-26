@@ -40,9 +40,8 @@ import obsidian.server.io.ws.CurrentTrack
 import obsidian.server.io.ws.Frames
 import obsidian.server.player.PlayerUpdates.Companion.currentTrackFor
 import obsidian.server.player.filter.Filters
-import obsidian.server.util.Obsidian
+import obsidian.server.config.spec.Obsidian
 import org.slf4j.LoggerFactory
-import kotlin.text.Typography.mdash
 import kotlin.text.Typography.ndash
 
 object Players {

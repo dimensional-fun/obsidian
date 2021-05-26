@@ -16,6 +16,9 @@
 
 package obsidian.server
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.LoggerContext
 import com.github.natanbc.nativeloader.NativeLibLoader
 import com.github.natanbc.nativeloader.SystemNativeLibraryProperties
 import com.github.natanbc.nativeloader.system.SystemType
@@ -37,14 +40,14 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import obsidian.server.config.spec.Logging
 import obsidian.server.io.Magma
 import obsidian.server.io.Magma.magma
 import obsidian.server.player.ObsidianAPM
 import obsidian.server.util.AuthorizationPipeline.obsidianProvider
 import obsidian.server.util.NativeUtil
-import obsidian.server.util.Obsidian
+import obsidian.server.config.spec.Obsidian
 import obsidian.server.util.VersionInfo
-import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import kotlin.system.exitProcess
 
@@ -54,7 +57,7 @@ object Application {
    *
    * @see Obsidian
    */
-  val config = Config { addSpec(Obsidian) }
+  val config = Config { addSpec(Obsidian); addSpec(Logging) }
     .from.yaml.file("obsidian.yml", optional = true)
     .from.env()
 
@@ -66,7 +69,7 @@ object Application {
   /**
    * Logger
    */
-  val log: Logger = LoggerFactory.getLogger(Application::class.java)
+  val log: org.slf4j.Logger = LoggerFactory.getLogger(Application::class.java)
 
   /**
    * Json parser used by ktor and us.
@@ -79,6 +82,9 @@ object Application {
 
   @JvmStatic
   fun main(args: Array<out String>) = runBlocking {
+
+    /* setup logging */
+    configureLogging()
 
     /* native library loading lololol */
     try {
@@ -158,6 +164,19 @@ object Application {
     Magma.clients.forEach { (_, client) ->
       client.shutdown(false)
     }
+  }
+
+  /**
+   * Configures the root logger and obsidian level logger.
+   */
+  private fun configureLogging() {
+    val loggerContext = LoggerFactory.getILoggerFactory() as LoggerContext
+
+    val rootLogger = loggerContext.getLogger(Logger.ROOT_LOGGER_NAME) as Logger
+    rootLogger.level = Level.toLevel(config[Logging.Level.Root], Level.INFO)
+
+    val obsidianLogger = loggerContext.getLogger("obsidian") as Logger
+    obsidianLogger.level = Level.toLevel(config[Logging.Level.Obsidian], Level.INFO)
   }
 }
 

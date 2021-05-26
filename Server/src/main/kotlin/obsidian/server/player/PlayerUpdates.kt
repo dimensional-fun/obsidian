@@ -25,7 +25,7 @@ import obsidian.server.Application.config
 import obsidian.server.io.ws.CurrentTrack
 import obsidian.server.io.ws.PlayerUpdate
 import obsidian.server.util.Interval
-import obsidian.server.util.Obsidian
+import obsidian.server.config.spec.Obsidian
 import obsidian.server.util.TrackUtil
 
 class PlayerUpdates(val player: Player) : AudioEventAdapter() {

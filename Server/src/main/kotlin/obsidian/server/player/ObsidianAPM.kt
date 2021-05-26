@@ -33,7 +33,7 @@ import com.sedmelluq.lava.extensions.youtuberotator.planner.*
 import com.sedmelluq.lava.extensions.youtuberotator.tools.ip.Ipv4Block
 import com.sedmelluq.lava.extensions.youtuberotator.tools.ip.Ipv6Block
 import obsidian.server.Application.config
-import obsidian.server.util.Obsidian
+import obsidian.server.config.spec.Obsidian
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.net.InetAddress

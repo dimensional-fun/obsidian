@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package obsidian.server.util
+package obsidian.server.config.spec
 
 import com.uchuhimo.konf.ConfigSpec
 import moe.kyokobot.koe.codec.udpqueue.UdpQueueFramePollerFactory.Companion.DEFAULT_BUFFER_DURATION

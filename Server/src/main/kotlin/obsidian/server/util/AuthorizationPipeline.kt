@@ -23,6 +23,7 @@ import io.ktor.http.*
 import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.util.pipeline.*
+import obsidian.server.config.spec.Obsidian
 
 object AuthorizationPipeline {
   /**
