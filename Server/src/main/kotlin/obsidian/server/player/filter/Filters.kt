@@ -29,18 +29,18 @@ import obsidian.server.player.filter.impl.*
 
 @Serializable
 data class Filters(
-  val volume: VolumeFilter?,
-  val equalizer: EqualizerFilter?,
-  val karaoke: KaraokeFilter?,
-  val rotation: RotationFilter?,
-  val tremolo: TremoloFilter?,
-  val vibrato: VibratoFilter?,
-  val distortion: DistortionFilter?,
-  val timescale: TimescaleFilter?,
+  val volume: VolumeFilter? = null,
+  val equalizer: EqualizerFilter? = null,
+  val karaoke: KaraokeFilter? = null,
+  val rotation: RotationFilter? = null,
+  val tremolo: TremoloFilter? = null,
+  val vibrato: VibratoFilter? = null,
+  val distortion: DistortionFilter? = null,
+  val timescale: TimescaleFilter? = null,
   @SerialName("low_pass")
-  val lowPass: LowPassFilter?,
+  val lowPass: LowPassFilter? = null,
   @SerialName("channel_mix")
-  val channelMix: ChannelMixFilter?,
+  val channelMix: ChannelMixFilter? = null,
 ) {
   /**
    * All filters
@@ -91,7 +91,7 @@ data class Filters(
         }
       }
 
-      return list.toMutableList()
+      return list.reversed().toMutableList()
     }
   }
 }

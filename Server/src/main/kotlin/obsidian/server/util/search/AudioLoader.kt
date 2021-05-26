@@ -22,17 +22,16 @@ import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException
 import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
+import kotlinx.coroutines.CompletableDeferred
 import org.slf4j.LoggerFactory
 import java.util.*
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CompletionStage
 import java.util.concurrent.atomic.AtomicBoolean
 
 class AudioLoader(private val audioPlayerManager: AudioPlayerManager) : AudioLoadResultHandler {
-  private val loadResult: CompletableFuture<LoadResult> = CompletableFuture<LoadResult>()
+  private val loadResult: CompletableDeferred<LoadResult> = CompletableDeferred()
   private val used = AtomicBoolean(false)
 
-  fun load(identifier: String?): CompletionStage<LoadResult> {
+  fun load(identifier: String?): CompletableDeferred<LoadResult> {
     val isUsed = used.getAndSet(true)
     check(!isUsed) {
       "This loader can only be used once per instance"

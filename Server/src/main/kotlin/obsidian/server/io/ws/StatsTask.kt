@@ -18,6 +18,7 @@ package obsidian.server.io.ws
 
 import kotlinx.coroutines.launch
 import obsidian.server.io.Magma
+import obsidian.server.io.MagmaClient
 import obsidian.server.util.CpuTimer
 import java.lang.management.ManagementFactory
 
@@ -36,16 +37,15 @@ object StatsTask {
   fun getRunnable(wsh: WebSocketHandler): Runnable {
     return Runnable {
       wsh.launch {
-        val stats = build(wsh)
+        val stats = build(wsh.client)
         wsh.send(stats)
       }
     }
   }
 
-  fun build(wsh: WebSocketHandler?): Stats {
-    val client = wsh?.client
-
+  fun build(client: MagmaClient?): Stats {
     /* memory stats. */
+    println("${Runtime.getRuntime().let { it.totalMemory() - it.freeMemory() } / 1024 / 1024}mb")
     val memory = ManagementFactory.getMemoryMXBean().let { bean ->
       val heapUsed = bean.heapMemoryUsage.let {
         Stats.Memory.Usage(committed = it.committed, max = it.max, init = it.init, used = it.used)

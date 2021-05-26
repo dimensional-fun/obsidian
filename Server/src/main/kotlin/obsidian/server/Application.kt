@@ -16,7 +16,7 @@
 
 package obsidian.server
 
-import com.github.natanbc.lavadsp.natives.TimescaleNativeLibLoader
+import com.github.natanbc.nativeloader.NativeLibLoader
 import com.github.natanbc.nativeloader.SystemNativeLibraryProperties
 import com.github.natanbc.nativeloader.system.SystemType
 import com.uchuhimo.konf.Config
@@ -85,7 +85,7 @@ object Application {
       val type = SystemType.detect(SystemNativeLibraryProperties(null, "nativeloader."))
 
       log.info("Detected System: type = ${type.osType()}, arch = ${type.architectureType()}")
-//      log.info("Processor Information: ${NativeLibLoader.loadSystemInfo()}")
+      log.info("Processor Information: ${NativeLibLoader.loadSystemInfo()}")
     } catch (e: Exception) {
       val message =
         "Unable to load system info" + if (e is UnsatisfiedLinkError || e is RuntimeException && e.cause is UnsatisfiedLinkError)
@@ -96,60 +96,59 @@ object Application {
 
     try {
       log.info("Loading Native Libraries")
-      TimescaleNativeLibLoader.loadTimescaleLibrary()
       NativeUtil.timescaleAvailable = true
-//      NativeUtil.load()
+      NativeUtil.load()
     } catch (ex: Exception) {
       log.error("Fatal exception while loading native libraries.", ex)
       exitProcess(1)
     }
 
-    val server = embeddedServer(CIO, host = config[Obsidian.Server.host], port = config[Obsidian.Server.port]) {
-      install(WebSockets)
+    val server =
+      embeddedServer(CIO, host = config[Obsidian.Server.host], port = config[Obsidian.Server.port]) {
+        install(WebSockets)
+        install(Locations)
 
-      install(Locations)
+        /* use the custom authentication provider */
+        install(Authentication) {
+          obsidianProvider()
+        }
 
-      /* use the custom authentication provider */
-      install(Authentication) {
-        obsidianProvider()
-      }
+        /* install status pages. */
+        install(StatusPages) {
+          exception<Throwable> { exc ->
+            val error = ExceptionResponse.Error(
+              className = exc::class.simpleName ?: "Throwable",
+              message = exc.message,
+              cause = exc.cause?.let {
+                ExceptionResponse.Error(
+                  it.message,
+                  className = it::class.simpleName ?: "Throwable"
+                )
+              }
+            )
 
-      /* install status pages. */
-      install(StatusPages) {
-        exception<Throwable> { exc ->
-          val error = ExceptionResponse.Error(
-            className = exc::class.simpleName ?: "Throwable",
-            message = exc.message,
-            cause = exc.cause?.let {
-              ExceptionResponse.Error(
-                it.message,
-                className = it::class.simpleName ?: "Throwable"
-              )
-            }
-          )
+            val message = ExceptionResponse(error, exc.stackTraceToString())
+            call.respond(InternalServerError, message)
+          }
+        }
 
-          val message = ExceptionResponse(error, exc.stackTraceToString())
-          call.respond(InternalServerError, message)
+        /* append version headers. */
+        install(DefaultHeaders) {
+          header("Obsidian-Version", VersionInfo.VERSION)
+          header("Obsidian-Version-Commit", VersionInfo.GIT_REVISION)
+          header(Server, "obsidian-magma/v${VersionInfo.VERSION}-${VersionInfo.GIT_REVISION}")
+        }
+
+        /* use content negotiation for REST endpoints */
+        install(ContentNegotiation) {
+          json(json)
+        }
+
+        /* install routing */
+        install(Routing) {
+          magma()
         }
       }
-
-      /* append version headers. */
-      install(DefaultHeaders) {
-        header("Obsidian-Version", VersionInfo.VERSION)
-        header("Obsidian-Version-Commit", VersionInfo.GIT_REVISION)
-        header(Server, "obsidian-magma/v${VersionInfo.VERSION}-${VersionInfo.GIT_REVISION}")
-      }
-
-      /* use content negotiation for REST endpoints */
-      install(ContentNegotiation) {
-        json(json)
-      }
-
-      /* install routing */
-      install(Routing) {
-        magma()
-      }
-    }
 
     server.start(wait = true)
     shutdown()

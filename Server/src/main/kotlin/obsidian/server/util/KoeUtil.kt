@@ -43,7 +43,6 @@ object KoeUtil {
     options.setGatewayVersion(gatewayVersion)
     options.setHighPacketPriority(config[Obsidian.Koe.highPacketPriority])
 
-    println("koe")
     Koe.koe(options.create())
   }
 
@@ -66,16 +65,16 @@ object KoeUtil {
    */
   private val framePollerFactory: FramePollerFactory by lazy {
     when {
-//      NativeUtil.udpQueueAvailable && config[Obsidian.Koe.UdpQueue.enabled] -> {
-//        log.info("Enabling udp-queue")
-//        UdpQueueFramePollerFactory(config[Obsidian.Koe.UdpQueue.bufferDuration], config[Obsidian.Koe.UdpQueue.poolSize])
-//      }
+      NativeUtil.udpQueueAvailable && config[Obsidian.Koe.UdpQueue.enabled] -> {
+        log.info("Enabling udp-queue")
+        UdpQueueFramePollerFactory(config[Obsidian.Koe.UdpQueue.bufferDuration], config[Obsidian.Koe.UdpQueue.poolSize])
+      }
 
       else -> {
-//        if (config[Obsidian.Koe.UdpQueue.enabled]) {
-//          log.warn("This system and/or architecture appears to not support native audio sending, "
-//            + "GC pauses may cause your bot to stutter during playback.")
-//        }
+        if (config[Obsidian.Koe.UdpQueue.enabled]) {
+          log.warn("This system and/or architecture appears to not support native audio sending, "
+            + "GC pauses may cause your bot to stutter during playback.")
+        }
 
         NettyFramePollerFactory()
       }

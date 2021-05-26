@@ -43,7 +43,7 @@ class QueueManagerPool(val size: Int, val bufferDuration: Int) {
         MAXIMUM_PACKET_SIZE
       )
 
-      threadFactory.newThread(queueManager::process)
+      threadFactory.newThread(queueManager::process).start()
       queueManager
     }
 

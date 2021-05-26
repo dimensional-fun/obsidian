@@ -30,9 +30,8 @@ object Handlers {
 
   fun submitVoiceServer(client: MagmaClient, guildId: Long, vsi: VoiceServerInfo) {
     val connection = client.mediaConnectionFor(guildId)
-    connection.connect(vsi).whenComplete { _, _ ->
-      client.playerFor(guildId).provideTo(connection)
-    }
+    connection.connect(vsi)
+    client.playerFor(guildId).provideTo(connection)
   }
 
   fun seek(client: MagmaClient, guildId: Long, position: Long) {

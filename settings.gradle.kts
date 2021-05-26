@@ -10,6 +10,11 @@ dependencyResolutionManagement {
     }
 
     maven {
+      url = uri("https://maven.pkg.jetbrains.space/public/p/ktor/eap/")
+      name = "Ktor EAP"
+    }
+
+    maven {
       url = uri("https://oss.sonatype.org/content/repositories/snapshots/")
       name = "Sonatype"
     }

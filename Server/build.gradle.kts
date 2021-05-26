@@ -5,10 +5,11 @@ import java.io.ByteArrayOutputStream
 plugins {
   application
   id("com.github.johnrengelman.shadow") version "7.0.0"
+  kotlin("jvm") version "1.5.10"
+  kotlin("plugin.serialization") version "1.5.10"
 }
 
 apply(plugin = "kotlin")
-apply(plugin = "kotlinx-serialization")
 
 description = "A robust and performant audio sending node meant for Discord Bots."
 version = "2.0.0"
@@ -18,46 +19,37 @@ application {
 }
 
 dependencies {
-  /* kotlin */
-  implementation("org.jetbrains.kotlin:kotlin-stdlib:1.5.10")
-  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.0")
-  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:1.5.0")
-  implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.2.1")
+  implementation("org.jetbrains.kotlin:kotlin-stdlib:1.5.10")              // standard library
+  implementation("org.jetbrains.kotlin:kotlin-reflect:1.5.10")             // reflection
+  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.0")    // core coroutine library
+  implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.2.1") // json serialization
 
-  /* ktor, server related */
-  val ktorVersion = "1.5.4"
+  val ktorVersion = "main-128"
   implementation("io.ktor:ktor-server-core:$ktorVersion")   // ktor server core
   implementation("io.ktor:ktor-server-cio:$ktorVersion")    // ktor cio engine
   implementation("io.ktor:ktor-locations:$ktorVersion")     // ktor locations
   implementation("io.ktor:ktor-websockets:$ktorVersion")    // ktor websockets
   implementation("io.ktor:ktor-serialization:$ktorVersion") // ktor serialization
 
-  /* media library */
-  implementation("moe.kyokobot.koe:core:master-SNAPSHOT") {
+  implementation("moe.kyokobot.koe:core:master-SNAPSHOT") { // discord send system
     exclude(group = "org.slf4j", module = "slf4j-api")
   }
 
-  /*  */
-  implementation("com.sedmelluq:lavaplayer:1.3.77") {
+  implementation("com.sedmelluq:lavaplayer:1.3.77") { // yes
     exclude(group = "com.sedmelluq", module = "lavaplayer-natives")
   }
 
-  implementation("com.sedmelluq:lavaplayer-ext-youtube-rotator:0.2.3") {
+  implementation("com.sedmelluq:lavaplayer-ext-youtube-rotator:0.2.3") { // ip rotation
     exclude(group = "com.sedmelluq", module = "lavaplayer")
   }
 
-  /* audio filters */
-  implementation("com.github.natanbc:lavadsp:0.7.7")
+  implementation("com.github.natanbc:lavadsp:0.7.7")       // audio filters
+  implementation("com.github.natanbc:native-loader:0.7.2") // native loader
+  implementation("com.github.natanbc:lp-cross:0.1.3-1")    // lp-cross natives
 
-  /* native libraries */
-  implementation("com.github.natanbc:native-loader:0.7.0") // native loader
-  implementation("com.github.natanbc:lp-cross:0.1.3")      // lp-cross natives
-
-  /* logging */
   implementation("ch.qos.logback:logback-classic:1.2.3")         // slf4j logging backend
   implementation("com.github.ajalt.mordant:mordant:2.0.0-beta1") // terminal coloring & styling
 
-  /* configuration */
   val konfVersion = "1.1.2"
   implementation("com.github.uchuhimo.konf:konf-core:$konfVersion") // konf core shit
   implementation("com.github.uchuhimo.konf:konf-yaml:$konfVersion") // yaml source
@@ -69,9 +61,6 @@ tasks.withType<ShadowJar> {
 }
 
 tasks.withType<KotlinCompile> {
-  sourceCompatibility = "16"
-  targetCompatibility = "16"
-
   kotlinOptions {
     jvmTarget = "16"
     incremental = true

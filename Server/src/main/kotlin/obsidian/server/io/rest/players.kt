@@ -18,6 +18,7 @@ package obsidian.server.io.rest
 
 import io.ktor.application.*
 import io.ktor.auth.*
+import io.ktor.features.*
 import io.ktor.http.*
 import io.ktor.http.HttpStatusCode.Companion.BadRequest
 import io.ktor.http.HttpStatusCode.Companion.NotFound
@@ -40,10 +41,14 @@ import obsidian.server.io.ws.Frames
 import obsidian.server.player.PlayerUpdates.Companion.currentTrackFor
 import obsidian.server.player.filter.Filters
 import obsidian.server.util.Obsidian
+import org.slf4j.LoggerFactory
+import kotlin.text.Typography.mdash
+import kotlin.text.Typography.ndash
 
 object Players {
   private val ClientAttr = AttributeKey<MagmaClient>("MagmaClient")
   private val GuildAttr = AttributeKey<Long>("Guild-Id")
+  private val log = LoggerFactory.getLogger(Players::class.java)
 
   fun Routing.players() = this.authenticate {
     this.route("/players/{guild}") {
@@ -51,6 +56,19 @@ object Players {
        * Extracts useful information from each application call.
        */
       intercept(ApplicationCallPipeline.Call) {
+        /* extract client name from the request */
+        val clientName = call.request.clientName()
+
+        /* log out the request */
+        log.info(with(call.request) {
+          "${clientName ?: origin.remoteHost} $ndash ${httpMethod.value.padEnd(4, ' ')} $uri"
+        })
+
+        /* check if a client name is required, if so check if there was a provided client name */
+        if (clientName == null && config[Obsidian.requireClientName]) {
+          return@intercept respondAndFinish(BadRequest, Response("Missing 'Client-Name' header or query parameter."))
+        }
+
         /* get the guild id */
         val guildId = call.parameters["guild"]?.toLongOrNull()
           ?: return@intercept respondAndFinish(BadRequest, Response("Invalid or missing guild parameter."))
@@ -60,12 +78,6 @@ object Players {
         /* extract user id from the http request */
         val userId = call.request.userId()
           ?: return@intercept respondAndFinish(BadRequest, Response("Missing 'User-Id' header or query parameter."))
-
-        /* extract client name from the request */
-        val clientName = call.request.clientName()
-        if (clientName == null && config[Obsidian.requireClientName]) {
-          return@intercept respondAndFinish(BadRequest, Response("Missing 'Client-Name' header or query parameter."))
-        }
 
         context.attributes.put(ClientAttr, Magma.getClient(userId, clientName))
       }

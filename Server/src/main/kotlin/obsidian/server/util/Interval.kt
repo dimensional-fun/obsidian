@@ -31,7 +31,6 @@ import kotlin.coroutines.CoroutineContext
  *
  * @param dispatcher The dispatchers the events will be fired on.
  */
-@ObsoleteCoroutinesApi
 class Interval(private val dispatcher: CoroutineDispatcher = Dispatchers.Default) : CoroutineScope {
   /**
    * The coroutine context.
@@ -66,10 +65,8 @@ class Interval(private val dispatcher: CoroutineDispatcher = Dispatchers.Default
       stop()
       mutex.withLock {
         ticker = ticker(delay)
-
         launch {
           started = true
-
           ticker?.consumeEach {
             try {
               block()

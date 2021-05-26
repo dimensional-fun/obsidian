@@ -65,7 +65,8 @@ object Magma {
 
     authenticate {
       get("/stats") {
-        val stats = StatsTask.build(null)
+        val client = call.request.userId()?.let { clients[it] }
+        val stats = StatsTask.build(client)
         call.respond(stats)
       }
     }
@@ -137,7 +138,6 @@ object Magma {
     return MagmaClient(userId).also {
       it.name = clientName
       clients[userId] = it
-      println(clients)
     }
   }
 

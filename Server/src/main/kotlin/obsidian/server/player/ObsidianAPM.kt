@@ -94,7 +94,7 @@ class ObsidianAPM : DefaultAudioPlayerManager() {
   private fun registerSources() {
     config[Obsidian.Lavaplayer.enabledSources]
       .forEach { source ->
-        when (source.toLowerCase()) {
+        when (source.lowercase()) {
           "youtube" -> {
             val youtube = YoutubeAudioSourceManager(config[Obsidian.Lavaplayer.YouTube.allowSearch]).apply {
               setPlaylistPageCount(config[Obsidian.Lavaplayer.YouTube.playlistPageLimit])
