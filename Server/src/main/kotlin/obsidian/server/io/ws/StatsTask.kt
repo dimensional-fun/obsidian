@@ -45,7 +45,6 @@ object StatsTask {
 
   fun build(client: MagmaClient?): Stats {
     /* memory stats. */
-    println("${Runtime.getRuntime().let { it.totalMemory() - it.freeMemory() } / 1024 / 1024}mb")
     val memory = ManagementFactory.getMemoryMXBean().let { bean ->
       val heapUsed = bean.heapMemoryUsage.let {
         Stats.Memory.Usage(committed = it.committed, max = it.max, init = it.init, used = it.used)

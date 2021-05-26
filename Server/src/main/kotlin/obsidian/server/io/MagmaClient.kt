@@ -96,7 +96,7 @@ class MagmaClient(val userId: Long) {
    *   Whether we should be cautious about shutting down.
    */
   suspend fun shutdown(safe: Boolean = true) {
-    websocket?.session?.close(CloseReason(1000, "shutting down"))
+    websocket?.shutdown()
     websocket = null
 
     val activePlayers = players.count { (_, player) ->

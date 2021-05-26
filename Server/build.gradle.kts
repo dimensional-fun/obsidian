@@ -66,6 +66,7 @@ tasks.withType<KotlinCompile> {
     incremental = true
     freeCompilerArgs = listOf(
       "-Xopt-in=kotlin.ExperimentalStdlibApi",
+      "-Xopt-in=kotlin.RequiresOptIn",
       "-Xopt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
       "-Xopt-in=io.ktor.locations.KtorExperimentalLocationsAPI",
       "-Xopt-in=kotlinx.coroutines.ObsoleteCoroutinesApi"

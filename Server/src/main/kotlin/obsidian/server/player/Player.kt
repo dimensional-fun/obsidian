@@ -19,17 +19,24 @@ package obsidian.server.player
 import com.sedmelluq.discord.lavaplayer.format.StandardAudioDataFormats
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayer
 import com.sedmelluq.discord.lavaplayer.player.event.AudioEventListener
+import com.sedmelluq.discord.lavaplayer.tools.FriendlyException
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
+import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason
 import com.sedmelluq.discord.lavaplayer.track.playback.MutableAudioFrame
 import io.netty.buffer.ByteBuf
+import kotlinx.coroutines.Dispatchers
 import moe.kyokobot.koe.MediaConnection
 import moe.kyokobot.koe.media.OpusAudioFrameProvider
 import obsidian.server.Application.players
 import obsidian.server.io.MagmaClient
+import obsidian.server.io.ws.TrackExceptionEvent
+import obsidian.server.io.ws.TrackStartEvent
+import obsidian.server.io.ws.TrackStuckEvent
 import obsidian.server.player.filter.Filters
+import obsidian.server.util.CoroutineAudioEventAdapter
 import java.nio.ByteBuffer
 
-class Player(val guildId: Long, val client: MagmaClient) {
+class Player(val guildId: Long, val client: MagmaClient) : CoroutineAudioEventAdapter(Dispatchers.IO) {
 
   /**
    * Handles all updates for this player.
@@ -45,6 +52,7 @@ class Player(val guildId: Long, val client: MagmaClient) {
     players.createPlayer()
       .addEventListener(frameLossTracker)
       .addEventListener(updates)
+      .addEventListener(this)
   }
 
   /**
@@ -99,6 +107,64 @@ class Player(val guildId: Long, val client: MagmaClient) {
    */
   fun provideTo(connection: MediaConnection) {
     connection.audioSender = OpusFrameProvider(connection)
+  }
+
+  /**
+   *
+   */
+  override suspend fun onTrackStuck(thresholdMs: Long, track: AudioTrack, player: AudioPlayer) {
+    client.websocket?.let {
+      val event = TrackStuckEvent(
+        guildId = guildId,
+        thresholdMs = thresholdMs,
+        track = track
+      )
+
+      it.send(event)
+    }
+  }
+
+  /**
+   *
+   */
+  override suspend fun onTrackException(exception: FriendlyException, track: AudioTrack, player: AudioPlayer) {
+    client.websocket?.let {
+      val event = TrackExceptionEvent(
+        guildId = guildId,
+        track = track,
+        exception = TrackExceptionEvent.Exception.fromFriendlyException(exception)
+      )
+
+      it.send(event)
+    }
+  }
+
+  /**
+   *
+   */
+  override suspend fun onTrackStart(track: AudioTrack, player: AudioPlayer) {
+    client.websocket?.let {
+      val event = TrackStartEvent(
+        guildId = guildId,
+        track = track
+      )
+
+      it.send(event)
+    }
+  }
+
+  /**
+   * Sends a track end player event to the websocket connection, if any.
+   */
+  override suspend fun onTrackEnd(track: AudioTrack, reason: AudioTrackEndReason, player: AudioPlayer) {
+    client.websocket?.let {
+      val event = TrackStartEvent(
+        track = track,
+        guildId = guildId
+      )
+
+      it.send(event)
+    }
   }
 
   /**

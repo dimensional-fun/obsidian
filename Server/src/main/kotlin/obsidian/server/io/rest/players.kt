@@ -41,13 +41,13 @@ import obsidian.server.io.ws.Frames
 import obsidian.server.player.PlayerUpdates.Companion.currentTrackFor
 import obsidian.server.player.filter.Filters
 import obsidian.server.config.spec.Obsidian
+import obsidian.server.io.Magma.ClientName
 import org.slf4j.LoggerFactory
 import kotlin.text.Typography.ndash
 
 object Players {
   private val ClientAttr = AttributeKey<MagmaClient>("MagmaClient")
   private val GuildAttr = AttributeKey<Long>("Guild-Id")
-  private val log = LoggerFactory.getLogger(Players::class.java)
 
   fun Routing.players() = this.authenticate {
     this.route("/players/{guild}") {
@@ -55,40 +55,27 @@ object Players {
        * Extracts useful information from each application call.
        */
       intercept(ApplicationCallPipeline.Call) {
-        /* extract client name from the request */
-        val clientName = call.request.clientName()
-
-        /* log out the request */
-        log.info(with(call.request) {
-          "${clientName ?: origin.remoteHost} $ndash ${httpMethod.value.padEnd(4, ' ')} $uri"
-        })
-
-        /* check if a client name is required, if so check if there was a provided client name */
-        if (clientName == null && config[Obsidian.requireClientName]) {
-          return@intercept respondAndFinish(BadRequest, Response("Missing 'Client-Name' header or query parameter."))
-        }
-
         /* get the guild id */
         val guildId = call.parameters["guild"]?.toLongOrNull()
           ?: return@intercept respondAndFinish(BadRequest, Response("Invalid or missing guild parameter."))
 
-        context.attributes.put(GuildAttr, guildId)
+        call.attributes.put(GuildAttr, guildId)
 
         /* extract user id from the http request */
         val userId = call.request.userId()
           ?: return@intercept respondAndFinish(BadRequest, Response("Missing 'User-Id' header or query parameter."))
 
-        context.attributes.put(ClientAttr, Magma.getClient(userId, clientName))
+        call.attributes.put(ClientAttr, Magma.getClient(userId, call.attributes.getOrNull(ClientName)))
       }
 
       /**
        *
        */
       get {
-        val guildId = context.attributes[GuildAttr]
+        val guildId = call.attributes[GuildAttr]
 
         /* get the requested player */
-        val player = context.attributes[ClientAttr].players[guildId]
+        val player = call.attributes[ClientAttr].players[guildId]
           ?: return@get respondAndFinish(NotFound, Response("Unknown player for guild '$guildId'"))
 
         /* respond */
@@ -101,7 +88,7 @@ object Players {
        */
       put("/submit-voice-server") {
         val vsi = call.receive<SubmitVoiceServer>().vsi
-        Handlers.submitVoiceServer(context.attributes[ClientAttr], context.attributes[GuildAttr], vsi)
+        Handlers.submitVoiceServer(call.attributes[ClientAttr], call.attributes[GuildAttr], vsi)
         call.respond(Response("successfully queued connection", success = true))
       }
 
@@ -110,7 +97,7 @@ object Players {
        */
       put("/filters") {
         val filters = call.receive<Filters>()
-        Handlers.configure(context.attributes[ClientAttr], context.attributes[GuildAttr], filters)
+        Handlers.configure(call.attributes[ClientAttr], call.attributes[GuildAttr], filters)
         call.respond(Response("applied filters", success = true))
       }
 
@@ -119,7 +106,7 @@ object Players {
        */
       put("/seek") {
         val (position) = call.receive<Seek>()
-        Handlers.seek(context.attributes[ClientAttr], context.attributes[GuildAttr], position)
+        Handlers.seek(context.attributes[ClientAttr], call.attributes[GuildAttr], position)
         call.respond(Response("seeked to $position", success = true))
       }
 
@@ -127,11 +114,11 @@ object Players {
        *
        */
       post("/play") {
-        val client = context.attributes[ClientAttr]
+        val client = call.attributes[ClientAttr]
 
         /* connect to the voice server described in the request body */
         val (track, start, end, noReplace) = call.receive<PlayTrack>()
-        Handlers.playTrack(client, context.attributes[GuildAttr], track, start, end, noReplace)
+        Handlers.playTrack(client, call.attributes[GuildAttr], track, start, end, noReplace)
 
         /* respond */
         call.respond(Response("playback has started", success = true))
@@ -141,7 +128,7 @@ object Players {
        *
        */
       post("/stop") {
-        Handlers.stopTrack(context.attributes[ClientAttr], context.attributes[GuildAttr])
+        Handlers.stopTrack(call.attributes[ClientAttr], call.attributes[GuildAttr])
         call.respond(Response("stopped the current track, if any.", success = true))
       }
     }

@@ -94,10 +94,8 @@ data class PlayerUpdate(
   @Serializable(with = LongAsStringSerializer::class)
   @SerialName("guild_id")
   val guildId: Long,
-
-  @SerialName("frames")
   val frames: Frames,
-
+  val filters: obsidian.server.player.filter.Filters?,
   @SerialName("current_track")
   val currentTrack: CurrentTrack
 ) : Dispatch()
@@ -106,7 +104,7 @@ data class PlayerUpdate(
 data class CurrentTrack(
   val track: String,
   val position: Long,
-  val paused: Boolean
+  val paused: Boolean,
 )
 
 @Serializable
@@ -206,11 +204,31 @@ data class TrackExceptionEvent(
     val message: String?,
     val severity: FriendlyException.Severity,
     val cause: String?
-  )
+  ) {
+    companion object {
+      /**
+       * Creates an [Exception] object from the supplied [FriendlyException]
+       *
+       * @param exc
+       *   The friendly exception to use
+       */
+      fun fromFriendlyException(exc: FriendlyException): Exception = Exception(
+        message = exc.message,
+        severity = exc.severity,
+        cause = exc.cause?.message
+      )
+    }
+  }
 }
 
 @Serializable
-data class Stats(val memory: Memory, val cpu: CPU, val threads: Threads, val frames: List<FrameStats>, val players: Players?) : Dispatch() {
+data class Stats(
+  val memory: Memory,
+  val cpu: CPU,
+  val threads: Threads,
+  val frames: List<FrameStats>,
+  val players: Players?
+) : Dispatch() {
   @Serializable
   data class Memory(
     @SerialName("heap_used") val heapUsed: Usage,

@@ -26,9 +26,10 @@ import obsidian.server.io.ws.CurrentTrack
 import obsidian.server.io.ws.PlayerUpdate
 import obsidian.server.util.Interval
 import obsidian.server.config.spec.Obsidian
+import obsidian.server.util.CoroutineAudioEventAdapter
 import obsidian.server.util.TrackUtil
 
-class PlayerUpdates(val player: Player) : AudioEventAdapter() {
+class PlayerUpdates(val player: Player) : CoroutineAudioEventAdapter() {
   /**
    * Whether player updates should be sent.
    */
@@ -65,18 +66,19 @@ class PlayerUpdates(val player: Player) : AudioEventAdapter() {
     val update = PlayerUpdate(
       guildId = player.guildId,
       currentTrack = currentTrackFor(player),
-      frames = player.frameLossTracker.payload
+      frames = player.frameLossTracker.payload,
+      filters = player.filters
     )
 
     player.client.websocket?.send(update)
   }
 
-  override fun onTrackStart(player: AudioPlayer?, track: AudioTrack?) {
-    this.player.client.websocket?.launch { start() }
+  override suspend fun onTrackStart(track: AudioTrack, player: AudioPlayer) {
+    start()
   }
 
-  override fun onTrackEnd(player: AudioPlayer?, track: AudioTrack?, endReason: AudioTrackEndReason?) {
-    this.player.client.websocket?.launch { stop() }
+  override suspend fun onTrackEnd(track: AudioTrack, reason: AudioTrackEndReason, player: AudioPlayer) {
+    stop()
   }
 
   companion object {
