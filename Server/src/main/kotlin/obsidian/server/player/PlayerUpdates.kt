@@ -49,7 +49,7 @@ class PlayerUpdates(val player: Player) : CoroutineAudioEventAdapter() {
    */
   suspend fun start() {
     if (!interval.started && enabled) {
-      interval.start(config[Obsidian.PlayerUpdates.Interval], ::sendUpdate)
+      interval.start(config[Obsidian.playerUpdateInterval], ::sendUpdate)
     }
   }
 
@@ -68,7 +68,8 @@ class PlayerUpdates(val player: Player) : CoroutineAudioEventAdapter() {
         guildId = player.guildId,
         currentTrack = currentTrackFor(player),
         frames = player.frameLossTracker.payload,
-        filters = player.filters
+        filters = player.filters,
+        timestamp = System.currentTimeMillis()
       )
 
       it.send(update)

@@ -27,6 +27,11 @@ object Obsidian : ConfigSpec() {
   val requireClientName by optional(false, "require-client-name")
 
   /**
+   * The delay (in milliseconds) between each player update.
+   */
+  val playerUpdateInterval by optional(5000L, "player-update-interval")
+
+  /**
    * Options related to the HTTP server.
    */
   object Server : ConfigSpec() {
@@ -56,21 +61,6 @@ object Obsidian : ConfigSpec() {
       config[auth].isEmpty() -> true
       else -> given == config[auth]
     }
-  }
-
-  /**
-   * Options related to player updates
-   */
-  object PlayerUpdates : ConfigSpec("player-updates") {
-    /**
-     * The delay (in milliseconds) between each player update.
-     */
-    val Interval by optional(5000L, "interval")
-
-    /**
-     * Whether the filters object should be sent with Player Updates
-     */
-    val SendFilters by optional(true, "send-filters")
   }
 
   /**

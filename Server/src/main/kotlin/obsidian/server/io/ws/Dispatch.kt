@@ -97,7 +97,8 @@ data class PlayerUpdate(
   val frames: Frames,
   val filters: obsidian.server.player.filter.Filters?,
   @SerialName("current_track")
-  val currentTrack: CurrentTrack
+  val currentTrack: CurrentTrack,
+  val timestamp: Long
 ) : Dispatch()
 
 @Serializable
