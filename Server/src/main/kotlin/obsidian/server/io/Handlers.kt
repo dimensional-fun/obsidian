@@ -87,7 +87,7 @@ object Handlers {
     pause: Boolean? = null,
     sendPlayerUpdates: Boolean? = null
   ) {
-    if (filters != null && pause != null && sendPlayerUpdates != null) {
+    if (filters == null && pause == null && sendPlayerUpdates == null) {
       return
     }
 
