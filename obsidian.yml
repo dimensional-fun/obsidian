@@ -1,6 +1,8 @@
 obsidian:
-  port: 3030
-  password: ""
+  server:
+    host: 0.0.0.0
+    port: 3030
+    password: ""
   require-client-name: false
   player-updates:
     interval: 5000
@@ -12,8 +14,8 @@ obsidian:
     enabled-sources: [ "youtube", "yarn", "bandcamp", "twitch", "vimeo", "nico", "soundcloud", "local", "http" ]
     allow-scsearch: true
     rate-limit:
-      ip-blocks: []
-      excluded-ips: []
+      ip-blocks: [ ]
+      excluded-ips: [ ]
       strategy: "rotate-on-ban" # rotate-on-ban | load-balance | nano-switch | rotating-nano-switch
       search-triggers-fail: true # Whether a search 429 should trigger marking the ip as failing.
       retry-limit: -1

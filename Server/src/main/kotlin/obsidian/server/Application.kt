@@ -41,12 +41,12 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import obsidian.server.config.spec.Logging
+import obsidian.server.config.spec.Obsidian
 import obsidian.server.io.Magma
 import obsidian.server.io.Magma.magma
 import obsidian.server.player.ObsidianAPM
 import obsidian.server.util.AuthorizationPipeline.obsidianProvider
 import obsidian.server.util.NativeUtil
-import obsidian.server.config.spec.Obsidian
 import obsidian.server.util.VersionInfo
 import org.slf4j.LoggerFactory
 import kotlin.system.exitProcess
