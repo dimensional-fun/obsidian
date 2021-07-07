@@ -28,6 +28,7 @@ Now go make a bot with the language and client of your choice!
 ###### v2
 
 - [slate](https://github.com/Axelancerr/Slate), discord.py (Python 3.7+)
+- [obsidian.py](https://github.com/cloudwithax/obsidian.py), discord.py (Python 3.8+)
 
 ###### v1
 
