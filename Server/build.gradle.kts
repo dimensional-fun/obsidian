@@ -19,12 +19,12 @@ application {
 }
 
 dependencies {
-  implementation("org.jetbrains.kotlin:kotlin-stdlib:1.5.10")              // standard library
-  implementation("org.jetbrains.kotlin:kotlin-reflect:1.5.10")             // reflection
+  implementation("org.jetbrains.kotlin:kotlin-stdlib:1.5.20")              // standard library
+  implementation("org.jetbrains.kotlin:kotlin-reflect:1.5.20")             // reflection
   implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.0")    // core coroutine library
   implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.2.1") // json serialization
 
-  val ktorVersion = "main-128"
+  val ktorVersion = "1.6.1"
   implementation("io.ktor:ktor-server-core:$ktorVersion")   // ktor server core
   implementation("io.ktor:ktor-server-cio:$ktorVersion")    // ktor cio engine
   implementation("io.ktor:ktor-locations:$ktorVersion")     // ktor locations
@@ -35,7 +35,7 @@ dependencies {
     exclude(group = "org.slf4j", module = "slf4j-api")
   }
 
-  implementation("com.sedmelluq:lavaplayer:1.3.77") { // yes
+  implementation("com.sedmelluq:lavaplayer:1.3.78") { // yes
     exclude(group = "com.sedmelluq", module = "lavaplayer-natives")
   }
 
@@ -61,7 +61,7 @@ tasks.withType<ShadowJar> {
 
 tasks.withType<KotlinCompile> {
   kotlinOptions {
-    jvmTarget = "16"
+    jvmTarget = "13"
     incremental = true
     freeCompilerArgs = listOf(
       "-Xopt-in=kotlin.ExperimentalStdlibApi",
