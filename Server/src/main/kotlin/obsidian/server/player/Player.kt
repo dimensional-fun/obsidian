@@ -195,9 +195,8 @@ class Player(val guildId: Long, val client: MagmaClient) : AudioEventAdapter() {
     }
 
     override fun retrieveOpusFrame(targetBuffer: ByteBuf) {
-      val buffered = frameBuffer.flip()
-      frameLossTracker.success()
-      targetBuffer.writeBytes(buffered)
+      frameBuffer.flip()
+      targetBuffer.writeBytes(frameBuffer)
     }
   }
 
