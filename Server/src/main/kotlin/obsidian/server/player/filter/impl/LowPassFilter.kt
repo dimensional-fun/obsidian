@@ -25,10 +25,10 @@ import obsidian.server.player.filter.Filter
 @Serializable
 @JvmInline
 value class LowPassFilter(val smoothing: Float = 20f) : Filter {
-  override val enabled: Boolean
-    get() = Filter.isSet(smoothing, 20f)
+    override val enabled: Boolean
+        get() = Filter.isSet(smoothing, 20f)
 
-  override fun build(format: AudioDataFormat, downstream: FloatPcmAudioFilter): FloatPcmAudioFilter =
-    LowPassPcmAudioFilter(downstream, format.channelCount, 0)
-      .setSmoothing(smoothing)
+    override fun build(format: AudioDataFormat, downstream: FloatPcmAudioFilter): FloatPcmAudioFilter =
+        LowPassPcmAudioFilter(downstream, format.channelCount, 0)
+            .setSmoothing(smoothing)
 }

@@ -29,69 +29,69 @@ import obsidian.server.player.filter.impl.*
 
 @Serializable
 data class Filters(
-  val volume: VolumeFilter? = null,
-  val equalizer: EqualizerFilter? = null,
-  val karaoke: KaraokeFilter? = null,
-  val rotation: RotationFilter? = null,
-  val tremolo: TremoloFilter? = null,
-  val vibrato: VibratoFilter? = null,
-  val distortion: DistortionFilter? = null,
-  val timescale: TimescaleFilter? = null,
-  @SerialName("low_pass")
-  val lowPass: LowPassFilter? = null,
-  @SerialName("channel_mix")
-  val channelMix: ChannelMixFilter? = null,
+    val volume: VolumeFilter? = null,
+    val equalizer: EqualizerFilter? = null,
+    val karaoke: KaraokeFilter? = null,
+    val rotation: RotationFilter? = null,
+    val tremolo: TremoloFilter? = null,
+    val vibrato: VibratoFilter? = null,
+    val distortion: DistortionFilter? = null,
+    val timescale: TimescaleFilter? = null,
+    @SerialName("low_pass")
+    val lowPass: LowPassFilter? = null,
+    @SerialName("channel_mix")
+    val channelMix: ChannelMixFilter? = null,
 ) {
-  /**
-   * All filters
-   */
-  val asList: List<Filter>
-    get() = listOfNotNull(
-      volume,
-      equalizer,
-      karaoke,
-      rotation,
-      tremolo,
-      vibrato,
-      distortion,
-      timescale,
-      lowPass,
-      channelMix
-    )
+    /**
+     * All filters
+     */
+    val asList: List<Filter>
+        get() = listOfNotNull(
+            volume,
+            equalizer,
+            karaoke,
+            rotation,
+            tremolo,
+            vibrato,
+            distortion,
+            timescale,
+            lowPass,
+            channelMix
+        )
 
-  /**
-   * List of all enabled filters.
-   */
-  val enabled
-    get() = asList.filter {
-      it.enabled
-    }
-
-  /**
-   * Applies all enabled filters to the audio player declared at [Player.audioPlayer].
-   */
-  fun applyTo(player: Player) {
-    val factory = FilterFactory(this)
-    player.audioPlayer.setFilterFactory(factory)
-  }
-
-  class FilterFactory(private val filters: Filters) : PcmFilterFactory {
-    override fun buildChain(
-      track: AudioTrack?,
-      format: AudioDataFormat,
-      output: UniversalPcmAudioFilter
-    ): MutableList<AudioFilter> {
-      // dont remove explicit type declaration
-      val list = buildList<FloatPcmAudioFilter> {
-        for (filter in filters.enabled) {
-          val audioFilter = filter.build(format, lastOrNull() ?: output)
-            ?: continue
-
-          add(audioFilter)
+    /**
+     * List of all enabled filters.
+     */
+    val enabled
+        get() = asList.filter {
+            it.enabled
         }
-      }
 
-      return list.reversed().toMutableList()
+    /**
+     * Applies all enabled filters to the audio player declared at [Player.audioPlayer].
+     */
+    fun applyTo(player: Player) {
+        val factory = FilterFactory(this)
+        player.audioPlayer.setFilterFactory(factory)
     }
-  }
+
+    class FilterFactory(private val filters: Filters) : PcmFilterFactory {
+        override fun buildChain(
+            track: AudioTrack?,
+            format: AudioDataFormat,
+            output: UniversalPcmAudioFilter
+        ): MutableList<AudioFilter> {
+            // dont remove explicit type declaration
+            val list = buildList<FloatPcmAudioFilter> {
+                for (filter in filters.enabled) {
+                    val audioFilter = filter.build(format, lastOrNull() ?: output)
+                        ?: continue
+
+                    add(audioFilter)
+                }
+            }
+
+            return list.reversed().toMutableList()
+        }
+    }
 }

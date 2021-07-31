@@ -32,69 +32,74 @@ import org.slf4j.LoggerFactory
 
 object KoeUtil {
 
-  private val log: Logger = LoggerFactory.getLogger(KoeUtil::class.java)
+    private val log: Logger = LoggerFactory.getLogger(KoeUtil::class.java)
 
-  /**
-   * The koe instance
-   */
-  val koe by lazy {
-    val options = KoeOptions.builder()
-    options.setFramePollerFactory(framePollerFactory)
-    options.setByteBufAllocator(allocator)
-    options.setGatewayVersion(gatewayVersion)
-    options.setHighPacketPriority(config[Obsidian.Koe.highPacketPriority])
+    /**
+     * The koe instance
+     */
+    val koe by lazy {
+        val options = KoeOptions.builder()
+        options.setFramePollerFactory(framePollerFactory)
+        options.setByteBufAllocator(allocator)
+        options.setGatewayVersion(gatewayVersion)
+        options.setHighPacketPriority(config[Obsidian.Koe.highPacketPriority])
 
-    Koe.koe(options.create())
-  }
-
-  /**
-   * Gateway version to use
-   */
-  private val gatewayVersion: GatewayVersion by lazy {
-    when (config[Obsidian.Koe.gatewayVersion]) {
-      5 -> GatewayVersion.V5
-      4 -> GatewayVersion.V4
-      else -> {
-        log.info("Invalid gateway version, defaulting to v5.")
-        GatewayVersion.V5
-      }
+        Koe.koe(options.create())
     }
-  }
 
-  /**
-   * The frame poller to use.
-   */
-  private val framePollerFactory: FramePollerFactory by lazy {
-    when {
-      NativeUtil.udpQueueAvailable && config[Obsidian.Koe.UdpQueue.enabled] -> {
-        log.info("Enabling udp-queue")
-        UdpQueueFramePollerFactory(config[Obsidian.Koe.UdpQueue.bufferDuration], config[Obsidian.Koe.UdpQueue.poolSize])
-      }
-
-      else -> {
-        if (config[Obsidian.Koe.UdpQueue.enabled]) {
-          log.warn("This system and/or architecture appears to not support native audio sending, "
-            + "GC pauses may cause your bot to stutter during playback.")
+    /**
+     * Gateway version to use
+     */
+    private val gatewayVersion: GatewayVersion by lazy {
+        when (config[Obsidian.Koe.gatewayVersion]) {
+            5 -> GatewayVersion.V5
+            4 -> GatewayVersion.V4
+            else -> {
+                log.info("Invalid gateway version, defaulting to v5.")
+                GatewayVersion.V5
+            }
         }
-
-        NettyFramePollerFactory()
-      }
     }
-  }
 
-  /**
-   * The byte-buf allocator to use
-   */
-  private val allocator: ByteBufAllocator by lazy {
-    when (val configured = config[Obsidian.Koe.byteAllocator]) {
-      "pooled", "default" -> PooledByteBufAllocator.DEFAULT
-      "netty-default" -> ByteBufAllocator.DEFAULT
-      "unpooled" -> UnpooledByteBufAllocator.DEFAULT
-      else -> {
-        log.warn("Unknown byte-buf allocator '${configured}', defaulting to 'pooled'.")
-        PooledByteBufAllocator.DEFAULT
-      }
+    /**
+     * The frame poller to use.
+     */
+    private val framePollerFactory: FramePollerFactory by lazy {
+        when {
+            NativeUtil.udpQueueAvailable && config[Obsidian.Koe.UdpQueue.enabled] -> {
+                log.info("Enabling udp-queue")
+                UdpQueueFramePollerFactory(
+                    config[Obsidian.Koe.UdpQueue.bufferDuration],
+                    config[Obsidian.Koe.UdpQueue.poolSize]
+                )
+            }
+
+            else -> {
+                if (config[Obsidian.Koe.UdpQueue.enabled]) {
+                    log.warn(
+                        "This system and/or architecture appears to not support native audio sending, "
+                                + "GC pauses may cause your bot to stutter during playback."
+                    )
+                }
+
+                NettyFramePollerFactory()
+            }
+        }
     }
-  }
+
+    /**
+     * The byte-buf allocator to use
+     */
+    private val allocator: ByteBufAllocator by lazy {
+        when (val configured = config[Obsidian.Koe.byteAllocator]) {
+            "pooled", "default" -> PooledByteBufAllocator.DEFAULT
+            "netty-default" -> ByteBufAllocator.DEFAULT
+            "unpooled" -> UnpooledByteBufAllocator.DEFAULT
+            else -> {
+                log.warn("Unknown byte-buf allocator '${configured}', defaulting to 'pooled'.")
+                PooledByteBufAllocator.DEFAULT
+            }
+        }
+    }
 
 }

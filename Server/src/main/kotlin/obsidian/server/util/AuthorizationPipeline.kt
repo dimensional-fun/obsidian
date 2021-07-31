@@ -26,30 +26,30 @@ import io.ktor.util.pipeline.*
 import obsidian.server.config.spec.Obsidian
 
 object AuthorizationPipeline {
-  /**
-   * The interceptor for use in [obsidianProvider]
-   */
-  val interceptor: PipelineInterceptor<AuthenticationContext, ApplicationCall> = { ctx ->
-    val authorization = call.request.authorization()
-      ?: call.request.queryParameters["auth"]
+    /**
+     * The interceptor for use in [obsidianProvider]
+     */
+    val interceptor: PipelineInterceptor<AuthenticationContext, ApplicationCall> = { ctx ->
+        val authorization = call.request.authorization()
+            ?: call.request.queryParameters["auth"]
 
-    if (!Obsidian.Server.validateAuth(authorization)) {
-      val cause = when (authorization) {
-        null -> AuthenticationFailedCause.NoCredentials
-        else -> AuthenticationFailedCause.InvalidCredentials
-      }
+        if (!Obsidian.Server.validateAuth(authorization)) {
+            val cause = when (authorization) {
+                null -> AuthenticationFailedCause.NoCredentials
+                else -> AuthenticationFailedCause.InvalidCredentials
+            }
 
-      ctx.challenge("ObsidianAuth", cause) {
-        call.respond(HttpStatusCode.Unauthorized)
-        it.complete()
-      }
+            ctx.challenge("ObsidianAuth", cause) {
+                call.respond(HttpStatusCode.Unauthorized)
+                it.complete()
+            }
+        }
     }
-  }
 
-  /**
-   * Adds an authentication provider used by Obsidian.
-   */
-  fun Authentication.Configuration.obsidianProvider() = provider {
-    pipeline.intercept(RequestAuthentication, interceptor)
-  }
+    /**
+     * Adds an authentication provider used by Obsidian.
+     */
+    fun Authentication.Configuration.obsidianProvider() = provider {
+        pipeline.intercept(RequestAuthentication, interceptor)
+    }
 }

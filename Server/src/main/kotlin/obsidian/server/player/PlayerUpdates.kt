@@ -17,85 +17,84 @@
 package obsidian.server.player
 
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayer
-import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason
 import kotlinx.coroutines.launch
 import obsidian.server.Application.config
+import obsidian.server.config.spec.Obsidian
 import obsidian.server.io.ws.CurrentTrack
 import obsidian.server.io.ws.PlayerUpdate
-import obsidian.server.util.Interval
-import obsidian.server.config.spec.Obsidian
 import obsidian.server.util.CoroutineAudioEventAdapter
+import obsidian.server.util.Interval
 import obsidian.server.util.TrackUtil
 
 class PlayerUpdates(val player: Player) : CoroutineAudioEventAdapter() {
-  /**
-   * Whether player updates should be sent.
-   */
-  var enabled: Boolean = true
-    set(value) {
-      field = value
-
-      player.client.websocket?.launch {
-        if (value) start() else stop()
-      }
-    }
-
-  private val interval = Interval()
-
-  /**
-   * Starts sending player updates
-   */
-  suspend fun start() {
-    if (!interval.started && enabled) {
-      interval.start(config[Obsidian.playerUpdateInterval], ::sendUpdate)
-    }
-  }
-
-  /**
-   * Stops player updates from being sent
-   */
-  suspend fun stop() {
-    if (interval.started) {
-      interval.stop()
-    }
-  }
-
-  fun sendUpdate() {
-    player.client.websocket?.let {
-      val update = PlayerUpdate(
-        guildId = player.guildId,
-        currentTrack = currentTrackFor(player),
-        frames = player.frameLossTracker.payload,
-        filters = player.filters,
-        timestamp = System.currentTimeMillis()
-      )
-
-      it.send(update)
-    }
-  }
-
-  override suspend fun onTrackStart(track: AudioTrack, player: AudioPlayer) {
-    start()
-  }
-
-  override suspend fun onTrackEnd(track: AudioTrack, reason: AudioTrackEndReason, player: AudioPlayer) {
-    stop()
-  }
-
-  companion object {
     /**
-     * Returns a [CurrentTrack] for the provided [Player].
-     *
-     * @param player
-     *   Player to get the current track from
+     * Whether player updates should be sent.
      */
-    fun currentTrackFor(player: Player): CurrentTrack =
-      CurrentTrack(
-        track = TrackUtil.encode(player.audioPlayer.playingTrack),
-        paused = player.audioPlayer.isPaused,
-        position = player.audioPlayer.playingTrack.position
-      )
-  }
+    var enabled: Boolean = true
+        set(value) {
+            field = value
+
+            player.client.websocket?.launch {
+                if (value) start() else stop()
+            }
+        }
+
+    private val interval = Interval()
+
+    /**
+     * Starts sending player updates
+     */
+    suspend fun start() {
+        if (!interval.started && enabled) {
+            interval.start(config[Obsidian.playerUpdateInterval], ::sendUpdate)
+        }
+    }
+
+    /**
+     * Stops player updates from being sent
+     */
+    suspend fun stop() {
+        if (interval.started) {
+            interval.stop()
+        }
+    }
+
+    fun sendUpdate() {
+        player.client.websocket?.let {
+            val update = PlayerUpdate(
+                guildId = player.guildId,
+                currentTrack = currentTrackFor(player),
+                frames = player.frameLossTracker.payload,
+                filters = player.filters,
+                timestamp = System.currentTimeMillis()
+            )
+
+            it.send(update)
+        }
+    }
+
+    override suspend fun onTrackStart(track: AudioTrack, player: AudioPlayer) {
+        start()
+    }
+
+    override suspend fun onTrackEnd(track: AudioTrack, reason: AudioTrackEndReason, player: AudioPlayer) {
+        stop()
+    }
+
+    companion object {
+        /**
+         * Returns a [CurrentTrack] for the provided [Player].
+         *
+         * @param player
+         *   Player to get the current track from
+         */
+        fun currentTrackFor(player: Player): CurrentTrack =
+            CurrentTrack(
+                track = TrackUtil.encode(player.audioPlayer.playingTrack),
+                paused = player.audioPlayer.isPaused,
+                position = player.audioPlayer.playingTrack.position
+            )
+    }
 }

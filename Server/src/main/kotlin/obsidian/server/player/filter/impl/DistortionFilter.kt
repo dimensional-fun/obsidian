@@ -24,26 +24,26 @@ import obsidian.server.player.filter.Filter
 
 @Serializable
 data class DistortionFilter(
-  val sinOffset: Float = 0f,
-  val sinScale: Float = 1f,
-  val cosOffset: Float = 0f,
-  val cosScale: Float = 1f,
-  val offset: Float = 0f,
-  val scale: Float = 1f
+    val sinOffset: Float = 0f,
+    val sinScale: Float = 1f,
+    val cosOffset: Float = 0f,
+    val cosScale: Float = 1f,
+    val offset: Float = 0f,
+    val scale: Float = 1f
 ) : Filter {
-  override val enabled: Boolean
-    get() =
-      (Filter.isSet(sinOffset, 0f) && Filter.isSet(sinScale, 1f)) &&
-      (Filter.isSet(cosOffset, 0f) && Filter.isSet(cosScale, 1f)) &&
-      (Filter.isSet(offset, 0f) && Filter.isSet(scale, 1f))
+    override val enabled: Boolean
+        get() =
+            (Filter.isSet(sinOffset, 0f) && Filter.isSet(sinScale, 1f)) &&
+                    (Filter.isSet(cosOffset, 0f) && Filter.isSet(cosScale, 1f)) &&
+                    (Filter.isSet(offset, 0f) && Filter.isSet(scale, 1f))
 
-  override fun build(format: AudioDataFormat, downstream: FloatPcmAudioFilter): FloatPcmAudioFilter? {
-    return DistortionPcmAudioFilter(downstream, format.channelCount)
-      .setSinOffset(sinOffset)
-      .setSinScale(sinScale)
-      .setCosOffset(cosOffset)
-      .setCosScale(cosScale)
-      .setOffset(offset)
-      .setScale(scale)
-  }
+    override fun build(format: AudioDataFormat, downstream: FloatPcmAudioFilter): FloatPcmAudioFilter? {
+        return DistortionPcmAudioFilter(downstream, format.channelCount)
+            .setSinOffset(sinOffset)
+            .setSinScale(sinScale)
+            .setCosOffset(cosOffset)
+            .setCosScale(cosScale)
+            .setOffset(offset)
+            .setScale(scale)
+    }
 }

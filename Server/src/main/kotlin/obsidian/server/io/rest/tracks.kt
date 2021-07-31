@@ -41,72 +41,72 @@ import org.slf4j.LoggerFactory
 private val logger: Logger = LoggerFactory.getLogger("Routing.tracks")
 
 fun Routing.tracks() {
-  authenticate {
-    get<LoadTracks> { data ->
-      val result = AudioLoader(Application.players)
-        .load(data.identifier)
-        .await()
+    authenticate {
+        get<LoadTracks> { data ->
+            val result = AudioLoader(Application.players)
+                .load(data.identifier)
+                .await()
 
-      if (result.exception != null) {
-        logger.error("Track loading failed", result.exception)
-      }
+            if (result.exception != null) {
+                logger.error("Track loading failed", result.exception)
+            }
 
-      val playlist = result.playlistName?.let {
-        LoadTracks.Response.PlaylistInfo(name = it, selectedTrack = result.selectedTrack)
-      }
+            val playlist = result.playlistName?.let {
+                LoadTracks.Response.PlaylistInfo(name = it, selectedTrack = result.selectedTrack)
+            }
 
-      val exception = if (result.loadResultType == LoadType.LOAD_FAILED && result.exception != null) {
-        LoadTracks.Response.Exception(
-          message = result.exception!!.localizedMessage,
-          severity = result.exception!!.severity
-        )
-      } else {
-        null
-      }
+            val exception = if (result.loadResultType == LoadType.LOAD_FAILED && result.exception != null) {
+                LoadTracks.Response.Exception(
+                    message = result.exception!!.localizedMessage,
+                    severity = result.exception!!.severity
+                )
+            } else {
+                null
+            }
 
-      val response = LoadTracks.Response(
-        tracks = result.tracks.map(::getTrack),
-        type = result.loadResultType,
-        playlistInfo = playlist,
-        exception = exception
-      )
+            val response = LoadTracks.Response(
+                tracks = result.tracks.map(::getTrack),
+                type = result.loadResultType,
+                playlistInfo = playlist,
+                exception = exception
+            )
 
-      context.respond(response)
+            context.respond(response)
+        }
+
+        get<DecodeTrack> {
+            val track = TrackUtil.decode(it.track)
+            context.respond(getTrackInfo(track))
+        }
+
+        post("/decodetracks") {
+            val body = call.receive<DecodeTracksBody>()
+            context.respond(body.tracks.map(::getTrackInfo))
+        }
     }
-
-    get<DecodeTrack> {
-      val track = TrackUtil.decode(it.track)
-      context.respond(getTrackInfo(track))
-    }
-
-    post("/decodetracks") {
-      val body = call.receive<DecodeTracksBody>()
-      context.respond(body.tracks.map(::getTrackInfo))
-    }
-  }
 }
 
 /**
  *
  */
 private fun getTrack(audioTrack: AudioTrack): Track =
-  Track(track = audioTrack, info = getTrackInfo(audioTrack))
+    Track(track = audioTrack, info = getTrackInfo(audioTrack))
 
 /**
  *
  */
 private fun getTrackInfo(audioTrack: AudioTrack): Track.Info =
-  Track.Info(
-    title = audioTrack.info.title,
-    uri = audioTrack.info.uri,
-    identifier = audioTrack.info.identifier,
-    author = audioTrack.info.author,
-    length = audioTrack.duration,
-    isSeekable = audioTrack.isSeekable,
-    isStream = audioTrack.info.isStream,
-    position = audioTrack.position,
-    sourceName = audioTrack.sourceManager?.sourceName ?: "unknown"
-  )
+    Track.Info(
+        title = audioTrack.info.title,
+        uri = audioTrack.info.uri,
+        identifier = audioTrack.info.identifier,
+        author = audioTrack.info.author,
+        length = audioTrack.duration,
+        isSeekable = audioTrack.isSeekable,
+        isStream = audioTrack.info.isStream,
+        position = audioTrack.position,
+        sourceName = audioTrack.sourceManager?.sourceName ?: "unknown"
+    )
 
 /**
  *
@@ -125,58 +125,58 @@ data class DecodeTrack(val track: String)
  */
 @Location("/loadtracks")
 data class LoadTracks(val identifier: String) {
-  @Serializable
-  data class Response(
-    @SerialName("load_type")
-    val type: LoadType,
-    @SerialName("playlist_info")
-    val playlistInfo: PlaylistInfo?,
-    val tracks: List<Track>,
-    val exception: Exception?
-  ) {
     @Serializable
-    data class Exception(
-      val message: String,
-      val severity: FriendlyException.Severity
-    )
+    data class Response(
+        @SerialName("load_type")
+        val type: LoadType,
+        @SerialName("playlist_info")
+        val playlistInfo: PlaylistInfo?,
+        val tracks: List<Track>,
+        val exception: Exception?
+    ) {
+        @Serializable
+        data class Exception(
+            val message: String,
+            val severity: FriendlyException.Severity
+        )
 
-    @Serializable
-    data class PlaylistInfo(
-      val name: String,
-      @SerialName("selected_track")
-      val selectedTrack: Int?
-    )
-  }
+        @Serializable
+        data class PlaylistInfo(
+            val name: String,
+            @SerialName("selected_track")
+            val selectedTrack: Int?
+        )
+    }
 }
 
 @Serializable
 data class Track(
-  @Serializable(with = AudioTrackSerializer::class)
-  val track: AudioTrack,
-  val info: Info
+    @Serializable(with = AudioTrackSerializer::class)
+    val track: AudioTrack,
+    val info: Info
 ) {
-  @Serializable
-  data class Info(
-    val title: String,
-    val author: String,
-    val uri: String,
-    val identifier: String,
-    val length: Long,
-    val position: Long,
-    @SerialName("is_stream")
-    val isStream: Boolean,
-    @SerialName("is_seekable")
-    val isSeekable: Boolean,
-    @SerialName("source_name")
-    val sourceName: String
-  )
+    @Serializable
+    data class Info(
+        val title: String,
+        val author: String,
+        val uri: String,
+        val identifier: String,
+        val length: Long,
+        val position: Long,
+        @SerialName("is_stream")
+        val isStream: Boolean,
+        @SerialName("is_seekable")
+        val isSeekable: Boolean,
+        @SerialName("source_name")
+        val sourceName: String
+    )
 }
 
 object AudioTrackListSerializer : JsonTransformingSerializer<List<AudioTrack>>(ListSerializer(AudioTrackSerializer)) {
-  override fun transformDeserialize(element: JsonElement): JsonElement =
-    if (element !is JsonArray) {
-      JsonArray(listOf(element))
-    } else {
-      element
-    }
+    override fun transformDeserialize(element: JsonElement): JsonElement =
+        if (element !is JsonArray) {
+            JsonArray(listOf(element))
+        } else {
+            element
+        }
 }

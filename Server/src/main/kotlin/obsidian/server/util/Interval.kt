@@ -32,64 +32,64 @@ import kotlin.coroutines.CoroutineContext
  * @param dispatcher The dispatchers the events will be fired on.
  */
 class Interval(private val dispatcher: CoroutineDispatcher = Dispatchers.Default) : CoroutineScope {
-  /**
-   * The coroutine context.
-   */
-  override val coroutineContext: CoroutineContext
-    get() = dispatcher + Job()
+    /**
+     * The coroutine context.
+     */
+    override val coroutineContext: CoroutineContext
+        get() = dispatcher + Job()
 
-  /**
-   * Whether this interval has been started.
-   */
-  var started: Boolean = false
-    private set
+    /**
+     * Whether this interval has been started.
+     */
+    var started: Boolean = false
+        private set
 
-  /**
-   * The mutex.
-   */
-  private val mutex = Mutex()
+    /**
+     * The mutex.
+     */
+    private val mutex = Mutex()
 
-  /**
-   * The kotlin ticker.
-   */
-  private var ticker: ReceiveChannel<Unit>? = null
+    /**
+     * The kotlin ticker.
+     */
+    private var ticker: ReceiveChannel<Unit>? = null
 
-  /**
-   * Executes the provided [block] every [delay] milliseconds.
-   *
-   * @param delay The delay (in milliseconds) between every execution
-   * @param block The block to execute.
-   */
-  suspend fun start(delay: Long, block: suspend () -> Unit) {
-    coroutineScope {
-      stop()
-      mutex.withLock {
-        ticker = ticker(delay)
-        launch {
-          started = true
-          ticker?.consumeEach {
-            try {
-              block()
-            } catch (exception: Exception) {
-              logger.error("Ran into an exception.", exception)
+    /**
+     * Executes the provided [block] every [delay] milliseconds.
+     *
+     * @param delay The delay (in milliseconds) between every execution
+     * @param block The block to execute.
+     */
+    suspend fun start(delay: Long, block: suspend () -> Unit) {
+        coroutineScope {
+            stop()
+            mutex.withLock {
+                ticker = ticker(delay)
+                launch {
+                    started = true
+                    ticker?.consumeEach {
+                        try {
+                            block()
+                        } catch (exception: Exception) {
+                            logger.error("Ran into an exception.", exception)
+                        }
+                    }
+                }
             }
-          }
         }
-      }
     }
-  }
 
-  /**
-   * Stops the this interval.
-   */
-  suspend fun stop() {
-    mutex.withLock {
-      ticker?.cancel()
-      started = false
+    /**
+     * Stops the this interval.
+     */
+    suspend fun stop() {
+        mutex.withLock {
+            ticker?.cancel()
+            started = false
+        }
     }
-  }
 
-  companion object {
-    private val logger: Logger = LoggerFactory.getLogger(Interval::class.java)
-  }
+    companion object {
+        private val logger: Logger = LoggerFactory.getLogger(Interval::class.java)
+    }
 }

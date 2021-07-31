@@ -24,20 +24,20 @@ import obsidian.server.player.filter.Filter
 
 @Serializable
 data class ChannelMixFilter(
-  val leftToLeft: Float = 1f,
-  val leftToRight: Float = 0f,
-  val rightToRight: Float = 0f,
-  val rightToLeft: Float = 1f,
+    val leftToLeft: Float = 1f,
+    val leftToRight: Float = 0f,
+    val rightToRight: Float = 0f,
+    val rightToLeft: Float = 1f,
 ) : Filter {
-  override val enabled: Boolean
-    get() = Filter.isSet(leftToLeft, 1.0f) || Filter.isSet(leftToRight, 0.0f) ||
-      Filter.isSet(rightToLeft, 0.0f) || Filter.isSet(rightToRight, 1.0f);
+    override val enabled: Boolean
+        get() = Filter.isSet(leftToLeft, 1.0f) || Filter.isSet(leftToRight, 0.0f) ||
+                Filter.isSet(rightToLeft, 0.0f) || Filter.isSet(rightToRight, 1.0f);
 
-  override fun build(format: AudioDataFormat, downstream: FloatPcmAudioFilter): FloatPcmAudioFilter =
-    ChannelMixPcmAudioFilter(downstream).also {
-      it.leftToLeft = leftToLeft
-      it.leftToRight = leftToRight
-      it.rightToRight = rightToRight
-      it.rightToLeft = rightToLeft
-    }
+    override fun build(format: AudioDataFormat, downstream: FloatPcmAudioFilter): FloatPcmAudioFilter =
+        ChannelMixPcmAudioFilter(downstream).also {
+            it.leftToLeft = leftToLeft
+            it.leftToRight = leftToRight
+            it.rightToRight = rightToRight
+            it.rightToLeft = rightToLeft
+        }
 }

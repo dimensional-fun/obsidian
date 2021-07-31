@@ -52,144 +52,144 @@ import org.slf4j.LoggerFactory
 import kotlin.system.exitProcess
 
 object Application {
-  /**
-   * Configuration instance.
-   *
-   * @see Obsidian
-   */
-  val config = Config { addSpec(Obsidian); addSpec(Logging) }
-    .from.yaml.file("obsidian.yml", optional = true)
-    .from.env()
+    /**
+     * Configuration instance.
+     *
+     * @see Obsidian
+     */
+    val config = Config { addSpec(Obsidian); addSpec(Logging) }
+        .from.yaml.file("obsidian.yml", optional = true)
+        .from.env()
 
-  /**
-   * Custom player manager instance.
-   */
-  val players = ObsidianAPM()
+    /**
+     * Custom player manager instance.
+     */
+    val players = ObsidianAPM()
 
-  /**
-   * Logger
-   */
-  val log: org.slf4j.Logger = LoggerFactory.getLogger(Application::class.java)
+    /**
+     * Logger
+     */
+    val log: org.slf4j.Logger = LoggerFactory.getLogger(Application::class.java)
 
-  /**
-   * Json parser used by ktor and us.
-   */
-  val json = Json {
-    isLenient = true
-    encodeDefaults = true
-    ignoreUnknownKeys = true
-  }
-
-  @JvmStatic
-  fun main(args: Array<out String>) = runBlocking {
-
-    /* setup logging */
-    configureLogging()
-
-    /* native library loading lololol */
-    try {
-      val type = SystemType.detect(SystemNativeLibraryProperties(null, "nativeloader."))
-
-      log.info("Detected System: type = ${type.osType()}, arch = ${type.architectureType()}")
-      log.info("Processor Information: ${NativeLibLoader.loadSystemInfo()}")
-    } catch (e: Exception) {
-      val message =
-        "Unable to load system info" + if (e is UnsatisfiedLinkError || e is RuntimeException && e.cause is UnsatisfiedLinkError)
-          ", this isn't an error" else "."
-
-      log.warn(message, e)
+    /**
+     * Json parser used by ktor and us.
+     */
+    val json = Json {
+        isLenient = true
+        encodeDefaults = true
+        ignoreUnknownKeys = true
     }
 
-    try {
-      log.info("Loading Native Libraries")
-      NativeUtil.timescaleAvailable = true
-      NativeUtil.load()
-    } catch (ex: Exception) {
-      log.error("Fatal exception while loading native libraries.", ex)
-      exitProcess(1)
+    @JvmStatic
+    fun main(args: Array<out String>) = runBlocking {
+
+        /* setup logging */
+        configureLogging()
+
+        /* native library loading lololol */
+        try {
+            val type = SystemType.detect(SystemNativeLibraryProperties(null, "nativeloader."))
+
+            log.info("Detected System: type = ${type.osType()}, arch = ${type.architectureType()}")
+            log.info("Processor Information: ${NativeLibLoader.loadSystemInfo()}")
+        } catch (e: Exception) {
+            val message =
+                "Unable to load system info" + if (e is UnsatisfiedLinkError || e is RuntimeException && e.cause is UnsatisfiedLinkError)
+                    ", this isn't an error" else "."
+
+            log.warn(message, e)
+        }
+
+        try {
+            log.info("Loading Native Libraries")
+            NativeUtil.timescaleAvailable = true
+            NativeUtil.load()
+        } catch (ex: Exception) {
+            log.error("Fatal exception while loading native libraries.", ex)
+            exitProcess(1)
+        }
+
+        val server =
+            embeddedServer(CIO, host = config[Obsidian.Server.host], port = config[Obsidian.Server.port]) {
+                install(WebSockets)
+                install(Locations)
+
+                /* use the custom authentication provider */
+                install(Authentication) {
+                    obsidianProvider()
+                }
+
+                /* install status pages. */
+                install(StatusPages) {
+                    exception<Throwable> { exc ->
+                        val error = ExceptionResponse.Error(
+                            className = exc::class.simpleName ?: "Throwable",
+                            message = exc.message,
+                            cause = exc.cause?.let {
+                                ExceptionResponse.Error(
+                                    it.message,
+                                    className = it::class.simpleName ?: "Throwable"
+                                )
+                            }
+                        )
+
+                        val message = ExceptionResponse(error, exc.stackTraceToString())
+                        call.respond(InternalServerError, message)
+                    }
+                }
+
+                /* append version headers. */
+                install(DefaultHeaders) {
+                    header("Obsidian-Version", VersionInfo.VERSION)
+                    header("Obsidian-Version-Commit", VersionInfo.GIT_REVISION)
+                    header(Server, "obsidian-magma/v${VersionInfo.VERSION}-${VersionInfo.GIT_REVISION}")
+                }
+
+                /* use content negotiation for REST endpoints */
+                install(ContentNegotiation) {
+                    json(json)
+                }
+
+                /* install routing */
+                install(Routing) {
+                    magma()
+                }
+            }
+
+        server.start(wait = true)
+        shutdown()
     }
 
-    val server =
-      embeddedServer(CIO, host = config[Obsidian.Server.host], port = config[Obsidian.Server.port]) {
-        install(WebSockets)
-        install(Locations)
-
-        /* use the custom authentication provider */
-        install(Authentication) {
-          obsidianProvider()
+    suspend fun shutdown() {
+        Magma.clients.forEach { (_, client) ->
+            client.shutdown(false)
         }
-
-        /* install status pages. */
-        install(StatusPages) {
-          exception<Throwable> { exc ->
-            val error = ExceptionResponse.Error(
-              className = exc::class.simpleName ?: "Throwable",
-              message = exc.message,
-              cause = exc.cause?.let {
-                ExceptionResponse.Error(
-                  it.message,
-                  className = it::class.simpleName ?: "Throwable"
-                )
-              }
-            )
-
-            val message = ExceptionResponse(error, exc.stackTraceToString())
-            call.respond(InternalServerError, message)
-          }
-        }
-
-        /* append version headers. */
-        install(DefaultHeaders) {
-          header("Obsidian-Version", VersionInfo.VERSION)
-          header("Obsidian-Version-Commit", VersionInfo.GIT_REVISION)
-          header(Server, "obsidian-magma/v${VersionInfo.VERSION}-${VersionInfo.GIT_REVISION}")
-        }
-
-        /* use content negotiation for REST endpoints */
-        install(ContentNegotiation) {
-          json(json)
-        }
-
-        /* install routing */
-        install(Routing) {
-          magma()
-        }
-      }
-
-    server.start(wait = true)
-    shutdown()
-  }
-
-  suspend fun shutdown() {
-    Magma.clients.forEach { (_, client) ->
-      client.shutdown(false)
     }
-  }
 
-  /**
-   * Configures the root logger and obsidian level logger.
-   */
-  private fun configureLogging() {
-    val loggerContext = LoggerFactory.getILoggerFactory() as LoggerContext
+    /**
+     * Configures the root logger and obsidian level logger.
+     */
+    private fun configureLogging() {
+        val loggerContext = LoggerFactory.getILoggerFactory() as LoggerContext
 
-    val rootLogger = loggerContext.getLogger(Logger.ROOT_LOGGER_NAME) as Logger
-    rootLogger.level = Level.toLevel(config[Logging.Level.Root], Level.INFO)
+        val rootLogger = loggerContext.getLogger(Logger.ROOT_LOGGER_NAME) as Logger
+        rootLogger.level = Level.toLevel(config[Logging.Level.Root], Level.INFO)
 
-    val obsidianLogger = loggerContext.getLogger("obsidian") as Logger
-    obsidianLogger.level = Level.toLevel(config[Logging.Level.Obsidian], Level.INFO)
-  }
+        val obsidianLogger = loggerContext.getLogger("obsidian") as Logger
+        obsidianLogger.level = Level.toLevel(config[Logging.Level.Obsidian], Level.INFO)
+    }
 }
 
 @Serializable
 data class ExceptionResponse(
-  val error: Error,
-  @SerialName("stack_trace") val stackTrace: String,
-  val success: Boolean = false
+    val error: Error,
+    @SerialName("stack_trace") val stackTrace: String,
+    val success: Boolean = false
 ) {
-  @Serializable
-  data class Error(
-    val message: String?,
-    val cause: Error? = null,
-    @SerialName("class_name") val className: String
-  )
+    @Serializable
+    data class Error(
+        val message: String?,
+        val cause: Error? = null,
+        @SerialName("class_name") val className: String
+    )
 }

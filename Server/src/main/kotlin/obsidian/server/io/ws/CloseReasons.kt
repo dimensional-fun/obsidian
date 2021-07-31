@@ -19,9 +19,9 @@ package obsidian.server.io.ws
 import io.ktor.http.cio.websocket.*
 
 object CloseReasons {
-  val INVALID_AUTHORIZATION = CloseReason(4001, "Invalid or missing authorization header or query parameter.")
-  val MISSING_CLIENT_NAME = CloseReason(4002, "Missing 'Client-Name' header or query parameter")
-  val MISSING_USER_ID = CloseReason(4003, "Missing 'User-Id' header or query parameter")
-  val DUPLICATE_SESSION = CloseReason(4005, "A session for the supplied user already exists.")
-  // 4006
+    val INVALID_AUTHORIZATION = CloseReason(4001, "Invalid or missing authorization header or query parameter.")
+    val MISSING_CLIENT_NAME = CloseReason(4002, "Missing 'Client-Name' header or query parameter")
+    val MISSING_USER_ID = CloseReason(4003, "Missing 'User-Id' header or query parameter")
+    val DUPLICATE_SESSION = CloseReason(4005, "A session for the supplied user already exists.")
+    // 4006
 }

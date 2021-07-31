@@ -26,75 +26,75 @@ import org.slf4j.LoggerFactory
 
 object Handlers {
 
-  private val log: Logger = LoggerFactory.getLogger(Handlers::class.java)
+    private val log: Logger = LoggerFactory.getLogger(Handlers::class.java)
 
-  fun submitVoiceServer(client: MagmaClient, guildId: Long, vsi: VoiceServerInfo) {
-    val connection = client.mediaConnectionFor(guildId)
-    connection.connect(vsi)
-    client.playerFor(guildId).provideTo(connection)
-  }
-
-  fun seek(client: MagmaClient, guildId: Long, position: Long) {
-    val player = client.playerFor(guildId)
-    player.seekTo(position)
-  }
-
-  suspend fun destroy(client: MagmaClient, guildId: Long) {
-    val player = client.players[guildId]
-    player?.destroy()
-    client.koe.destroyConnection(guildId)
-  }
-
-  fun playTrack(
-    client: MagmaClient,
-    guildId: Long,
-    track: String,
-    startTime: Long?,
-    endTime: Long?,
-    noReplace: Boolean = false
-  ) {
-    val player = client.playerFor(guildId)
-    if (player.audioPlayer.playingTrack != null && noReplace) {
-      log.info("${client.displayName} - skipping PLAY_TRACK operation")
-      return
+    fun submitVoiceServer(client: MagmaClient, guildId: Long, vsi: VoiceServerInfo) {
+        val connection = client.mediaConnectionFor(guildId)
+        connection.connect(vsi)
+        client.playerFor(guildId).provideTo(connection)
     }
 
-    val track = TrackUtil.decode(track)
-
-    /* handle start and end times */
-    if (startTime != null && startTime in 0..track.duration) {
-      track.position = startTime
+    fun seek(client: MagmaClient, guildId: Long, position: Long) {
+        val player = client.playerFor(guildId)
+        player.seekTo(position)
     }
 
-    if (endTime != null && endTime in 0..track.duration) {
-      val handler = TrackEndMarkerHandler(player)
-      val marker = TrackMarker(endTime, handler)
-      track.setMarker(marker)
+    suspend fun destroy(client: MagmaClient, guildId: Long) {
+        val player = client.players[guildId]
+        player?.destroy()
+        client.koe.destroyConnection(guildId)
     }
 
-    player.play(track)
-  }
+    fun playTrack(
+        client: MagmaClient,
+        guildId: Long,
+        track: String,
+        startTime: Long?,
+        endTime: Long?,
+        noReplace: Boolean = false
+    ) {
+        val player = client.playerFor(guildId)
+        if (player.audioPlayer.playingTrack != null && noReplace) {
+            log.info("${client.displayName} - skipping PLAY_TRACK operation")
+            return
+        }
 
-  fun stopTrack(client: MagmaClient, guildId: Long) {
-    val player = client.playerFor(guildId)
-    player.audioPlayer.stopTrack()
-  }
+        val track = TrackUtil.decode(track)
 
-  fun configure(
-    client: MagmaClient,
-    guildId: Long,
-    filters: Filters? = null,
-    pause: Boolean? = null,
-    sendPlayerUpdates: Boolean? = null
-  ) {
-    if (filters == null && pause == null && sendPlayerUpdates == null) {
-      return
+        /* handle start and end times */
+        if (startTime != null && startTime in 0..track.duration) {
+            track.position = startTime
+        }
+
+        if (endTime != null && endTime in 0..track.duration) {
+            val handler = TrackEndMarkerHandler(player)
+            val marker = TrackMarker(endTime, handler)
+            track.setMarker(marker)
+        }
+
+        player.play(track)
     }
 
-    val player = client.playerFor(guildId)
-    pause?.let { player.audioPlayer.isPaused = it }
-    filters?.let { player.filters = it }
-    sendPlayerUpdates?.let { player.updates.enabled = it }
-  }
+    fun stopTrack(client: MagmaClient, guildId: Long) {
+        val player = client.playerFor(guildId)
+        player.audioPlayer.stopTrack()
+    }
+
+    fun configure(
+        client: MagmaClient,
+        guildId: Long,
+        filters: Filters? = null,
+        pause: Boolean? = null,
+        sendPlayerUpdates: Boolean? = null
+    ) {
+        if (filters == null && pause == null && sendPlayerUpdates == null) {
+            return
+        }
+
+        val player = client.playerFor(guildId)
+        pause?.let { player.audioPlayer.isPaused = it }
+        filters?.let { player.filters = it }
+        sendPlayerUpdates?.let { player.updates.enabled = it }
+    }
 
 }

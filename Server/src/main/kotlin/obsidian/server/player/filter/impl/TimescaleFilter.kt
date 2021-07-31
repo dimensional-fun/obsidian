@@ -27,71 +27,71 @@ import obsidian.server.util.NativeUtil
 
 @Serializable
 data class TimescaleFilter(
-  val pitch: Float = 1f,
-  @SerialName("pitch_octaves")
-  val pitchOctaves: Float? = null,
-  @SerialName("pitch_semi_tones")
-  val pitchSemiTones: Float? = null,
-  val speed: Float = 1f,
-  @SerialName("speed_change")
-  val speedChange: Float? = null,
-  val rate: Float = 1f,
-  @SerialName("rate_change")
-  val rateChange: Float? = null,
+    val pitch: Float = 1f,
+    @SerialName("pitch_octaves")
+    val pitchOctaves: Float? = null,
+    @SerialName("pitch_semi_tones")
+    val pitchSemiTones: Float? = null,
+    val speed: Float = 1f,
+    @SerialName("speed_change")
+    val speedChange: Float? = null,
+    val rate: Float = 1f,
+    @SerialName("rate_change")
+    val rateChange: Float? = null,
 ) : Filter {
-  override val enabled: Boolean
-    get() =
-      NativeUtil.timescaleAvailable
-        && (isSet(pitch, 1f)
-        || isSet(speed, 1f)
-        || isSet(rate, 1f))
+    override val enabled: Boolean
+        get() =
+            NativeUtil.timescaleAvailable
+                    && (isSet(pitch, 1f)
+                    || isSet(speed, 1f)
+                    || isSet(rate, 1f))
 
-  init {
-    require(speed > 0) {
-      "'speed' must be greater than 0"
+    init {
+        require(speed > 0) {
+            "'speed' must be greater than 0"
+        }
+
+        require(rate > 0) {
+            "'rate' must be greater than 0"
+        }
+
+        require(pitch > 0) {
+            "'pitch' must be greater than 0"
+        }
+
+        if (pitchOctaves != null) {
+            require(!isSet(pitch, 1.0F) && pitchSemiTones == null) {
+                "'pitch_octaves' cannot be used in conjunction with 'pitch' and 'pitch_semi_tones'"
+            }
+        }
+
+        if (pitchSemiTones != null) {
+            require(!isSet(pitch, 1.0F) && pitchOctaves == null) {
+                "'pitch_semi_tones' cannot be used in conjunction with 'pitch' and 'pitch_octaves'"
+            }
+        }
+
+        if (speedChange != null) {
+            require(!isSet(speed, 1.0F)) {
+                "'speed_change' cannot be used in conjunction with 'speed'"
+            }
+        }
+
+        if (rateChange != null) {
+            require(!isSet(rate, 1.0F)) {
+                "'rate_change' cannot be used in conjunction with 'rate'"
+            }
+        }
     }
 
-    require(rate > 0) {
-      "'rate' must be greater than 0"
-    }
-
-    require(pitch > 0) {
-      "'pitch' must be greater than 0"
-    }
-
-    if (pitchOctaves != null) {
-      require(!isSet(pitch, 1.0F) && pitchSemiTones == null) {
-        "'pitch_octaves' cannot be used in conjunction with 'pitch' and 'pitch_semi_tones'"
-      }
-    }
-
-    if (pitchSemiTones != null) {
-      require(!isSet(pitch, 1.0F) && pitchOctaves == null) {
-        "'pitch_semi_tones' cannot be used in conjunction with 'pitch' and 'pitch_octaves'"
-      }
-    }
-
-    if (speedChange != null) {
-      require(!isSet(speed, 1.0F)) {
-        "'speed_change' cannot be used in conjunction with 'speed'"
-      }
-    }
-
-    if (rateChange != null) {
-      require(!isSet(rate, 1.0F)) {
-        "'rate_change' cannot be used in conjunction with 'rate'"
-      }
-    }
-  }
-
-  override fun build(format: AudioDataFormat, downstream: FloatPcmAudioFilter): FloatPcmAudioFilter =
-    TimescalePcmAudioFilter(downstream, format.channelCount, format.sampleRate).also { af ->
-      af.pitch = pitch.toDouble()
-      af.rate = rate.toDouble()
-      af.speed = speed.toDouble()
-      this.pitchOctaves?.let { af.setPitchOctaves(it.toDouble()) }
-      this.pitchSemiTones?.let { af.setPitchSemiTones(it.toDouble()) }
-      this.speedChange?.let { af.setSpeedChange(it.toDouble()) }
-      this.rateChange?.let { af.setRateChange(it.toDouble()) }
-    }
+    override fun build(format: AudioDataFormat, downstream: FloatPcmAudioFilter): FloatPcmAudioFilter =
+        TimescalePcmAudioFilter(downstream, format.channelCount, format.sampleRate).also { af ->
+            af.pitch = pitch.toDouble()
+            af.rate = rate.toDouble()
+            af.speed = speed.toDouble()
+            this.pitchOctaves?.let { af.setPitchOctaves(it.toDouble()) }
+            this.pitchSemiTones?.let { af.setPitchSemiTones(it.toDouble()) }
+            this.speedChange?.let { af.setSpeedChange(it.toDouble()) }
+            this.rateChange?.let { af.setRateChange(it.toDouble()) }
+        }
 }

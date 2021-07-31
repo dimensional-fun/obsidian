@@ -20,18 +20,18 @@ import com.uchuhimo.konf.ConfigSpec
 
 object Logging : ConfigSpec() {
 
-  // TODO: config for logging to files
+    // TODO: config for logging to files
 
-  object Level : ConfigSpec("level") {
-    /**
-     * Root logging level
-     */
-    val Root by optional("INFO")
+    object Level : ConfigSpec("level") {
+        /**
+         * Root logging level
+         */
+        val Root by optional("INFO")
 
-    /**
-     * Obsidian logging level
-     */
-    val Obsidian by optional("INFO")
-  }
+        /**
+         * Obsidian logging level
+         */
+        val Obsidian by optional("INFO")
+    }
 
 }

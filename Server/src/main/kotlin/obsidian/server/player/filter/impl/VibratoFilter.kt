@@ -24,28 +24,28 @@ import obsidian.server.player.filter.Filter
 
 @Serializable
 data class VibratoFilter(
-  val frequency: Float = 2f,
-  val depth: Float = .5f
+    val frequency: Float = 2f,
+    val depth: Float = .5f
 ) : Filter {
-  override val enabled: Boolean
-    get() = Filter.isSet(frequency, 2f) || Filter.isSet(depth, 0.5f)
+    override val enabled: Boolean
+        get() = Filter.isSet(frequency, 2f) || Filter.isSet(depth, 0.5f)
 
-  init {
-    require(depth > 0 && depth < 1) {
-      "'depth' must be greater than 0 and less than 1."
+    init {
+        require(depth > 0 && depth < 1) {
+            "'depth' must be greater than 0 and less than 1."
+        }
+
+        require(frequency > 0 && frequency < VIBRATO_FREQUENCY_MAX_HZ) {
+            "'frequency' must be greater than 0 and less than $VIBRATO_FREQUENCY_MAX_HZ"
+        }
     }
 
-    require(frequency > 0 && frequency < VIBRATO_FREQUENCY_MAX_HZ) {
-      "'frequency' must be greater than 0 and less than $VIBRATO_FREQUENCY_MAX_HZ"
+    override fun build(format: AudioDataFormat, downstream: FloatPcmAudioFilter): FloatPcmAudioFilter =
+        VibratoPcmAudioFilter(downstream, format.channelCount, format.sampleRate)
+            .setFrequency(frequency)
+            .setDepth(depth)
+
+    companion object {
+        private const val VIBRATO_FREQUENCY_MAX_HZ = 14f
     }
-  }
-
-  override fun build(format: AudioDataFormat, downstream: FloatPcmAudioFilter): FloatPcmAudioFilter =
-    VibratoPcmAudioFilter(downstream, format.channelCount, format.sampleRate)
-      .setFrequency(frequency)
-      .setDepth(depth)
-
-  companion object {
-    private const val VIBRATO_FREQUENCY_MAX_HZ = 14f
-  }
 }

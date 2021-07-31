@@ -25,46 +25,46 @@ import java.io.ByteArrayOutputStream
 import java.util.*
 
 object TrackUtil {
-  /**
-   * Base64 decoder used by [decode]
-   */
-  private val decoder: Base64.Decoder by lazy {
-    Base64.getDecoder()
-  }
-
-  /**
-   * Base64 encoder used by [encode]
-   */
-  private val encoder: Base64.Encoder by lazy {
-    Base64.getEncoder()
-  }
-
-  /**
-   * Decodes a base64 encoded string into a usable [AudioTrack]
-   *
-   * @param encodedTrack The base64 encoded string.
-   *
-   * @return The decoded [AudioTrack]
-   */
-  fun decode(encodedTrack: String): AudioTrack {
-    val inputStream = ByteArrayInputStream(decoder.decode(encodedTrack))
-    return inputStream.use {
-      players.decodeTrack(MessageInput(it))!!.decodedTrack
+    /**
+     * Base64 decoder used by [decode]
+     */
+    private val decoder: Base64.Decoder by lazy {
+        Base64.getDecoder()
     }
-  }
 
-  /**
-   * Encodes a [AudioTrack] into a base64 encoded string.
-   *
-   * @param track The audio track to encode.
-   *
-   * @return The base64 encoded string
-   */
-  fun encode(track: AudioTrack): String {
-    val outputStream = ByteArrayOutputStream()
-    return outputStream.use {
-      players.encodeTrack(MessageOutput(it), track)
-      encoder.encodeToString(it.toByteArray())
+    /**
+     * Base64 encoder used by [encode]
+     */
+    private val encoder: Base64.Encoder by lazy {
+        Base64.getEncoder()
     }
-  }
+
+    /**
+     * Decodes a base64 encoded string into a usable [AudioTrack]
+     *
+     * @param encodedTrack The base64 encoded string.
+     *
+     * @return The decoded [AudioTrack]
+     */
+    fun decode(encodedTrack: String): AudioTrack {
+        val inputStream = ByteArrayInputStream(decoder.decode(encodedTrack))
+        return inputStream.use {
+            players.decodeTrack(MessageInput(it))!!.decodedTrack
+        }
+    }
+
+    /**
+     * Encodes a [AudioTrack] into a base64 encoded string.
+     *
+     * @param track The audio track to encode.
+     *
+     * @return The base64 encoded string
+     */
+    fun encode(track: AudioTrack): String {
+        val outputStream = ByteArrayOutputStream()
+        return outputStream.use {
+            players.encodeTrack(MessageOutput(it), track)
+            encoder.encodeToString(it.toByteArray())
+        }
+    }
 }

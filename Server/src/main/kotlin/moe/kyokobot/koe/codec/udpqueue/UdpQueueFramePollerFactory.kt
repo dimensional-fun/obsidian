@@ -23,21 +23,21 @@ import moe.kyokobot.koe.codec.FramePollerFactory
 import moe.kyokobot.koe.codec.OpusCodec
 
 class UdpQueueFramePollerFactory(
-  bufferDuration: Int = DEFAULT_BUFFER_DURATION,
-  poolSize: Int = Runtime.getRuntime().availableProcessors()
+    bufferDuration: Int = DEFAULT_BUFFER_DURATION,
+    poolSize: Int = Runtime.getRuntime().availableProcessors()
 ) : FramePollerFactory {
-  private val pool = QueueManagerPool(poolSize, bufferDuration)
+    private val pool = QueueManagerPool(poolSize, bufferDuration)
 
-  override fun createFramePoller(codec: Codec, connection: MediaConnection): FramePoller? {
-    if (codec !is OpusCodec) {
-      return null
+    override fun createFramePoller(codec: Codec, connection: MediaConnection): FramePoller? {
+        if (codec !is OpusCodec) {
+            return null
+        }
+
+        return UdpQueueFramePoller(connection, pool.getNextWrapper())
     }
 
-    return UdpQueueFramePoller(connection, pool.getNextWrapper())
-  }
-
-  companion object {
-    const val MAXIMUM_PACKET_SIZE = 4096
-    const val DEFAULT_BUFFER_DURATION = 400
-  }
+    companion object {
+        const val MAXIMUM_PACKET_SIZE = 4096
+        const val DEFAULT_BUFFER_DURATION = 400
+    }
 }

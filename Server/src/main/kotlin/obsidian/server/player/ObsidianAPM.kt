@@ -40,126 +40,126 @@ import java.net.InetAddress
 import java.util.function.Predicate
 
 class ObsidianAPM : DefaultAudioPlayerManager() {
-  private val enabledSources = mutableListOf<String>()
+    private val enabledSources = mutableListOf<String>()
 
-  /**
-   * The route planner.
-   */
-  val routePlanner: AbstractRoutePlanner? by lazy {
-    val ipBlockList = config[Obsidian.Lavaplayer.RateLimit.ipBlocks]
-    if (ipBlockList.isEmpty()) {
-      return@lazy null
-    }
-
-    val ipBlocks = ipBlockList.map {
-      when {
-        Ipv6Block.isIpv6CidrBlock(it) -> Ipv6Block(it)
-        Ipv4Block.isIpv4CidrBlock(it) -> Ipv4Block(it)
-        else -> throw RuntimeException("Invalid IP Block '$it', make sure to provide a valid CIDR notation")
-      }
-    }
-
-    val blacklisted = config[Obsidian.Lavaplayer.RateLimit.excludedIps].map {
-      InetAddress.getByName(it)
-    }
-
-    val filter = Predicate<InetAddress> { !blacklisted.contains(it) }
-    val searchTriggersFail = config[Obsidian.Lavaplayer.RateLimit.searchTriggersFail]
-
-    return@lazy when (config[Obsidian.Lavaplayer.RateLimit.strategy]) {
-      "rotate-on-ban" -> RotatingIpRoutePlanner(ipBlocks, filter, searchTriggersFail)
-      "load-balance" -> BalancingIpRoutePlanner(ipBlocks, filter, searchTriggersFail)
-      "rotating-nano-switch" -> RotatingNanoIpRoutePlanner(ipBlocks, filter, searchTriggersFail)
-      "nano-switch" -> NanoIpRoutePlanner(ipBlocks, searchTriggersFail)
-      else -> throw RuntimeException("Unknown strategy!")
-    }
-  }
-
-  init {
-    configuration.apply {
-      isFilterHotSwapEnabled = true
-      if (config[Obsidian.Lavaplayer.nonAllocating]) {
-        logger.info("Using the non-allocating audio frame buffer.")
-        setFrameBufferFactory(::NonAllocatingAudioFrameBuffer)
-      }
-    }
-
-    if (config[Obsidian.Lavaplayer.gcMonitoring]) {
-      enableGcMonitoring()
-    }
-
-    registerSources()
-  }
-
-  private fun registerSources() {
-    config[Obsidian.Lavaplayer.enabledSources]
-      .forEach { source ->
-        when (source.lowercase()) {
-          "youtube" -> {
-            val youtube = YoutubeAudioSourceManager(config[Obsidian.Lavaplayer.YouTube.allowSearch]).apply {
-              setPlaylistPageCount(config[Obsidian.Lavaplayer.YouTube.playlistPageLimit])
-
-              if (routePlanner != null) {
-                val rotator = YoutubeIpRotatorSetup(routePlanner)
-                  .forSource(this)
-
-                val retryLimit = config[Obsidian.Lavaplayer.RateLimit.retryLimit]
-                if (retryLimit <= 0) {
-                  rotator.withRetryLimit(if (retryLimit == 0) Int.MAX_VALUE else retryLimit)
-                }
-
-                rotator.setup()
-              }
-            }
-
-            registerSourceManager(youtube)
-          }
-
-          "soundcloud" -> {
-            val dataReader = DefaultSoundCloudDataReader()
-            val htmlDataLoader = DefaultSoundCloudHtmlDataLoader()
-            val formatHandler = DefaultSoundCloudFormatHandler()
-
-            registerSourceManager(
-              SoundCloudAudioSourceManager(
-                config[Obsidian.Lavaplayer.allowScSearch],
-                dataReader,
-                htmlDataLoader,
-                formatHandler,
-                DefaultSoundCloudPlaylistLoader(htmlDataLoader, dataReader, formatHandler)
-              )
-            )
-          }
-
-          "nico" -> {
-            val email = config[Obsidian.Lavaplayer.Nico.email]
-            val password = config[Obsidian.Lavaplayer.Nico.password]
-
-            if (email.isNotBlank() && password.isNotBlank()) {
-              registerSourceManager(NicoAudioSourceManager(email, password))
-            }
-          }
-
-          "bandcamp" -> registerSourceManager(BandcampAudioSourceManager())
-          "twitch" -> registerSourceManager(TwitchStreamAudioSourceManager())
-          "vimeo" -> registerSourceManager(VimeoAudioSourceManager())
-          "http" -> registerSourceManager(HttpAudioSourceManager())
-          "local" -> registerSourceManager(LocalAudioSourceManager())
-          "yarn" -> registerSourceManager(GetyarnAudioSourceManager())
-
-          else -> logger.warn("Unknown source \"$source\"")
+    /**
+     * The route planner.
+     */
+    val routePlanner: AbstractRoutePlanner? by lazy {
+        val ipBlockList = config[Obsidian.Lavaplayer.RateLimit.ipBlocks]
+        if (ipBlockList.isEmpty()) {
+            return@lazy null
         }
-      }
 
-    logger.info("Enabled sources: ${enabledSources.joinToString(", ")}")
-  }
+        val ipBlocks = ipBlockList.map {
+            when {
+                Ipv6Block.isIpv6CidrBlock(it) -> Ipv6Block(it)
+                Ipv4Block.isIpv4CidrBlock(it) -> Ipv4Block(it)
+                else -> throw RuntimeException("Invalid IP Block '$it', make sure to provide a valid CIDR notation")
+            }
+        }
 
-  override fun registerSourceManager(sourceManager: AudioSourceManager) {
-    super.registerSourceManager(sourceManager)
-    enabledSources.add(sourceManager.sourceName)
-  }
+        val blacklisted = config[Obsidian.Lavaplayer.RateLimit.excludedIps].map {
+            InetAddress.getByName(it)
+        }
 
-  companion object {
-    private val logger: Logger = LoggerFactory.getLogger(ObsidianAPM::class.java)
-  }
+        val filter = Predicate<InetAddress> { !blacklisted.contains(it) }
+        val searchTriggersFail = config[Obsidian.Lavaplayer.RateLimit.searchTriggersFail]
+
+        return@lazy when (config[Obsidian.Lavaplayer.RateLimit.strategy]) {
+            "rotate-on-ban" -> RotatingIpRoutePlanner(ipBlocks, filter, searchTriggersFail)
+            "load-balance" -> BalancingIpRoutePlanner(ipBlocks, filter, searchTriggersFail)
+            "rotating-nano-switch" -> RotatingNanoIpRoutePlanner(ipBlocks, filter, searchTriggersFail)
+            "nano-switch" -> NanoIpRoutePlanner(ipBlocks, searchTriggersFail)
+            else -> throw RuntimeException("Unknown strategy!")
+        }
+    }
+
+    init {
+        configuration.apply {
+            isFilterHotSwapEnabled = true
+            if (config[Obsidian.Lavaplayer.nonAllocating]) {
+                logger.info("Using the non-allocating audio frame buffer.")
+                setFrameBufferFactory(::NonAllocatingAudioFrameBuffer)
+            }
+        }
+
+        if (config[Obsidian.Lavaplayer.gcMonitoring]) {
+            enableGcMonitoring()
+        }
+
+        registerSources()
+    }
+
+    private fun registerSources() {
+        config[Obsidian.Lavaplayer.enabledSources]
+            .forEach { source ->
+                when (source.lowercase()) {
+                    "youtube" -> {
+                        val youtube = YoutubeAudioSourceManager(config[Obsidian.Lavaplayer.YouTube.allowSearch]).apply {
+                            setPlaylistPageCount(config[Obsidian.Lavaplayer.YouTube.playlistPageLimit])
+
+                            if (routePlanner != null) {
+                                val rotator = YoutubeIpRotatorSetup(routePlanner)
+                                    .forSource(this)
+
+                                val retryLimit = config[Obsidian.Lavaplayer.RateLimit.retryLimit]
+                                if (retryLimit <= 0) {
+                                    rotator.withRetryLimit(if (retryLimit == 0) Int.MAX_VALUE else retryLimit)
+                                }
+
+                                rotator.setup()
+                            }
+                        }
+
+                        registerSourceManager(youtube)
+                    }
+
+                    "soundcloud" -> {
+                        val dataReader = DefaultSoundCloudDataReader()
+                        val htmlDataLoader = DefaultSoundCloudHtmlDataLoader()
+                        val formatHandler = DefaultSoundCloudFormatHandler()
+
+                        registerSourceManager(
+                            SoundCloudAudioSourceManager(
+                                config[Obsidian.Lavaplayer.allowScSearch],
+                                dataReader,
+                                htmlDataLoader,
+                                formatHandler,
+                                DefaultSoundCloudPlaylistLoader(htmlDataLoader, dataReader, formatHandler)
+                            )
+                        )
+                    }
+
+                    "nico" -> {
+                        val email = config[Obsidian.Lavaplayer.Nico.email]
+                        val password = config[Obsidian.Lavaplayer.Nico.password]
+
+                        if (email.isNotBlank() && password.isNotBlank()) {
+                            registerSourceManager(NicoAudioSourceManager(email, password))
+                        }
+                    }
+
+                    "bandcamp" -> registerSourceManager(BandcampAudioSourceManager())
+                    "twitch" -> registerSourceManager(TwitchStreamAudioSourceManager())
+                    "vimeo" -> registerSourceManager(VimeoAudioSourceManager())
+                    "http" -> registerSourceManager(HttpAudioSourceManager())
+                    "local" -> registerSourceManager(LocalAudioSourceManager())
+                    "yarn" -> registerSourceManager(GetyarnAudioSourceManager())
+
+                    else -> logger.warn("Unknown source \"$source\"")
+                }
+            }
+
+        logger.info("Enabled sources: ${enabledSources.joinToString(", ")}")
+    }
+
+    override fun registerSourceManager(sourceManager: AudioSourceManager) {
+        super.registerSourceManager(sourceManager)
+        enabledSources.add(sourceManager.sourceName)
+    }
+
+    companion object {
+        private val logger: Logger = LoggerFactory.getLogger(ObsidianAPM::class.java)
+    }
 }

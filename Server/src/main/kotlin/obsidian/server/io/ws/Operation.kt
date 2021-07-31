@@ -29,144 +29,152 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 sealed class Operation {
-  companion object : DeserializationStrategy<Operation?> {
-    override val descriptor: SerialDescriptor = buildClassSerialDescriptor("Operation") {
-      element("op", Op.descriptor)
-      element("d", JsonObject.serializer().descriptor, isOptional = true)
-    }
-
-    @ExperimentalSerializationApi
-    override fun deserialize(decoder: Decoder): Operation? {
-      var op: Op? = null
-      var data: Operation? = null
-
-      with(decoder.beginStructure(descriptor)) {
-        loop@ while (true) {
-          val idx = decodeElementIndex(descriptor)
-          fun <T> decode(serializer: DeserializationStrategy<T>) =
-            decodeSerializableElement(descriptor, idx, serializer)
-
-          when (idx) {
-            CompositeDecoder.DECODE_DONE -> break@loop
-
-            0 ->
-              op = Op.deserialize(decoder)
-
-            1 ->
-              data = when (op) {
-                Op.SUBMIT_VOICE_UPDATE ->
-                  decode(SubmitVoiceUpdate.serializer())
-
-                Op.PLAY_TRACK ->
-                  decode(PlayTrack.serializer())
-
-                Op.STOP_TRACK ->
-                  decode(StopTrack.serializer())
-
-                Op.PAUSE ->
-                  decode(Pause.serializer())
-
-                Op.FILTERS ->
-                  decode(Filters.serializer())
-
-                Op.SEEK ->
-                  decode(Seek.serializer())
-
-                Op.DESTROY ->
-                  decode(Destroy.serializer())
-
-                Op.SETUP_RESUMING ->
-                  decode(SetupResuming.serializer())
-
-                Op.SETUP_DISPATCH_BUFFER ->
-                  decode(SetupDispatchBuffer.serializer())
-
-                Op.CONFIGURE ->
-                  decode(Configure.serializer())
-
-                else -> if (data == null) {
-                  val element = decodeNullableSerializableElement(descriptor, idx, JsonElement.serializer().nullable)
-                  error("Unknown 'd' field for operation ${op?.name}: $element")
-                } else {
-                  decodeNullableSerializableElement(descriptor, idx, JsonElement.serializer().nullable)
-                  data
-                }
-              }
-          }
+    companion object : DeserializationStrategy<Operation?> {
+        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("Operation") {
+            element("op", Op.descriptor)
+            element("d", JsonObject.serializer().descriptor, isOptional = true)
         }
 
-        endStructure(descriptor)
-        return data
-      }
+        @ExperimentalSerializationApi
+        override fun deserialize(decoder: Decoder): Operation? {
+            var op: Op? = null
+            var data: Operation? = null
+
+            with(decoder.beginStructure(descriptor)) {
+                loop@ while (true) {
+                    val idx = decodeElementIndex(descriptor)
+                    fun <T> decode(serializer: DeserializationStrategy<T>) =
+                        decodeSerializableElement(descriptor, idx, serializer)
+
+                    when (idx) {
+                        CompositeDecoder.DECODE_DONE -> break@loop
+
+                        0 ->
+                            op = Op.deserialize(decoder)
+
+                        1 ->
+                            data = when (op) {
+                                Op.SUBMIT_VOICE_UPDATE ->
+                                    decode(SubmitVoiceUpdate.serializer())
+
+                                Op.PLAY_TRACK ->
+                                    decode(PlayTrack.serializer())
+
+                                Op.STOP_TRACK ->
+                                    decode(StopTrack.serializer())
+
+                                Op.PAUSE ->
+                                    decode(Pause.serializer())
+
+                                Op.FILTERS ->
+                                    decode(Filters.serializer())
+
+                                Op.SEEK ->
+                                    decode(Seek.serializer())
+
+                                Op.DESTROY ->
+                                    decode(Destroy.serializer())
+
+                                Op.SETUP_RESUMING ->
+                                    decode(SetupResuming.serializer())
+
+                                Op.SETUP_DISPATCH_BUFFER ->
+                                    decode(SetupDispatchBuffer.serializer())
+
+                                Op.CONFIGURE ->
+                                    decode(Configure.serializer())
+
+                                else -> if (data == null) {
+                                    val element = decodeNullableSerializableElement(
+                                        descriptor,
+                                        idx,
+                                        JsonElement.serializer().nullable
+                                    )
+                                    error("Unknown 'd' field for operation ${op?.name}: $element")
+                                } else {
+                                    decodeNullableSerializableElement(
+                                        descriptor,
+                                        idx,
+                                        JsonElement.serializer().nullable
+                                    )
+                                    data
+                                }
+                            }
+                    }
+                }
+
+                endStructure(descriptor)
+                return data
+            }
+        }
     }
-  }
 }
 
 
 @Serializable
 data class PlayTrack(
-  val track: String,
+    val track: String,
 
-  @SerialName("guild_id")
-  val guildId: Long,
+    @SerialName("guild_id")
+    val guildId: Long,
 
-  @SerialName("no_replace")
-  val noReplace: Boolean = false,
+    @SerialName("no_replace")
+    val noReplace: Boolean = false,
 
-  @SerialName("start_time")
-  val startTime: Long = 0,
+    @SerialName("start_time")
+    val startTime: Long = 0,
 
-  @SerialName("end_time")
-  val endTime: Long = 0
+    @SerialName("end_time")
+    val endTime: Long = 0
 ) : Operation()
 
 @Serializable
 data class StopTrack(
-  @SerialName("guild_id")
-  val guildId: Long
+    @SerialName("guild_id")
+    val guildId: Long
 ) : Operation()
 
 @Serializable
 data class SubmitVoiceUpdate(
-  val endpoint: String,
-  val token: String,
+    val endpoint: String,
+    val token: String,
 
-  @SerialName("guild_id")
-  val guildId: Long,
+    @SerialName("guild_id")
+    val guildId: Long,
 
-  @SerialName("session_id")
-  val sessionId: String,
+    @SerialName("session_id")
+    val sessionId: String,
 ) : Operation()
 
 @Serializable
 data class Pause(
-  @SerialName("guild_id")
-  val guildId: Long,
-  val state: Boolean = true
+    @SerialName("guild_id")
+    val guildId: Long,
+    val state: Boolean = true
 ) : Operation()
 
 @Serializable
 data class Filters(
-  @SerialName("guild_id")
-  val guildId: Long,
-  val filters: obsidian.server.player.filter.Filters
+    @SerialName("guild_id")
+    val guildId: Long,
+    val filters: obsidian.server.player.filter.Filters
 ) : Operation()
 
 @Serializable
 data class Seek(
-  @SerialName("guild_id")
-  val guildId: Long,
-  val position: Long
+    @SerialName("guild_id")
+    val guildId: Long,
+    val position: Long
 ) : Operation()
 
 @Serializable
 data class Configure(
-  @SerialName("guild_id")
-  val guildId: Long,
-  val pause: Boolean?,
-  val filters: obsidian.server.player.filter.Filters?,
-  @SerialName("send_player_updates")
-  val sendPlayerUpdates: Boolean?
+    @SerialName("guild_id")
+    val guildId: Long,
+    val pause: Boolean?,
+    val filters: obsidian.server.player.filter.Filters?,
+    @SerialName("send_player_updates")
+    val sendPlayerUpdates: Boolean?
 ) : Operation()
 
 @Serializable

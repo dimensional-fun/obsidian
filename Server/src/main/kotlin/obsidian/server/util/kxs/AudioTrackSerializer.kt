@@ -26,14 +26,14 @@ import kotlinx.serialization.encoding.Encoder
 import obsidian.server.util.TrackUtil
 
 object AudioTrackSerializer : KSerializer<AudioTrack> {
-  override val descriptor: SerialDescriptor =
-    PrimitiveSerialDescriptor("AudioTrack", PrimitiveKind.STRING)
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("AudioTrack", PrimitiveKind.STRING)
 
-  override fun serialize(encoder: Encoder, value: AudioTrack) {
-    encoder.encodeString(TrackUtil.encode(value))
-  }
+    override fun serialize(encoder: Encoder, value: AudioTrack) {
+        encoder.encodeString(TrackUtil.encode(value))
+    }
 
-  override fun deserialize(decoder: Decoder): AudioTrack {
-    return TrackUtil.decode(decoder.decodeString())
-  }
+    override fun deserialize(decoder: Decoder): AudioTrack {
+        return TrackUtil.decode(decoder.decodeString())
+    }
 }

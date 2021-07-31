@@ -1,6 +1,7 @@
 # Obsidian API Documentation
 
-Welcome to the Obsidian API Documentation! This document describes mostly everything about the Web Socket and HTTP server.
+Welcome to the Obsidian API Documentation! This document describes mostly everything about the Web Socket and HTTP
+server.
 
 ###### What's Magma?
 

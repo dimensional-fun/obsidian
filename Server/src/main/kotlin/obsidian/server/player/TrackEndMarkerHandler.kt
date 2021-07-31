@@ -19,9 +19,9 @@ package obsidian.server.player
 import com.sedmelluq.discord.lavaplayer.track.TrackMarkerHandler
 
 class TrackEndMarkerHandler(private val player: Player) : TrackMarkerHandler {
-  override fun handle(state: TrackMarkerHandler.MarkerState) {
-    if (state == TrackMarkerHandler.MarkerState.REACHED || state == TrackMarkerHandler.MarkerState.BYPASSED) {
-      player.audioPlayer.stopTrack()
+    override fun handle(state: TrackMarkerHandler.MarkerState) {
+        if (state == TrackMarkerHandler.MarkerState.REACHED || state == TrackMarkerHandler.MarkerState.BYPASSED) {
+            player.audioPlayer.stopTrack()
+        }
     }
-  }
 }

@@ -8,7 +8,7 @@
 
 ## Usage.
 
-For obsidian to work correctly you must use **Java 11** or above. 
+For obsidian to work correctly you must use **Java 11** or above.
 
 - Goto the [releases page](/releases).
 - Download the **Latest Jar File**

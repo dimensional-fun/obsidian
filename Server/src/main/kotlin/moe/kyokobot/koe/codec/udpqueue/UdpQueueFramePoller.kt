@@ -25,75 +25,75 @@ import java.net.InetSocketAddress
 import java.util.concurrent.TimeUnit
 
 class UdpQueueFramePoller(connection: MediaConnection, private val manager: QueueManagerPool.UdpQueueWrapper) :
-  AbstractFramePoller(connection) {
+    AbstractFramePoller(connection) {
 
-  private var lastFrame: Long = 0
-  private val timestamp: IntReference = IntReference()
+    private var lastFrame: Long = 0
+    private val timestamp: IntReference = IntReference()
 
-  override fun start() {
-    check(!polling) {
-      "Polling has already started."
-    }
-
-    polling = true
-    lastFrame = System.currentTimeMillis()
-    eventLoop.execute(::populateQueue)
-  }
-
-  override fun stop() {
-    if (!polling) {
-      return
-    }
-
-    polling = false
-  }
-
-  private fun populateQueue() {
-    if (!polling) {
-      return
-    }
-
-    val remaining = manager.remainingCapacity
-    val handler = connection.connectionHandler as DiscordUDPConnection
-    val sender = connection.audioSender
-
-    for (i in 0 until remaining) {
-      if (sender != null && sender.canSendFrame(OpusCodec.INSTANCE)) {
-        val buf = allocator.buffer()
-
-        /* retrieve a frame so we can compare */
-        val start = buf.writerIndex()
-        sender.retrieve(OpusCodec.INSTANCE, buf, timestamp)
-
-        /* create a packet */
-        val packet =
-          handler.createPacket(OpusCodec.PAYLOAD_TYPE, timestamp.get(), buf, buf.writerIndex() - start, false)
-
-        if (packet != null) {
-          manager.queuePacket(packet.nioBuffer(), handler.serverAddress as InetSocketAddress)
-          packet.release()
+    override fun start() {
+        check(!polling) {
+            "Polling has already started."
         }
 
-        buf.release()
-      }
+        polling = true
+        lastFrame = System.currentTimeMillis()
+        eventLoop.execute(::populateQueue)
     }
 
-    val frameDelay = 40 - (System.currentTimeMillis() - lastFrame)
-    if (frameDelay > 0) {
-      eventLoop.schedule(::loop, frameDelay, TimeUnit.MILLISECONDS)
-    } else {
-      loop()
-    }
-  }
+    override fun stop() {
+        if (!polling) {
+            return
+        }
 
-  private fun loop() {
-    if (System.currentTimeMillis() < lastFrame + 60) {
-      lastFrame += 40
-    } else {
-      lastFrame = System.currentTimeMillis()
+        polling = false
     }
 
-    populateQueue()
-  }
+    private fun populateQueue() {
+        if (!polling) {
+            return
+        }
+
+        val remaining = manager.remainingCapacity
+        val handler = connection.connectionHandler as DiscordUDPConnection
+        val sender = connection.audioSender
+
+        for (i in 0 until remaining) {
+            if (sender != null && sender.canSendFrame(OpusCodec.INSTANCE)) {
+                val buf = allocator.buffer()
+
+                /* retrieve a frame so we can compare */
+                val start = buf.writerIndex()
+                sender.retrieve(OpusCodec.INSTANCE, buf, timestamp)
+
+                /* create a packet */
+                val packet =
+                    handler.createPacket(OpusCodec.PAYLOAD_TYPE, timestamp.get(), buf, buf.writerIndex() - start, false)
+
+                if (packet != null) {
+                    manager.queuePacket(packet.nioBuffer(), handler.serverAddress as InetSocketAddress)
+                    packet.release()
+                }
+
+                buf.release()
+            }
+        }
+
+        val frameDelay = 40 - (System.currentTimeMillis() - lastFrame)
+        if (frameDelay > 0) {
+            eventLoop.schedule(::loop, frameDelay, TimeUnit.MILLISECONDS)
+        } else {
+            loop()
+        }
+    }
+
+    private fun loop() {
+        if (System.currentTimeMillis() < lastFrame + 60) {
+            lastFrame += 40
+        } else {
+            lastFrame = System.currentTimeMillis()
+        }
+
+        populateQueue()
+    }
 
 }

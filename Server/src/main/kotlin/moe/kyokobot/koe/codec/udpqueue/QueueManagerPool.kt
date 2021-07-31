@@ -27,50 +27,50 @@ import java.util.concurrent.atomic.AtomicLong
 
 class QueueManagerPool(val size: Int, val bufferDuration: Int) {
 
-  private var closed: Boolean = false
+    private var closed: Boolean = false
 
-  private val threadFactory =
-    threadFactory("QueueManagerPool %d", priority = (Thread.NORM_PRIORITY + Thread.MAX_PRIORITY) / 2, daemon = true)
+    private val threadFactory =
+        threadFactory("QueueManagerPool %d", priority = (Thread.NORM_PRIORITY + Thread.MAX_PRIORITY) / 2, daemon = true)
 
-  private val queueKeySeq: AtomicLong =
-    AtomicLong()
+    private val queueKeySeq: AtomicLong =
+        AtomicLong()
 
-  private val managers: List<UdpQueueManager> =
-    List(size) {
-      val queueManager = UdpQueueManager(
-        bufferDuration / FRAME_DURATION,
-        TimeUnit.MILLISECONDS.toNanos(FRAME_DURATION.toLong()),
-        MAXIMUM_PACKET_SIZE
-      )
+    private val managers: List<UdpQueueManager> =
+        List(size) {
+            val queueManager = UdpQueueManager(
+                bufferDuration / FRAME_DURATION,
+                TimeUnit.MILLISECONDS.toNanos(FRAME_DURATION.toLong()),
+                MAXIMUM_PACKET_SIZE
+            )
 
-      threadFactory.newThread(queueManager::process).start()
-      queueManager
+            threadFactory.newThread(queueManager::process).start()
+            queueManager
+        }
+
+    fun close() {
+        if (closed) {
+            return
+        }
+
+        closed = true
+        managers.forEach(UdpQueueManager::close)
     }
 
-  fun close() {
-    if (closed) {
-      return
+    fun getNextWrapper(): UdpQueueWrapper {
+        val queueKey = queueKeySeq.getAndIncrement()
+        return getWrapperForKey(queueKey)
     }
 
-    closed = true
-    managers.forEach(UdpQueueManager::close)
-  }
+    fun getWrapperForKey(queueKey: Long): UdpQueueWrapper {
+        val manager = managers[(queueKey % managers.size.toLong()).toInt()]
+        return UdpQueueWrapper(queueKey, manager)
+    }
 
-  fun getNextWrapper(): UdpQueueWrapper {
-    val queueKey = queueKeySeq.getAndIncrement()
-    return getWrapperForKey(queueKey)
-  }
+    class UdpQueueWrapper(val queueKey: Long, val manager: UdpQueueManager) {
+        val remainingCapacity: Int
+            get() = manager.getRemainingCapacity(queueKey)
 
-  fun getWrapperForKey(queueKey: Long): UdpQueueWrapper {
-    val manager = managers[(queueKey % managers.size.toLong()).toInt()]
-    return UdpQueueWrapper(queueKey, manager)
-  }
-
-  class UdpQueueWrapper(val queueKey: Long, val manager: UdpQueueManager) {
-    val remainingCapacity: Int
-      get() = manager.getRemainingCapacity(queueKey)
-
-    fun queuePacket(packet: ByteBuffer, addr: InetSocketAddress) =
-      this.manager.queuePacket(queueKey, packet, addr)
-  }
+        fun queuePacket(packet: ByteBuffer, addr: InetSocketAddress) =
+            this.manager.queuePacket(queueKey, packet, addr)
+    }
 }

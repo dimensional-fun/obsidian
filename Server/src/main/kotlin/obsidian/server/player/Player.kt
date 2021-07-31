@@ -38,172 +38,172 @@ import java.nio.ByteBuffer
 
 class Player(val guildId: Long, val client: MagmaClient) : AudioEventAdapter() {
 
-  /**
-   * Handles all updates for this player.
-   */
-  val updates: PlayerUpdates by lazy {
-    PlayerUpdates(this)
-  }
-
-  /**
-   * Audio player for receiving frames.
-   */
-  val audioPlayer: AudioPlayer by lazy {
-    players.createPlayer()
-      .addEventListener(frameLossTracker)
-      .addEventListener(updates)
-      .addEventListener(this)
-  }
-
-  /**
-   * Frame loss tracker.
-   */
-  val frameLossTracker = FrameLossTracker()
-
-  /**
-   * Whether the player is currently playing a track.
-   */
-  val playing: Boolean
-    get() = audioPlayer.playingTrack != null && !audioPlayer.isPaused
-
-  /**
-   * The current filters that are enabled.
-   */
-  var filters: Filters? = null
-    set(value) {
-      field = value
-      value?.applyTo(this)
+    /**
+     * Handles all updates for this player.
+     */
+    val updates: PlayerUpdates by lazy {
+        PlayerUpdates(this)
     }
 
-  /**
-   * Plays the provided [track] and dispatches a Player Update
-   */
-  fun play(track: AudioTrack) {
-    audioPlayer.playTrack(track)
-    updates.sendUpdate()
-  }
-
-  /**
-   * Convenience method for seeking to a specific position in the current track.
-   */
-  fun seekTo(position: Long) {
-    require(audioPlayer.playingTrack != null) {
-      "A track must be playing in order to seek."
+    /**
+     * Audio player for receiving frames.
+     */
+    val audioPlayer: AudioPlayer by lazy {
+        players.createPlayer()
+            .addEventListener(frameLossTracker)
+            .addEventListener(updates)
+            .addEventListener(this)
     }
 
-    require(audioPlayer.playingTrack.isSeekable) {
-      "The playing track is not seekable."
+    /**
+     * Frame loss tracker.
+     */
+    val frameLossTracker = FrameLossTracker()
+
+    /**
+     * Whether the player is currently playing a track.
+     */
+    val playing: Boolean
+        get() = audioPlayer.playingTrack != null && !audioPlayer.isPaused
+
+    /**
+     * The current filters that are enabled.
+     */
+    var filters: Filters? = null
+        set(value) {
+            field = value
+            value?.applyTo(this)
+        }
+
+    /**
+     * Plays the provided [track] and dispatches a Player Update
+     */
+    fun play(track: AudioTrack) {
+        audioPlayer.playTrack(track)
+        updates.sendUpdate()
     }
 
-    require(position in 0..audioPlayer.playingTrack.duration) {
-      "The given position must be within 0 and the current playing track's duration."
+    /**
+     * Convenience method for seeking to a specific position in the current track.
+     */
+    fun seekTo(position: Long) {
+        require(audioPlayer.playingTrack != null) {
+            "A track must be playing in order to seek."
+        }
+
+        require(audioPlayer.playingTrack.isSeekable) {
+            "The playing track is not seekable."
+        }
+
+        require(position in 0..audioPlayer.playingTrack.duration) {
+            "The given position must be within 0 and the current playing track's duration."
+        }
+
+        audioPlayer.playingTrack.position = position
     }
 
-    audioPlayer.playingTrack.position = position
-  }
-
-  /**
-   *
-   */
-  fun provideTo(connection: MediaConnection) {
-    connection.audioSender = OpusFrameProvider(connection)
-  }
-
-  /**
-   *
-   */
-  override fun onTrackStuck(player: AudioPlayer?, track: AudioTrack?, thresholdMs: Long) {
-    client.websocket?.let {
-      val event = TrackStuckEvent(
-        guildId = guildId,
-        thresholdMs = thresholdMs,
-        track = track
-      )
-
-      it.send(event)
-    }
-  }
-
-  /**
-   *
-   */
-  override fun onTrackException(player: AudioPlayer?, track: AudioTrack, exception: FriendlyException) {
-    client.websocket?.let {
-      val event = TrackExceptionEvent(
-        guildId = guildId,
-        track = track,
-        exception = TrackExceptionEvent.Exception.fromFriendlyException(exception)
-      )
-
-      it.send(event)
-    }
-  }
-
-  /**
-   *
-   */
-  override fun onTrackStart(player: AudioPlayer?, track: AudioTrack) {
-    client.websocket?.let {
-      val event = TrackStartEvent(
-        guildId = guildId,
-        track = track
-      )
-
-      it.send(event)
-    }
-  }
-
-  /**
-   * Sends a track end player event to the websocket connection, if any.
-   */
-  override fun onTrackEnd(player: AudioPlayer?, track: AudioTrack, reason: AudioTrackEndReason) {
-    client.websocket?.let {
-      val event = TrackEndEvent(
-        track = track,
-        endReason = reason,
-        guildId = guildId
-      )
-
-      it.send(event)
-    }
-  }
-
-  /**
-   *
-   */
-  suspend fun destroy() {
-    updates.stop()
-    audioPlayer.destroy()
-  }
-
-  inner class OpusFrameProvider(connection: MediaConnection) : OpusAudioFrameProvider(connection) {
-
-    private val frameBuffer = ByteBuffer.allocate(StandardAudioDataFormats.DISCORD_OPUS.maximumChunkSize())
-    private val lastFrame = MutableAudioFrame()
-
-    init {
-      lastFrame.setBuffer(frameBuffer)
+    /**
+     *
+     */
+    fun provideTo(connection: MediaConnection) {
+        connection.audioSender = OpusFrameProvider(connection)
     }
 
-    override fun canProvide(): Boolean {
-      val success = audioPlayer.provide(lastFrame)
-      if (!success) {
-        frameLossTracker.loss()
-      }
+    /**
+     *
+     */
+    override fun onTrackStuck(player: AudioPlayer?, track: AudioTrack?, thresholdMs: Long) {
+        client.websocket?.let {
+            val event = TrackStuckEvent(
+                guildId = guildId,
+                thresholdMs = thresholdMs,
+                track = track
+            )
 
-      return success
+            it.send(event)
+        }
     }
 
-    override fun retrieveOpusFrame(targetBuffer: ByteBuf) {
-      frameBuffer.flip()
-      targetBuffer.writeBytes(frameBuffer)
-    }
-  }
+    /**
+     *
+     */
+    override fun onTrackException(player: AudioPlayer?, track: AudioTrack, exception: FriendlyException) {
+        client.websocket?.let {
+            val event = TrackExceptionEvent(
+                guildId = guildId,
+                track = track,
+                exception = TrackExceptionEvent.Exception.fromFriendlyException(exception)
+            )
 
-  companion object {
-    fun AudioPlayer.addEventListener(listener: AudioEventListener): AudioPlayer {
-      addListener(listener)
-      return this
+            it.send(event)
+        }
     }
-  }
+
+    /**
+     *
+     */
+    override fun onTrackStart(player: AudioPlayer?, track: AudioTrack) {
+        client.websocket?.let {
+            val event = TrackStartEvent(
+                guildId = guildId,
+                track = track
+            )
+
+            it.send(event)
+        }
+    }
+
+    /**
+     * Sends a track end player event to the websocket connection, if any.
+     */
+    override fun onTrackEnd(player: AudioPlayer?, track: AudioTrack, reason: AudioTrackEndReason) {
+        client.websocket?.let {
+            val event = TrackEndEvent(
+                track = track,
+                endReason = reason,
+                guildId = guildId
+            )
+
+            it.send(event)
+        }
+    }
+
+    /**
+     *
+     */
+    suspend fun destroy() {
+        updates.stop()
+        audioPlayer.destroy()
+    }
+
+    inner class OpusFrameProvider(connection: MediaConnection) : OpusAudioFrameProvider(connection) {
+
+        private val frameBuffer = ByteBuffer.allocate(StandardAudioDataFormats.DISCORD_OPUS.maximumChunkSize())
+        private val lastFrame = MutableAudioFrame()
+
+        init {
+            lastFrame.setBuffer(frameBuffer)
+        }
+
+        override fun canProvide(): Boolean {
+            val success = audioPlayer.provide(lastFrame)
+            if (!success) {
+                frameLossTracker.loss()
+            }
+
+            return success
+        }
+
+        override fun retrieveOpusFrame(targetBuffer: ByteBuf) {
+            frameBuffer.flip()
+            targetBuffer.writeBytes(frameBuffer)
+        }
+    }
+
+    companion object {
+        fun AudioPlayer.addEventListener(listener: AudioEventListener): AudioPlayer {
+            addListener(listener)
+            return this
+        }
+    }
 }

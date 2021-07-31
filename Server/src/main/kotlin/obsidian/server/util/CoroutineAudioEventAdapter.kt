@@ -25,34 +25,34 @@ import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
 
 open class CoroutineAudioEventAdapter(private val dispatcher: CoroutineDispatcher = Dispatchers.Default) :
-  AudioEventListener,
-  CoroutineScope {
+    AudioEventListener,
+    CoroutineScope {
 
-  override val coroutineContext: CoroutineContext
-    get() = dispatcher + SupervisorJob()
+    override val coroutineContext: CoroutineContext
+        get() = dispatcher + SupervisorJob()
 
-  /* playback start/end */
-  open suspend fun onTrackStart(track: AudioTrack, player: AudioPlayer) = Unit
-  open suspend fun onTrackEnd(track: AudioTrack, reason: AudioTrackEndReason, player: AudioPlayer) = Unit
+    /* playback start/end */
+    open suspend fun onTrackStart(track: AudioTrack, player: AudioPlayer) = Unit
+    open suspend fun onTrackEnd(track: AudioTrack, reason: AudioTrackEndReason, player: AudioPlayer) = Unit
 
-  /* exception */
-  open suspend fun onTrackStuck(thresholdMs: Long, track: AudioTrack, player: AudioPlayer) = Unit
-  open suspend fun onTrackException(exception: FriendlyException, track: AudioTrack, player: AudioPlayer) = Unit
+    /* exception */
+    open suspend fun onTrackStuck(thresholdMs: Long, track: AudioTrack, player: AudioPlayer) = Unit
+    open suspend fun onTrackException(exception: FriendlyException, track: AudioTrack, player: AudioPlayer) = Unit
 
-  /* playback state */
-  open suspend fun onPlayerResume(player: AudioPlayer) = Unit
-  open suspend fun onPlayerPause(player: AudioPlayer) = Unit
+    /* playback state */
+    open suspend fun onPlayerResume(player: AudioPlayer) = Unit
+    open suspend fun onPlayerPause(player: AudioPlayer) = Unit
 
-  override fun onEvent(event: AudioEvent) {
-    launch {
-      when (event) {
-        is TrackStartEvent -> onTrackStart(event.track, event.player)
-        is TrackEndEvent -> onTrackEnd(event.track, event.endReason, event.player)
-        is TrackStuckEvent -> onTrackStuck(event.thresholdMs, event.track, event.player)
-        is TrackExceptionEvent -> onTrackException(event.exception, event.track, event.player)
-        is PlayerResumeEvent -> onPlayerResume(event.player)
-        is PlayerPauseEvent -> onPlayerPause(event.player)
-      }
+    override fun onEvent(event: AudioEvent) {
+        launch {
+            when (event) {
+                is TrackStartEvent -> onTrackStart(event.track, event.player)
+                is TrackEndEvent -> onTrackEnd(event.track, event.endReason, event.player)
+                is TrackStuckEvent -> onTrackStuck(event.thresholdMs, event.track, event.player)
+                is TrackExceptionEvent -> onTrackException(event.exception, event.track, event.player)
+                is PlayerResumeEvent -> onPlayerResume(event.player)
+                is PlayerPauseEvent -> onPlayerPause(event.player)
+            }
+        }
     }
-  }
 }

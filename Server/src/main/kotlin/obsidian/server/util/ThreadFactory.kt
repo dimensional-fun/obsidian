@@ -21,12 +21,12 @@ import java.util.concurrent.ThreadFactory
 import java.util.concurrent.atomic.AtomicInteger
 
 fun threadFactory(name: String, daemon: Boolean = false, priority: Int? = null): ThreadFactory {
-  val counter = AtomicInteger()
-  return ThreadFactory { runnable ->
-    Thread(System.getSecurityManager()?.threadGroup ?: Thread.currentThread().threadGroup, runnable).apply {
-      this.name = name.format(Locale.ROOT, counter.getAndIncrement())
-      this.isDaemon = if (!isDaemon) daemon else true
-      priority?.let { this.priority = it }
+    val counter = AtomicInteger()
+    return ThreadFactory { runnable ->
+        Thread(System.getSecurityManager()?.threadGroup ?: Thread.currentThread().threadGroup, runnable).apply {
+            this.name = name.format(Locale.ROOT, counter.getAndIncrement())
+            this.isDaemon = if (!isDaemon) daemon else true
+            priority?.let { this.priority = it }
+        }
     }
-  }
 }

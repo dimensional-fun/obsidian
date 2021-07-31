@@ -21,56 +21,56 @@ import io.ktor.http.*
 import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
-import obsidian.server.Application
 import kotlinx.serialization.Serializable
+import obsidian.server.Application
 import obsidian.server.io.RoutePlannerStatus
 import obsidian.server.io.RoutePlannerUtil.getDetailBlock
 import java.net.InetAddress
 
 fun Routing.planner() {
-  val routePlanner = Application.players.routePlanner
+    val routePlanner = Application.players.routePlanner
 
-  route("/routeplanner") {
-    authenticate {
-      get("/status") {
-        routePlanner
-          ?: return@get context.respond(HttpStatusCode.NotImplemented, RoutePlannerDisabled())
+    route("/routeplanner") {
+        authenticate {
+            get("/status") {
+                routePlanner
+                    ?: return@get context.respond(HttpStatusCode.NotImplemented, RoutePlannerDisabled())
 
-        /* respond with route planner status */
-        val status = RoutePlannerStatus(
-          Application.players::class.simpleName,
-          getDetailBlock(Application.players.routePlanner!!)
-        )
+                /* respond with route planner status */
+                val status = RoutePlannerStatus(
+                    Application.players::class.simpleName,
+                    getDetailBlock(Application.players.routePlanner!!)
+                )
 
-        context.respond(status)
-      }
+                context.respond(status)
+            }
 
-      route("/free") {
+            route("/free") {
 
-        post("/address") {
-          routePlanner
-            ?: return@post context.respond(HttpStatusCode.NotImplemented, RoutePlannerDisabled())
+                post("/address") {
+                    routePlanner
+                        ?: return@post context.respond(HttpStatusCode.NotImplemented, RoutePlannerDisabled())
 
-          /* free address. */
-          val body = context.receive<FreeAddress>()
-          val address = InetAddress.getByName(body.address)
-          routePlanner.freeAddress(address)
+                    /* free address. */
+                    val body = context.receive<FreeAddress>()
+                    val address = InetAddress.getByName(body.address)
+                    routePlanner.freeAddress(address)
 
-          /* respond with 204 */
-          context.respond(HttpStatusCode.NoContent)
+                    /* respond with 204 */
+                    context.respond(HttpStatusCode.NoContent)
+                }
+
+                post("/all") {
+                    /* free all addresses. */
+                    routePlanner ?: return@post context.respond(HttpStatusCode.NotImplemented, RoutePlannerDisabled())
+                    routePlanner.freeAllAddresses()
+
+                    /* respond with 204 */
+                    context.respond(HttpStatusCode.NoContent)
+                }
+            }
         }
-
-        post("/all") {
-          /* free all addresses. */
-          routePlanner ?: return@post context.respond(HttpStatusCode.NotImplemented, RoutePlannerDisabled())
-          routePlanner.freeAllAddresses()
-
-          /* respond with 204 */
-          context.respond(HttpStatusCode.NoContent)
-        }
-      }
     }
-  }
 }
 
 @Serializable

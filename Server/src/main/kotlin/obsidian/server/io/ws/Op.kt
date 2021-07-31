@@ -26,36 +26,36 @@ import kotlinx.serialization.encoding.Encoder
 
 @Serializable(with = Op.Serializer::class)
 enum class Op(val code: Short) {
-  SUBMIT_VOICE_UPDATE(0),
-  STATS(1),
+    SUBMIT_VOICE_UPDATE(0),
+    STATS(1),
 
-  SETUP_RESUMING(2),
-  SETUP_DISPATCH_BUFFER(3),
+    SETUP_RESUMING(2),
+    SETUP_DISPATCH_BUFFER(3),
 
-  PLAYER_EVENT(4),
-  PLAYER_UPDATE(5),
+    PLAYER_EVENT(4),
+    PLAYER_UPDATE(5),
 
-  PLAY_TRACK(6),
-  STOP_TRACK(7),
-  PAUSE(8),
-  FILTERS(9),
-  SEEK(10),
-  DESTROY(11),
-  CONFIGURE(12),
+    PLAY_TRACK(6),
+    STOP_TRACK(7),
+    PAUSE(8),
+    FILTERS(9),
+    SEEK(10),
+    DESTROY(11),
+    CONFIGURE(12),
 
-  UNKNOWN(-1);
+    UNKNOWN(-1);
 
-  companion object Serializer : KSerializer<Op> {
-    override val descriptor: SerialDescriptor =
-      PrimitiveSerialDescriptor("MagmaOperation", PrimitiveKind.SHORT)
+    companion object Serializer : KSerializer<Op> {
+        override val descriptor: SerialDescriptor =
+            PrimitiveSerialDescriptor("MagmaOperation", PrimitiveKind.SHORT)
 
-    override fun deserialize(decoder: Decoder): Op {
-      val code = decoder.decodeShort()
-      return values().firstOrNull { it.code == code } ?: UNKNOWN
+        override fun deserialize(decoder: Decoder): Op {
+            val code = decoder.decodeShort()
+            return values().firstOrNull { it.code == code } ?: UNKNOWN
+        }
+
+        override fun serialize(encoder: Encoder, value: Op) {
+            encoder.encodeShort(value.code)
+        }
     }
-
-    override fun serialize(encoder: Encoder, value: Op) {
-      encoder.encodeShort(value.code)
-    }
-  }
 }

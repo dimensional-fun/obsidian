@@ -17,18 +17,18 @@
 package obsidian.server.util
 
 object VersionInfo {
-  private val stream = VersionInfo::class.java.classLoader.getResourceAsStream("version.txt")
-  private val versionTxt = stream?.reader()?.readText()?.split('\n')
+    private val stream = VersionInfo::class.java.classLoader.getResourceAsStream("version.txt")
+    private val versionTxt = stream?.reader()?.readText()?.split('\n')
 
-  /**
-   * Current version of Mixtape.
-   */
-  val VERSION = versionTxt?.get(0)
-    ?: "1.0.0"
+    /**
+     * Current version of Mixtape.
+     */
+    val VERSION = versionTxt?.get(0)
+        ?: "1.0.0"
 
-  /**
-   * Current git revision.
-   */
-  val GIT_REVISION = versionTxt?.get(1)
-    ?: "unknown"
+    /**
+     * Current git revision.
+     */
+    val GIT_REVISION = versionTxt?.get(1)
+        ?: "unknown"
 }

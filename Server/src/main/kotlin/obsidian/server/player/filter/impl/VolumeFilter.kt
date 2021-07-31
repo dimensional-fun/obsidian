@@ -25,15 +25,15 @@ import obsidian.server.player.filter.Filter
 @Serializable
 @JvmInline
 value class VolumeFilter(val volume: Float) : Filter {
-  override val enabled: Boolean
-    get() = Filter.isSet(volume, 1f)
+    override val enabled: Boolean
+        get() = Filter.isSet(volume, 1f)
 
-  init {
-    require(volume in 0.0..5.0) {
-      "'volume' must be 0 <= x <= 5"
+    init {
+        require(volume in 0.0..5.0) {
+            "'volume' must be 0 <= x <= 5"
+        }
     }
-  }
 
-  override fun build(format: AudioDataFormat, downstream: FloatPcmAudioFilter): FloatPcmAudioFilter? =
-    VolumePcmAudioFilter(downstream).setVolume(volume)
+    override fun build(format: AudioDataFormat, downstream: FloatPcmAudioFilter): FloatPcmAudioFilter? =
+        VolumePcmAudioFilter(downstream).setVolume(volume)
 }

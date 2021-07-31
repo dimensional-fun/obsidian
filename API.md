@@ -47,7 +47,8 @@ Authorization: <password>
 }
 ```
 
-*If no route planner was configured, both `class` and `details` will be null, the responses vary depending on what route planner was configured. Fields that are consistent:*
+*If no route planner was configured, both `class` and `details` will be null, the responses vary depending on what route
+planner was configured. Fields that are consistent:*
 
 - `class` *string* name of the route planner
 - `details.ip_block` *string* the current ip-block
@@ -65,7 +66,8 @@ Authorization: <password>
 
 **RotatingNanoIpRoutePlanner**
 
-- `details.block_index` *string* containing the file information in which /64 block ips are chosen, this number increases on each ban.
+- `details.block_index` *string* containing the file information in which /64 block ips are chosen, this number
+  increases on each ban.
 - `details.current_address_index` *long* representing the current offset in the ip-block.
 
 #### Unmark a failed address
@@ -109,7 +111,7 @@ Each request must have a `User-Id` header or query parameter containing your bot
 | endpoint | description                |
 | :------- | :------------------------- |
 | /        | returns info on the player |
-| /play    | plays 
+| /play    | plays
 |
 |
 |
@@ -305,7 +307,6 @@ Stats on the node
 }
 ```
 
-
 #### Player Events
 
 List of current player events Example:
@@ -381,7 +382,8 @@ dispatched when track playback is stuck
 }
 ```
 
-- [**Lavaplayer**](https://github.com/sedmelluq/lavaplayer/blob/bec39953a037b318663fad76873fbab9ce13c033/main/src/main/java/com/sedmelluq/discord/lavaplayer/player/event/TrackStuckEvent.java)
+- [**
+  Lavaplayer**](https://github.com/sedmelluq/lavaplayer/blob/bec39953a037b318663fad76873fbab9ce13c033/main/src/main/java/com/sedmelluq/discord/lavaplayer/player/event/TrackStuckEvent.java)
 
 ##### `TRACK_EXCEPTION`
 

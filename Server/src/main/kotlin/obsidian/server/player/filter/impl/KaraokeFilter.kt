@@ -25,22 +25,22 @@ import obsidian.server.player.filter.Filter
 
 @Serializable
 data class KaraokeFilter(
-  val level: Float,
-  @SerialName("mono_level")
-  val monoLevel: Float,
-  @SerialName("filter_band")
-  val filterBand: Float,
-  @SerialName("filter_width")
-  val filterWidth: Float,
+    val level: Float,
+    @SerialName("mono_level")
+    val monoLevel: Float,
+    @SerialName("filter_band")
+    val filterBand: Float,
+    @SerialName("filter_width")
+    val filterWidth: Float,
 ) : Filter {
-  override val enabled: Boolean
-    get() = Filter.isSet(level, 1f) || Filter.isSet(monoLevel, 1f)
-      || Filter.isSet(filterBand, 220f) || Filter.isSet(filterWidth, 100f)
+    override val enabled: Boolean
+        get() = Filter.isSet(level, 1f) || Filter.isSet(monoLevel, 1f)
+                || Filter.isSet(filterBand, 220f) || Filter.isSet(filterWidth, 100f)
 
-  override fun build(format: AudioDataFormat, downstream: FloatPcmAudioFilter): FloatPcmAudioFilter =
-    KaraokePcmAudioFilter(downstream, format.channelCount, format.sampleRate)
-      .setLevel(level)
-      .setMonoLevel(monoLevel)
-      .setFilterBand(filterBand)
-      .setFilterWidth(filterWidth)
+    override fun build(format: AudioDataFormat, downstream: FloatPcmAudioFilter): FloatPcmAudioFilter =
+        KaraokePcmAudioFilter(downstream, format.channelCount, format.sampleRate)
+            .setLevel(level)
+            .setMonoLevel(monoLevel)
+            .setFilterBand(filterBand)
+            .setFilterWidth(filterWidth)
 }

@@ -20,39 +20,41 @@ import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.pattern.CompositeConverter
 
-fun interface Convert { fun take(str: String): String }
+fun interface Convert {
+    fun take(str: String): String
+}
 
 class LogbackColorConverter : CompositeConverter<ILoggingEvent>() {
-  override fun transform(event: ILoggingEvent, element: String): String {
-    val option = ANSI_COLORS[firstOption]
-      ?: ANSI_COLORS[LEVELS[event.level.toInt()]]
-      ?: ANSI_COLORS["green"]
+    override fun transform(event: ILoggingEvent, element: String): String {
+        val option = ANSI_COLORS[firstOption]
+            ?: ANSI_COLORS[LEVELS[event.level.toInt()]]
+            ?: ANSI_COLORS["green"]
 
-    return option!!.take(element)
-  }
-
-  companion object {
-    val Number.ansi: String
-      get() = "\u001b[${this}m"
-
-    private val ANSI_COLORS = mutableMapOf(
-      "gray" to Convert { t -> "${90.ansi}$t${39.ansi}" },
-      "faint" to Convert { t -> "${2.ansi}$t${22.ansi}" }
-    )
-
-    init {
-      val names = listOf("red", "green", "yellow", "blue", "magenta", "cyan")
-      for ((idx, code) in (31..36).withIndex()) {
-        ANSI_COLORS[names[idx]] = Convert { t -> "${code.ansi}$t${39.ansi}" }
-      }
+        return option!!.take(element)
     }
 
-    private val LEVELS = mapOf<Int, String>(
-      Level.ERROR_INTEGER to "red",
-      Level.WARN_INTEGER to "yellow",
-      Level.DEBUG_INTEGER to "blue",
-      Level.INFO_INTEGER to "faint",
-      Level.TRACE_INTEGER to "magenta"
-    )
-  }
+    companion object {
+        val Number.ansi: String
+            get() = "\u001b[${this}m"
+
+        private val ANSI_COLORS = mutableMapOf(
+            "gray" to Convert { t -> "${90.ansi}$t${39.ansi}" },
+            "faint" to Convert { t -> "${2.ansi}$t${22.ansi}" }
+        )
+
+        init {
+            val names = listOf("red", "green", "yellow", "blue", "magenta", "cyan")
+            for ((idx, code) in (31..36).withIndex()) {
+                ANSI_COLORS[names[idx]] = Convert { t -> "${code.ansi}$t${39.ansi}" }
+            }
+        }
+
+        private val LEVELS = mapOf<Int, String>(
+            Level.ERROR_INTEGER to "red",
+            Level.WARN_INTEGER to "yellow",
+            Level.DEBUG_INTEGER to "blue",
+            Level.INFO_INTEGER to "faint",
+            Level.TRACE_INTEGER to "magenta"
+        )
+    }
 }
