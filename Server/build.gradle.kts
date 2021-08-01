@@ -19,10 +19,10 @@ application {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.5.20")              // standard library
-    implementation("org.jetbrains.kotlin:kotlin-reflect:1.5.20")             // reflection
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.5.21")              // standard library
+    implementation("org.jetbrains.kotlin:kotlin-reflect:1.5.21")             // reflection
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.0")    // core coroutine library
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.2.1") // json serialization
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.2.2") // json serialization
 
     val ktorVersion = "1.6.1"
     implementation("io.ktor:ktor-server-core:$ktorVersion")   // ktor server core
@@ -31,9 +31,7 @@ dependencies {
     implementation("io.ktor:ktor-serialization:$ktorVersion") // ktor serialization
     implementation("io.ktor:ktor-websockets:$ktorVersion")    // ktor websockets
 
-    implementation("moe.kyokobot.koe:core:master-SNAPSHOT") { // discord send system
-        exclude(group = "org.slf4j", module = "slf4j-api")
-    }
+    implementation("moe.kyokobot.koe:core:koe-v2-SNAPSHOT")   // discord send system
 
     implementation("com.sedmelluq:lavaplayer:1.3.78") { // yes
         exclude(group = "com.sedmelluq", module = "lavaplayer-natives")
@@ -47,7 +45,7 @@ dependencies {
     implementation("com.github.natanbc:native-loader:0.7.2") // native loader
     implementation("com.github.natanbc:lp-cross:0.1.3-1")    // lp-cross natives
 
-    implementation("ch.qos.logback:logback-classic:1.2.3")         // slf4j logging backend
+    implementation("ch.qos.logback:logback-classic:1.2.5")   // slf4j logging backend
 
     val konfVersion = "1.1.2"
     implementation("com.github.uchuhimo.konf:konf-core:$konfVersion") // konf core shit
