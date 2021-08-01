@@ -43,8 +43,8 @@ private val logger: Logger = LoggerFactory.getLogger("Routing.tracks")
 fun Routing.tracks() {
     authenticate {
         get<LoadTracks> { data ->
-            val result = AudioLoader(Application.players)
-                .load(data.identifier)
+            val result = AudioLoader
+                .load(data.identifier, Application.players)
                 .await()
 
             if (result.exception != null) {
@@ -52,14 +52,11 @@ fun Routing.tracks() {
             }
 
             val playlist = result.playlistName?.let {
-                LoadTracks.Response.PlaylistInfo(name = it, selectedTrack = result.selectedTrack)
+                LoadTracks.Response.PlaylistInfo(name = it, selectedTrack = result.selectedTrack, url = data.identifier)
             }
 
             val exception = if (result.loadResultType == LoadType.LOAD_FAILED && result.exception != null) {
-                LoadTracks.Response.Exception(
-                    message = result.exception!!.localizedMessage,
-                    severity = result.exception!!.severity
-                )
+                LoadTracks.Response.Exception(message = result.exception!!.localizedMessage, severity = result.exception!!.severity)
             } else {
                 null
             }
@@ -144,7 +141,8 @@ data class LoadTracks(val identifier: String) {
         data class PlaylistInfo(
             val name: String,
             @SerialName("selected_track")
-            val selectedTrack: Int?
+            val selectedTrack: Int?,
+            val url: String
         )
     }
 }
