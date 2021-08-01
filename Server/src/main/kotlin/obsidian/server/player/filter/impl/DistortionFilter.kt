@@ -19,15 +19,24 @@ package obsidian.server.player.filter.impl
 import com.github.natanbc.lavadsp.distortion.DistortionPcmAudioFilter
 import com.sedmelluq.discord.lavaplayer.filter.FloatPcmAudioFilter
 import com.sedmelluq.discord.lavaplayer.format.AudioDataFormat
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import obsidian.server.player.filter.Filter
 
 @Serializable
 data class DistortionFilter(
+    @SerialName("sin_offset")
     val sinOffset: Float = 0f,
+    @SerialName("sin_scale")
     val sinScale: Float = 1f,
+    @SerialName("cos_offset")
     val cosOffset: Float = 0f,
+    @SerialName("cos_scale")
     val cosScale: Float = 1f,
+    @SerialName("tan_offset")
+    val tanOffset: Float = 0f,
+    @SerialName("tan_scale")
+    val tanScale: Float = 1f,
     val offset: Float = 0f,
     val scale: Float = 1f
 ) : Filter {
@@ -43,6 +52,8 @@ data class DistortionFilter(
             .setSinScale(sinScale)
             .setCosOffset(cosOffset)
             .setCosScale(cosScale)
+            .setTanOffset(tanOffset)
+            .setTanScale(tanScale)
             .setOffset(offset)
             .setScale(scale)
     }

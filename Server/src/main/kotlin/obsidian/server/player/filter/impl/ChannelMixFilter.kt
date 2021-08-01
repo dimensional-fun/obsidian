@@ -19,14 +19,19 @@ package obsidian.server.player.filter.impl
 import com.github.natanbc.lavadsp.channelmix.ChannelMixPcmAudioFilter
 import com.sedmelluq.discord.lavaplayer.filter.FloatPcmAudioFilter
 import com.sedmelluq.discord.lavaplayer.format.AudioDataFormat
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import obsidian.server.player.filter.Filter
 
 @Serializable
 data class ChannelMixFilter(
+    @SerialName("left_to_left")
     val leftToLeft: Float = 1f,
+    @SerialName("left_to_right")
     val leftToRight: Float = 0f,
+    @SerialName("right_to_right")
     val rightToRight: Float = 0f,
+    @SerialName("right_to_left")
     val rightToLeft: Float = 1f,
 ) : Filter {
     override val enabled: Boolean
