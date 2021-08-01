@@ -59,20 +59,20 @@ object Handlers {
             return
         }
 
-        val track = TrackUtil.decode(track)
+        val audioTrack = TrackUtil.decode(track)
 
         /* handle start and end times */
-        if (startTime != null && startTime in 0..track.duration) {
-            track.position = startTime
+        if (startTime != null && startTime in 0..audioTrack.duration) {
+            audioTrack.position = startTime
         }
 
-        if (endTime != null && endTime in 0..track.duration) {
+        if (endTime != null && endTime in 0..audioTrack.duration) {
             val handler = TrackEndMarkerHandler(player)
             val marker = TrackMarker(endTime, handler)
-            track.setMarker(marker)
+            audioTrack.setMarker(marker)
         }
 
-        player.play(track)
+        player.play(audioTrack)
     }
 
     fun stopTrack(client: MagmaClient, guildId: Long) {
