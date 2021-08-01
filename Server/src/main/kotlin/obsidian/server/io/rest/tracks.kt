@@ -47,10 +47,6 @@ fun Routing.tracks() {
                 .load(data.identifier, Application.players)
                 .await()
 
-            if (result.exception != null) {
-                logger.error("Track loading failed", result.exception)
-            }
-
             val playlist = result.playlistName?.let {
                 LoadTracks.Response.PlaylistInfo(name = it, selectedTrack = result.selectedTrack, url = data.identifier)
             }
