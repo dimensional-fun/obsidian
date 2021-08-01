@@ -55,7 +55,7 @@ class ObsidianAPM : DefaultAudioPlayerManager() {
             when {
                 Ipv6Block.isIpv6CidrBlock(it) -> Ipv6Block(it)
                 Ipv4Block.isIpv4CidrBlock(it) -> Ipv4Block(it)
-                else -> throw RuntimeException("Invalid IP Block '$it', make sure to provide a valid CIDR notation")
+                else -> throw IllegalArgumentException("Invalid IP Block '$it', make sure to provide a valid CIDR notation")
             }
         }
 
@@ -66,12 +66,12 @@ class ObsidianAPM : DefaultAudioPlayerManager() {
         val filter = Predicate<InetAddress> { !blacklisted.contains(it) }
         val searchTriggersFail = config[Obsidian.Lavaplayer.RateLimit.searchTriggersFail]
 
-        return@lazy when (config[Obsidian.Lavaplayer.RateLimit.strategy]) {
+        return@lazy when (config[Obsidian.Lavaplayer.RateLimit.strategy].trim()) {
             "rotate-on-ban" -> RotatingIpRoutePlanner(ipBlocks, filter, searchTriggersFail)
             "load-balance" -> BalancingIpRoutePlanner(ipBlocks, filter, searchTriggersFail)
             "rotating-nano-switch" -> RotatingNanoIpRoutePlanner(ipBlocks, filter, searchTriggersFail)
             "nano-switch" -> NanoIpRoutePlanner(ipBlocks, searchTriggersFail)
-            else -> throw RuntimeException("Unknown strategy!")
+            else -> throw IllegalArgumentException("Unknown Strategy!")
         }
     }
 
