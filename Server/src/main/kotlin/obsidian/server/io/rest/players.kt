@@ -65,6 +65,34 @@ object Players {
             /**
              *
              */
+            delete {
+                val guildId = call.attributes[GuildAttr]
+
+                /* get the requested player */
+                call.attributes[ClientAttr].players[guildId]
+                    ?: return@delete respondAndFinish(NotFound, Response("Unknown player for guild '$guildId'"))
+
+                /* destroy the player. */
+                Handlers.destroy(call.attributes[ClientAttr], guildId);
+                call.respond(Response("Successfully destroyed player", success = true))
+            }
+
+            put {
+                val configure = call.receive<Configure>()
+                Handlers.configure(
+                    call.attributes[ClientAttr],
+                    call.attributes[GuildAttr],
+                    filters = configure.filters,
+                    pause = configure.pause,
+                    sendPlayerUpdates = configure.sendPlayerUpdates
+                )
+
+                call.respond(Response("Successfully configured the player", success = true))
+            }
+
+            /**
+             *
+             */
             get {
                 val guildId = call.attributes[GuildAttr]
 
@@ -76,6 +104,15 @@ object Players {
                 val response =
                     GetPlayerResponse(currentTrackFor(player), player.filters, player.frameLossTracker.payload)
                 call.respond(response)
+            }
+
+            /*
+             *
+             */
+            put("/pause") {
+                val (state) = call.receive<Pause>()
+                Handlers.configure(call.attributes[ClientAttr], call.attributes[GuildAttr], pause = state)
+                call.respond(Response("Successfully ${if (state) "paused" else "resumed"} the player.", success = true))
             }
 
             /**
@@ -150,6 +187,23 @@ data class SubmitVoiceServer(@SerialName("session_id") val sessionId: String, va
 data class Seek(val position: Long)
 
 /**
+ * Body for PUT `/player/{guild}/pause`
+ */
+@Serializable
+data class Pause(val state: Boolean)
+
+/**
+ *
+ */
+@Serializable
+data class Configure(
+    val filters: Filters?,
+    val pause: Boolean?,
+    @SerialName("send_player_updates")
+    val sendPlayerUpdates: Boolean?
+)
+
+/**
  *
  */
 @Serializable
@@ -160,6 +214,9 @@ data class PlayTrack(
     @SerialName("no_replace") val noReplace: Boolean = false
 )
 
+/**
+ *
+ */
 @Serializable
 data class StopTrackResponse(
     val track: Track?,

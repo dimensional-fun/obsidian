@@ -30,7 +30,7 @@ import java.net.InetAddress
 fun Routing.planner() {
     val routePlanner = Application.players.routePlanner
 
-    route("/routeplanner") {
+    route("/planner") {
         authenticate {
             get("/status") {
                 routePlanner
@@ -46,7 +46,6 @@ fun Routing.planner() {
             }
 
             route("/free") {
-
                 post("/address") {
                     routePlanner
                         ?: return@post context.respond(HttpStatusCode.NotImplemented, RoutePlannerDisabled())

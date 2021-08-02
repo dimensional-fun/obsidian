@@ -32,12 +32,12 @@ open class CoroutineAudioEventAdapter(private val dispatcher: CoroutineDispatche
         get() = dispatcher + SupervisorJob()
 
     /* playback start/end */
-    open suspend fun onTrackStart(track: AudioTrack, player: AudioPlayer) = Unit
-    open suspend fun onTrackEnd(track: AudioTrack, reason: AudioTrackEndReason, player: AudioPlayer) = Unit
+    open suspend fun onTrackStart(player: AudioPlayer, track: AudioTrack) = Unit
+    open suspend fun onTrackEnd(player: AudioPlayer, track: AudioTrack, reason: AudioTrackEndReason) = Unit
 
     /* exception */
-    open suspend fun onTrackStuck(thresholdMs: Long, track: AudioTrack, player: AudioPlayer) = Unit
-    open suspend fun onTrackException(exception: FriendlyException, track: AudioTrack, player: AudioPlayer) = Unit
+    open suspend fun onTrackStuck(player: AudioPlayer, track: AudioTrack, thresholdMs: Long) = Unit
+    open suspend fun onTrackException(player: AudioPlayer, track: AudioTrack, exception: FriendlyException) = Unit
 
     /* playback state */
     open suspend fun onPlayerResume(player: AudioPlayer) = Unit
@@ -46,10 +46,10 @@ open class CoroutineAudioEventAdapter(private val dispatcher: CoroutineDispatche
     override fun onEvent(event: AudioEvent) {
         launch {
             when (event) {
-                is TrackStartEvent -> onTrackStart(event.track, event.player)
-                is TrackEndEvent -> onTrackEnd(event.track, event.endReason, event.player)
-                is TrackStuckEvent -> onTrackStuck(event.thresholdMs, event.track, event.player)
-                is TrackExceptionEvent -> onTrackException(event.exception, event.track, event.player)
+                is TrackStartEvent -> onTrackStart(event.player, event.track)
+                is TrackEndEvent -> onTrackEnd(event.player, event.track, event.endReason)
+                is TrackStuckEvent -> onTrackStuck(event.player, event.track, event.thresholdMs)
+                is TrackExceptionEvent -> onTrackException(event.player, event.track, event.exception)
                 is PlayerResumeEvent -> onPlayerResume(event.player)
                 is PlayerPauseEvent -> onPlayerPause(event.player)
             }

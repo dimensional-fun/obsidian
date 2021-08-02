@@ -20,18 +20,7 @@ import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.pattern.CompositeConverter
 
-fun interface Convert {
-    fun take(str: String): String
-}
-
 class LogbackColorConverter : CompositeConverter<ILoggingEvent>() {
-    override fun transform(event: ILoggingEvent, element: String): String {
-        val option = ANSI_COLORS[firstOption]
-            ?: ANSI_COLORS[LEVELS[event.level.toInt()]]
-            ?: ANSI_COLORS["green"]
-
-        return option!!.take(element)
-    }
 
     companion object {
         val Number.ansi: String
@@ -57,4 +46,17 @@ class LogbackColorConverter : CompositeConverter<ILoggingEvent>() {
             Level.TRACE_INTEGER to "magenta"
         )
     }
+
+    override fun transform(event: ILoggingEvent, element: String): String {
+        val option = ANSI_COLORS[firstOption]
+            ?: ANSI_COLORS[LEVELS[event.level.toInt()]]
+            ?: ANSI_COLORS["green"]
+
+        return option!!.take(element)
+    }
+
+    fun interface Convert {
+        fun take(str: String): String
+    }
+
 }

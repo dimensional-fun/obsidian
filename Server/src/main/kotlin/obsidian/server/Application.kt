@@ -69,7 +69,7 @@ object Application {
     /**
      * Logger
      */
-    val log: org.slf4j.Logger = LoggerFactory.getLogger(Application::class.java)
+    val logger: org.slf4j.Logger = LoggerFactory.getLogger(Application::class.java)
 
     /**
      * Json parser used by ktor and us.
@@ -78,6 +78,10 @@ object Application {
         isLenient = true
         encodeDefaults = true
         ignoreUnknownKeys = true
+    }
+
+    init {
+        logger.info("Obsidian version: ${VersionInfo.VERSION}, commit: ${VersionInfo.GIT_REVISION}")
     }
 
     @JvmStatic
@@ -90,22 +94,22 @@ object Application {
         try {
             val type = SystemType.detect(SystemNativeLibraryProperties(null, "nativeloader."))
 
-            log.info("Detected System: type = ${type.osType()}, arch = ${type.architectureType()}")
-            log.info("Processor Information: ${NativeLibLoader.loadSystemInfo()}")
+            logger.info("Detected System: type = ${type.osType()}, arch = ${type.architectureType()}")
+            logger.info("Processor Information: ${NativeLibLoader.loadSystemInfo()}")
         } catch (e: Exception) {
             val message =
                 "Unable to load system info" + if (e is UnsatisfiedLinkError || e is RuntimeException && e.cause is UnsatisfiedLinkError)
                     ", this isn't an error" else "."
 
-            log.warn(message, e)
+            logger.warn(message, e)
         }
 
         try {
-            log.info("Loading Native Libraries")
+            logger.info("Loading Native Libraries")
             NativeUtil.timescaleAvailable = true
             NativeUtil.load()
         } catch (ex: Exception) {
-            log.error("Fatal exception while loading native libraries.", ex)
+            logger.error("Fatal exception while loading native libraries.", ex)
             exitProcess(1)
         }
 

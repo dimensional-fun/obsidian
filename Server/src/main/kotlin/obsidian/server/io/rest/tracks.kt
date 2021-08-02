@@ -38,44 +38,43 @@ import obsidian.server.util.search.LoadType
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
-private val logger: Logger = LoggerFactory.getLogger("Routing.tracks")
+fun Routing.tracks() = authenticate {
+    get<LoadTracks> { data ->
+        val result = AudioLoader
+            .load(data.identifier, Application.players)
+            .await()
 
-fun Routing.tracks() {
-    authenticate {
-        get<LoadTracks> { data ->
-            val result = AudioLoader
-                .load(data.identifier, Application.players)
-                .await()
+        val playlist = result.playlistName?.let {
+            LoadTracks.Response.PlaylistInfo(name = it, selectedTrack = result.selectedTrack, url = data.identifier)
+        }
 
-            val playlist = result.playlistName?.let {
-                LoadTracks.Response.PlaylistInfo(name = it, selectedTrack = result.selectedTrack, url = data.identifier)
-            }
-
-            val exception = if (result.loadResultType == LoadType.LOAD_FAILED && result.exception != null) {
-                LoadTracks.Response.Exception(message = result.exception!!.localizedMessage, severity = result.exception!!.severity)
-            } else {
-                null
-            }
-
-            val response = LoadTracks.Response(
-                tracks = result.tracks.map(::getTrack),
-                type = result.loadResultType,
-                playlistInfo = playlist,
-                exception = exception
+        val exception = if (result.loadResultType == LoadType.LOAD_FAILED && result.exception != null) {
+            LoadTracks.Response.Exception(
+                message = result.exception!!.localizedMessage,
+                severity = result.exception!!.severity
             )
-
-            context.respond(response)
+        } else {
+            null
         }
 
-        get<DecodeTrack> {
-            val track = TrackUtil.decode(it.track)
-            context.respond(getTrackInfo(track))
-        }
+        val response = LoadTracks.Response(
+            tracks = result.tracks.map(::getTrack),
+            type = result.loadResultType,
+            playlistInfo = playlist,
+            exception = exception
+        )
 
-        post("/decodetracks") {
-            val body = call.receive<DecodeTracksBody>()
-            context.respond(body.tracks.map(::getTrackInfo))
-        }
+        context.respond(response)
+    }
+
+    get<DecodeTrack> {
+        val track = TrackUtil.decode(it.track)
+        context.respond(getTrackInfo(track))
+    }
+
+    post("/decodetracks") {
+        val body = call.receive<DecodeTracksBody>()
+        context.respond(body.tracks.map(::getTrackInfo))
     }
 }
 

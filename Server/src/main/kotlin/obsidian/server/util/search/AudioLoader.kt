@@ -42,7 +42,7 @@ class AudioLoader(private val deferred: CompletableDeferred<LoadResult>) : Audio
     }
 
     override fun playlistLoaded(audioPlaylist: AudioPlaylist) {
-        logger.info("Loaded playlist \"${audioPlaylist.name}\"")
+        logger.info("Loaded playlist: ${audioPlaylist.name}")
 
         val result = if (audioPlaylist.isSearchResult) {
             LoadResult(LoadType.SEARCH_RESULT, audioPlaylist.tracks, null, null)

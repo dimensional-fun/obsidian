@@ -59,13 +59,11 @@ class CpuTimer {
     /**
      * Attempts to call a method either directly or via one of the implemented interfaces.
      *
-     *
      * A Method object refers to a specific method declared in a specific class. The first invocation
      * might happen with method == SomeConcreteClass.publicLongGetter() and will fail if
      * SomeConcreteClass is not public. We then recurse over all interfaces implemented by
      * SomeConcreteClass (or extended by those interfaces and so on) until we eventually invoke
      * callMethod() with method == SomePublicInterface.publicLongGetter(), which will then succeed.
-     *
      *
      * There is a built-in assumption that the method will never return null (or, equivalently, that
      * it returns the primitive data type, i.e. `long` rather than `Long`). If this

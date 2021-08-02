@@ -75,11 +75,11 @@ class PlayerUpdates(val player: Player) : CoroutineAudioEventAdapter() {
         }
     }
 
-    override suspend fun onTrackStart(track: AudioTrack, player: AudioPlayer) {
+    override suspend fun onTrackStart(player: AudioPlayer, track: AudioTrack) {
         start()
     }
 
-    override suspend fun onTrackEnd(track: AudioTrack, reason: AudioTrackEndReason, player: AudioPlayer) {
+    override suspend fun onTrackEnd(player: AudioPlayer, track: AudioTrack, reason: AudioTrackEndReason) {
         stop()
     }
 

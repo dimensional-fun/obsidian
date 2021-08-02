@@ -64,10 +64,8 @@ object RoutePlannerUtil {
     }
 }
 
-data class RoutePlannerStatus(
-    val `class`: String?,
-    val details: IRoutePlannerStatus?
-) {
+@Serializable
+data class RoutePlannerStatus(val `class`: String?, val details: IRoutePlannerStatus?) {
     interface IRoutePlannerStatus
 }
 
