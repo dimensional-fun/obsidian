@@ -20,15 +20,15 @@ import moe.kyokobot.koe.MediaConnection
 import moe.kyokobot.koe.codec.AbstractFramePoller
 import moe.kyokobot.koe.codec.OpusCodec
 import moe.kyokobot.koe.internal.handler.DiscordUDPConnection
-import moe.kyokobot.koe.media.IntReference
 import java.net.InetSocketAddress
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 class UdpQueueFramePoller(connection: MediaConnection, private val manager: QueueManagerPool.UdpQueueWrapper) :
     AbstractFramePoller(connection) {
 
     private var lastFrame: Long = 0
-    private val timestamp: IntReference = IntReference()
+    private val timestamp = AtomicInteger()
 
     override fun start() {
         check(!polling) {
@@ -63,11 +63,11 @@ class UdpQueueFramePoller(connection: MediaConnection, private val manager: Queu
 
                 /* retrieve a frame so we can compare */
                 val start = buf.writerIndex()
-                sender.retrieve(OpusCodec.INSTANCE, buf, timestamp)
+                sender.retrieve(OpusCodec.INSTANCE, buf, timestamp, null)
 
                 /* create a packet */
                 val packet =
-                    handler.createPacket(OpusCodec.PAYLOAD_TYPE, timestamp.get(), buf, buf.writerIndex() - start, false)
+                    handler.createPacket(OpusCodec.PAYLOAD_TYPE, timestamp.get(), connection.gatewayConnection!!.audioSSRC, buf, buf.writerIndex() - start, false)
 
                 if (packet != null) {
                     manager.queuePacket(packet.nioBuffer(), handler.serverAddress as InetSocketAddress)
