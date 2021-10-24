@@ -16,8 +16,8 @@
 
 package obsidian.server.player
 
-import com.sedmelluq.discord.lavaplayer.player.AudioPlayer
-import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter
+import com.sedmelluq.discord.lavaplayer.manager.AudioPlayer
+import com.sedmelluq.discord.lavaplayer.manager.event.AudioEventAdapter
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason
 import obsidian.server.io.ws.Frames
@@ -113,10 +113,10 @@ class FrameLossTracker : AudioEventAdapter() {
     }
 
     /* listeners */
-    override fun onTrackEnd(player: AudioPlayer?, track: AudioTrack?, reason: AudioTrackEndReason?) = end()
-    override fun onTrackStart(player: AudioPlayer?, track: AudioTrack?) = start()
-    override fun onPlayerPause(player: AudioPlayer?) = end()
-    override fun onPlayerResume(player: AudioPlayer?) = start()
+    override fun onTrackEnd(player: AudioPlayer, track: AudioTrack, endReason: AudioTrackEndReason) = end()
+    override fun onTrackStart(player: AudioPlayer, track: AudioTrack) = start()
+    override fun onPlayerPause(player: AudioPlayer) = end()
+    override fun onPlayerResume(player: AudioPlayer) = start()
 
     companion object {
         const val ONE_SECOND = 1e9

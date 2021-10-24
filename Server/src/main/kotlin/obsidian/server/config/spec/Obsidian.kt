@@ -51,6 +51,11 @@ object Obsidian : ConfigSpec() {
         val auth by optional("")
 
         /**
+         * Path used for the websocket.
+         */
+        val wsPath by optional("/", "ws-path")
+
+        /**
          * Used to validate a string given as authorization.
          *
          * @param given The given authorization string.

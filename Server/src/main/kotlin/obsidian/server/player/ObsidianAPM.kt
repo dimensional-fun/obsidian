@@ -16,22 +16,25 @@
 
 package obsidian.server.player
 
-import com.sedmelluq.discord.lavaplayer.player.DefaultAudioPlayerManager
-import com.sedmelluq.discord.lavaplayer.source.AudioSourceManager
-import com.sedmelluq.discord.lavaplayer.source.bandcamp.BandcampAudioSourceManager
-import com.sedmelluq.discord.lavaplayer.source.getyarn.GetyarnAudioSourceManager
-import com.sedmelluq.discord.lavaplayer.source.http.HttpAudioSourceManager
-import com.sedmelluq.discord.lavaplayer.source.local.LocalAudioSourceManager
-import com.sedmelluq.discord.lavaplayer.source.nico.NicoAudioSourceManager
-import com.sedmelluq.discord.lavaplayer.source.soundcloud.*
-import com.sedmelluq.discord.lavaplayer.source.twitch.TwitchStreamAudioSourceManager
-import com.sedmelluq.discord.lavaplayer.source.vimeo.VimeoAudioSourceManager
-import com.sedmelluq.discord.lavaplayer.source.youtube.YoutubeAudioSourceManager
+import com.sedmelluq.discord.lavaplayer.manager.DefaultAudioPlayerManager
+import com.sedmelluq.discord.lavaplayer.source.ItemSourceManager
+import com.sedmelluq.discord.lavaplayer.source.bandcamp.BandcampItemSourceManager
+import com.sedmelluq.discord.lavaplayer.source.getyarn.GetyarnItemSourceManager
+import com.sedmelluq.discord.lavaplayer.source.http.HttpItemSourceManager
+import com.sedmelluq.discord.lavaplayer.source.local.LocalItemSourceManager
+import com.sedmelluq.discord.lavaplayer.source.nico.NicoItemSourceManager
+import com.sedmelluq.discord.lavaplayer.source.soundcloud.DefaultSoundCloudFormatHandler
+import com.sedmelluq.discord.lavaplayer.source.soundcloud.DefaultSoundCloudHtmlDataLoader
+import com.sedmelluq.discord.lavaplayer.source.soundcloud.DefaultSoundCloudPlaylistLoader
+import com.sedmelluq.discord.lavaplayer.source.soundcloud.SoundCloudItemSourceManager
+import com.sedmelluq.discord.lavaplayer.source.twitch.TwitchStreamItemSourceManager
+import com.sedmelluq.discord.lavaplayer.source.vimeo.VimeoItemSourceManager
+import com.sedmelluq.discord.lavaplayer.source.youtube.YoutubeItemSourceManager
 import com.sedmelluq.discord.lavaplayer.track.playback.NonAllocatingAudioFrameBuffer
-import com.sedmelluq.lava.extensions.youtuberotator.YoutubeIpRotatorSetup
-import com.sedmelluq.lava.extensions.youtuberotator.planner.*
-import com.sedmelluq.lava.extensions.youtuberotator.tools.ip.Ipv4Block
-import com.sedmelluq.lava.extensions.youtuberotator.tools.ip.Ipv6Block
+import com.sedmelluq.lava.extensions.iprotator.YoutubeIpRotatorSetup
+import com.sedmelluq.lava.extensions.iprotator.planner.*
+import com.sedmelluq.lava.extensions.iprotator.tools.ip.Ipv4Block
+import com.sedmelluq.lava.extensions.iprotator.tools.ip.Ipv6Block
 import obsidian.server.Application.config
 import obsidian.server.config.spec.Obsidian
 import org.slf4j.Logger
@@ -76,11 +79,11 @@ class ObsidianAPM : DefaultAudioPlayerManager() {
     }
 
     init {
-        configuration.apply {
-            isFilterHotSwapEnabled = true
+        configuration {
+            filterHotSwapEnabled = true
             if (config[Obsidian.Lavaplayer.nonAllocating]) {
                 logger.info("Using the non-allocating audio frame buffer.")
-                setFrameBufferFactory(::NonAllocatingAudioFrameBuffer)
+                useFrameBufferFactory(::NonAllocatingAudioFrameBuffer)
             }
         }
 
@@ -96,12 +99,12 @@ class ObsidianAPM : DefaultAudioPlayerManager() {
             .forEach { source ->
                 when (source.lowercase()) {
                     "youtube" -> {
-                        val youtube = YoutubeAudioSourceManager(config[Obsidian.Lavaplayer.YouTube.allowSearch]).apply {
-                            setPlaylistPageCount(config[Obsidian.Lavaplayer.YouTube.playlistPageLimit])
+                        val youtube = YoutubeItemSourceManager(config[Obsidian.Lavaplayer.YouTube.allowSearch]).apply {
+                            playlistPageCount = config[Obsidian.Lavaplayer.YouTube.playlistPageLimit]
 
                             if (routePlanner != null) {
-                                val rotator = YoutubeIpRotatorSetup(routePlanner)
-                                    .forSource(this)
+                                val rotator = YoutubeIpRotatorSetup(routePlanner!!)
+                                    .applyTo(this)
 
                                 val retryLimit = config[Obsidian.Lavaplayer.RateLimit.retryLimit]
                                 if (retryLimit <= 0) {
@@ -116,17 +119,15 @@ class ObsidianAPM : DefaultAudioPlayerManager() {
                     }
 
                     "soundcloud" -> {
-                        val dataReader = DefaultSoundCloudDataReader()
                         val htmlDataLoader = DefaultSoundCloudHtmlDataLoader()
                         val formatHandler = DefaultSoundCloudFormatHandler()
 
                         registerSourceManager(
-                            SoundCloudAudioSourceManager(
+                            SoundCloudItemSourceManager(
                                 config[Obsidian.Lavaplayer.allowScSearch],
-                                dataReader,
                                 htmlDataLoader,
                                 formatHandler,
-                                DefaultSoundCloudPlaylistLoader(htmlDataLoader, dataReader, formatHandler)
+                                DefaultSoundCloudPlaylistLoader(htmlDataLoader, formatHandler)
                             )
                         )
                     }
@@ -136,16 +137,16 @@ class ObsidianAPM : DefaultAudioPlayerManager() {
                         val password = config[Obsidian.Lavaplayer.Nico.password]
 
                         if (email.isNotBlank() && password.isNotBlank()) {
-                            registerSourceManager(NicoAudioSourceManager(email, password))
+                            registerSourceManager(NicoItemSourceManager(email, password))
                         }
                     }
 
-                    "bandcamp" -> registerSourceManager(BandcampAudioSourceManager())
-                    "twitch" -> registerSourceManager(TwitchStreamAudioSourceManager())
-                    "vimeo" -> registerSourceManager(VimeoAudioSourceManager())
-                    "http" -> registerSourceManager(HttpAudioSourceManager())
-                    "local" -> registerSourceManager(LocalAudioSourceManager())
-                    "yarn" -> registerSourceManager(GetyarnAudioSourceManager())
+                    "bandcamp" -> registerSourceManager(BandcampItemSourceManager())
+                    "twitch" -> registerSourceManager(TwitchStreamItemSourceManager())
+                    "vimeo" -> registerSourceManager(VimeoItemSourceManager())
+                    "http" -> registerSourceManager(HttpItemSourceManager())
+                    "local" -> registerSourceManager(LocalItemSourceManager())
+                    "yarn" -> registerSourceManager(GetyarnItemSourceManager())
 
                     else -> logger.warn("Unknown source \"$source\"")
                 }
@@ -154,7 +155,7 @@ class ObsidianAPM : DefaultAudioPlayerManager() {
         logger.info("Enabled sources: ${enabledSources.joinToString(", ")}")
     }
 
-    override fun registerSourceManager(sourceManager: AudioSourceManager) {
+    override fun registerSourceManager(sourceManager: ItemSourceManager) {
         super.registerSourceManager(sourceManager)
         enabledSources.add(sourceManager.sourceName)
     }

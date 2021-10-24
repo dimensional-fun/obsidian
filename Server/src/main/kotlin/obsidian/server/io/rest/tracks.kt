@@ -18,25 +18,30 @@ package obsidian.server.io.rest
 
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
+import com.sedmelluq.discord.lavaplayer.track.AudioTrackCollectionType
 import io.ktor.application.*
 import io.ktor.auth.*
 import io.ktor.locations.*
 import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
+import kotlinx.serialization.*
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.descriptors.buildClassSerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonTransformingSerializer
 import obsidian.server.Application
 import obsidian.server.util.TrackUtil
 import obsidian.server.util.kxs.AudioTrackSerializer
 import obsidian.server.util.search.AudioLoader
 import obsidian.server.util.search.LoadType
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
+import kotlin.reflect.jvm.jvmName
 
 fun Routing.tracks() = authenticate {
     get<LoadTracks> { data ->
@@ -44,11 +49,18 @@ fun Routing.tracks() = authenticate {
             .load(data.identifier, Application.players)
             .await()
 
-        val playlist = result.playlistName?.let {
-            LoadTracks.Response.PlaylistInfo(name = it, selectedTrack = result.selectedTrack, url = data.identifier)
+        val collection = if (result.loadResultType != LoadType.FAILED) {
+            LoadTracks.Response.CollectionInfo(
+                name = result.collectionName!!,
+                selectedTrack = result.selectedTrack,
+                url = if (result.collectionType!! is AudioTrackCollectionType.SearchResult) null else data.identifier,
+                type = result.collectionType
+            )
+        } else {
+            null
         }
 
-        val exception = if (result.loadResultType == LoadType.LOAD_FAILED && result.exception != null) {
+        val exception = if (result.loadResultType == LoadType.FAILED && result.exception != null) {
             LoadTracks.Response.Exception(
                 message = result.exception!!.localizedMessage,
                 severity = result.exception!!.severity
@@ -60,7 +72,7 @@ fun Routing.tracks() = authenticate {
         val response = LoadTracks.Response(
             tracks = result.tracks.map(::getTrack),
             type = result.loadResultType,
-            playlistInfo = playlist,
+            collectionInfo = collection,
             exception = exception
         )
 
@@ -121,23 +133,22 @@ data class LoadTracks(val identifier: String) {
     data class Response(
         @SerialName("load_type")
         val type: LoadType,
-        @SerialName("playlist_info")
-        val playlistInfo: PlaylistInfo?,
+        @SerialName("collection_info")
+        val collectionInfo: CollectionInfo?,
         val tracks: List<Track>,
         val exception: Exception?
     ) {
         @Serializable
-        data class Exception(
-            val message: String,
-            val severity: FriendlyException.Severity
-        )
+        data class Exception(val message: String, val severity: FriendlyException.Severity)
 
         @Serializable
-        data class PlaylistInfo(
+        data class CollectionInfo(
             val name: String,
+            val url: String?,
             @SerialName("selected_track")
             val selectedTrack: Int?,
-            val url: String
+            @Serializable(with = AudioTrackCollectionTypeSerializer::class)
+            val type: AudioTrackCollectionType
         )
     }
 }
@@ -152,7 +163,7 @@ data class Track(
     data class Info(
         val title: String,
         val author: String,
-        val uri: String,
+        val uri: String?,
         val identifier: String,
         val length: Long,
         val position: Long,
@@ -163,6 +174,25 @@ data class Track(
         @SerialName("source_name")
         val sourceName: String
     )
+}
+
+object AudioTrackCollectionTypeSerializer : KSerializer<AudioTrackCollectionType> {
+    override val descriptor: SerialDescriptor = buildClassSerialDescriptor("lavaplayer.AudioTrackCollectionType") {
+        element("name", String.serializer().descriptor)
+        element("d", JsonObject.serializer().descriptor)
+    }
+
+    @OptIn(InternalSerializationApi::class)
+    override fun serialize(encoder: Encoder, value: AudioTrackCollectionType) {
+        with (encoder.beginStructure(descriptor)) {
+            encodeStringElement(descriptor, 0, value::class.simpleName ?: value::class.jvmName)
+            encodeSerializableElement(descriptor, 1, value::class.serializer() as SerializationStrategy<AudioTrackCollectionType>, value)
+            endStructure(descriptor)
+        }
+    }
+
+    override fun deserialize(decoder: Decoder): AudioTrackCollectionType =
+        TODO("Not Supported")
 }
 
 object AudioTrackListSerializer : JsonTransformingSerializer<List<AudioTrack>>(ListSerializer(AudioTrackSerializer)) {

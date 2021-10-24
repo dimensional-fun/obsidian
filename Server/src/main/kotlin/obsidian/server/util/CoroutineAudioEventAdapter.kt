@@ -16,8 +16,8 @@
 
 package obsidian.server.util
 
-import com.sedmelluq.discord.lavaplayer.player.AudioPlayer
-import com.sedmelluq.discord.lavaplayer.player.event.*
+import com.sedmelluq.discord.lavaplayer.manager.AudioPlayer
+import com.sedmelluq.discord.lavaplayer.manager.event.*
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason
@@ -43,16 +43,14 @@ open class CoroutineAudioEventAdapter(private val dispatcher: CoroutineDispatche
     open suspend fun onPlayerResume(player: AudioPlayer) = Unit
     open suspend fun onPlayerPause(player: AudioPlayer) = Unit
 
-    override fun onEvent(event: AudioEvent) {
-        launch {
-            when (event) {
-                is TrackStartEvent -> onTrackStart(event.player, event.track)
-                is TrackEndEvent -> onTrackEnd(event.player, event.track, event.endReason)
-                is TrackStuckEvent -> onTrackStuck(event.player, event.track, event.thresholdMs)
-                is TrackExceptionEvent -> onTrackException(event.player, event.track, event.exception)
-                is PlayerResumeEvent -> onPlayerResume(event.player)
-                is PlayerPauseEvent -> onPlayerPause(event.player)
-            }
+    override suspend fun onEvent(event: AudioEvent) {
+        when (event) {
+            is TrackStartEvent -> onTrackStart(event.player, event.track)
+            is TrackEndEvent -> onTrackEnd(event.player, event.track, event.endReason)
+            is TrackStuckEvent -> onTrackStuck(event.player, event.track, event.thresholdMs)
+            is TrackExceptionEvent -> onTrackException(event.player, event.track, event.exception)
+            is PlayerResumeEvent -> onPlayerResume(event.player)
+            is PlayerPauseEvent -> onPlayerPause(event.player)
         }
     }
 }

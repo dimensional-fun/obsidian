@@ -27,6 +27,8 @@ import kotlinx.serialization.encoding.Encoder
 @Serializable(with = Op.Serializer::class)
 enum class Op(val code: Short) {
     SUBMIT_VOICE_UPDATE(0),
+    HELLO(13),
+    RESUMED(14),
     STATS(1),
 
     SETUP_RESUMING(2),

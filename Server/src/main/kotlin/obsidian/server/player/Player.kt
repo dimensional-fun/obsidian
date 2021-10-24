@@ -17,10 +17,11 @@
 package obsidian.server.player
 
 import com.sedmelluq.discord.lavaplayer.format.StandardAudioDataFormats
-import com.sedmelluq.discord.lavaplayer.player.AudioPlayer
-import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter
-import com.sedmelluq.discord.lavaplayer.player.event.AudioEventListener
+import com.sedmelluq.discord.lavaplayer.manager.AudioPlayer
+import com.sedmelluq.discord.lavaplayer.manager.event.AudioEventAdapter
+import com.sedmelluq.discord.lavaplayer.manager.event.AudioEventListener
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException
+import com.sedmelluq.discord.lavaplayer.tools.extensions.addListener
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason
 import com.sedmelluq.discord.lavaplayer.track.playback.MutableAudioFrame
@@ -46,6 +47,11 @@ class Player(val guildId: Long, val client: MagmaClient) : AudioEventAdapter() {
     }
 
     /**
+     * Frame loss tracker.
+     */
+    val frameLossTracker = FrameLossTracker()
+
+    /**
      * Audio player for receiving frames.
      */
     val audioPlayer: AudioPlayer by lazy {
@@ -54,11 +60,6 @@ class Player(val guildId: Long, val client: MagmaClient) : AudioEventAdapter() {
             .addEventListener(updates)
             .addEventListener(this)
     }
-
-    /**
-     * Frame loss tracker.
-     */
-    val frameLossTracker = FrameLossTracker()
 
     /**
      * Whether the player is currently playing a track.
@@ -91,15 +92,15 @@ class Player(val guildId: Long, val client: MagmaClient) : AudioEventAdapter() {
             "A track must be playing in order to seek."
         }
 
-        require(audioPlayer.playingTrack.isSeekable) {
+        require(audioPlayer.playingTrack!!.isSeekable) {
             "The playing track is not seekable."
         }
 
-        require(position in 0..audioPlayer.playingTrack.duration) {
+        require(position in 0..audioPlayer.playingTrack!!.duration) {
             "The given position must be within 0 and the current playing track's duration."
         }
 
-        audioPlayer.playingTrack.position = position
+        audioPlayer.playingTrack?.position = position
     }
 
     /**
@@ -112,7 +113,7 @@ class Player(val guildId: Long, val client: MagmaClient) : AudioEventAdapter() {
     /**
      *
      */
-    override fun onTrackStuck(player: AudioPlayer?, track: AudioTrack?, thresholdMs: Long) {
+    override fun onTrackStuck(player: AudioPlayer, track: AudioTrack, thresholdMs: Long) {
         client.websocket?.let {
             val event = TrackStuckEvent(
                 guildId = guildId,
@@ -127,7 +128,7 @@ class Player(val guildId: Long, val client: MagmaClient) : AudioEventAdapter() {
     /**
      *
      */
-    override fun onTrackException(player: AudioPlayer?, track: AudioTrack, exception: FriendlyException) {
+    override fun onTrackException(player: AudioPlayer, track: AudioTrack, exception: FriendlyException) {
         client.websocket?.let {
             val event = TrackExceptionEvent(
                 guildId = guildId,
@@ -142,7 +143,7 @@ class Player(val guildId: Long, val client: MagmaClient) : AudioEventAdapter() {
     /**
      *
      */
-    override fun onTrackStart(player: AudioPlayer?, track: AudioTrack) {
+    override fun onTrackStart(player: AudioPlayer, track: AudioTrack) {
         client.websocket?.let {
             val event = TrackStartEvent(
                 guildId = guildId,
@@ -156,7 +157,7 @@ class Player(val guildId: Long, val client: MagmaClient) : AudioEventAdapter() {
     /**
      * Sends a track end player event to the websocket connection, if any.
      */
-    override fun onTrackEnd(player: AudioPlayer?, track: AudioTrack, reason: AudioTrackEndReason) {
+    override fun onTrackEnd(player: AudioPlayer, track: AudioTrack, reason: AudioTrackEndReason) {
         client.websocket?.let {
             val event = TrackEndEvent(
                 track = track,
@@ -178,7 +179,7 @@ class Player(val guildId: Long, val client: MagmaClient) : AudioEventAdapter() {
 
     inner class OpusFrameProvider(connection: MediaConnection) : OpusAudioFrameProvider(connection) {
 
-        private val frameBuffer = ByteBuffer.allocate(StandardAudioDataFormats.DISCORD_OPUS.maximumChunkSize())
+        private val frameBuffer = ByteBuffer.allocate(StandardAudioDataFormats.DISCORD_OPUS.maximumChunkSize)
         private val lastFrame = MutableAudioFrame()
 
         init {

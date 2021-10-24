@@ -78,6 +78,16 @@ sealed class Dispatch {
                         encodeSerializableElement(descriptor, 0, Op, Op.PLAYER_EVENT)
                         encodeSerializableElement(descriptor, 1, WebSocketClosedEvent.serializer(), value)
                     }
+
+                    is Hello -> {
+                        encodeSerializableElement(descriptor, 0, Op, Op.HELLO)
+                        encodeSerializableElement(descriptor, 1, Hello.serializer(), value)
+                    }
+                    
+                    is Resumed -> {
+                        encodeSerializableElement(descriptor, 0, Op, Op.RESUMED)
+                        encodeSerializableElement(descriptor, 1, Resumed.serializer(), value)
+                    }
                 }
 
                 endStructure(descriptor)
@@ -221,6 +231,12 @@ data class TrackExceptionEvent(
         }
     }
 }
+
+@Serializable
+data class Hello(val id: String) : Dispatch()
+
+@Serializable
+data class Resumed(val id: String, val players: List<Long>) : Dispatch()
 
 @Serializable
 data class Stats(

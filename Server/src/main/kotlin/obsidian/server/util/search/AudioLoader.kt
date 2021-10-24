@@ -16,52 +16,51 @@
 
 package obsidian.server.util.search
 
-
-import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler
-import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager
+import com.sedmelluq.discord.lavaplayer.manager.AudioPlayerManager
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException
-import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
+import com.sedmelluq.discord.lavaplayer.track.AudioTrackCollection
+import com.sedmelluq.discord.lavaplayer.track.loader.ItemLoadResultAdapter
 import kotlinx.coroutines.CompletableDeferred
-import org.slf4j.LoggerFactory
+import mu.KotlinLogging
 
-class AudioLoader(private val deferred: CompletableDeferred<LoadResult>) : AudioLoadResultHandler {
-
+class AudioLoader(private val deferred: CompletableDeferred<LoadResult>) : ItemLoadResultAdapter() {
     companion object {
-        private val logger = LoggerFactory.getLogger(AudioLoader::class.java)
+        private val logger = KotlinLogging.logger { }
 
-        fun load(identifier: String, playerManager: AudioPlayerManager) = CompletableDeferred<LoadResult>().also {
-            val handler = AudioLoader(it)
-            playerManager.loadItem(identifier, handler)
-        }
+        suspend fun load(identifier: String, playerManager: AudioPlayerManager) =
+            CompletableDeferred<LoadResult>().also {
+                val itemLoader = playerManager.items.createItemLoader(identifier)
+                itemLoader.resultHandler = AudioLoader(it)
+                itemLoader.load()
+            }
     }
 
-    override fun trackLoaded(audioTrack: AudioTrack) {
-        logger.info("Loaded track ${audioTrack.info.title}")
-        deferred.complete(LoadResult(LoadType.TRACK_LOADED, listOf(audioTrack), null, null))
+    override fun onTrackLoad(track: AudioTrack) {
+        logger.info { "Loaded track ${track.info.title}" }
+        deferred.complete(LoadResult(LoadType.TRACK, listOf(track), null, null))
     }
 
-    override fun playlistLoaded(audioPlaylist: AudioPlaylist) {
-        logger.info("Loaded playlist: ${audioPlaylist.name}")
-
-        val result = if (audioPlaylist.isSearchResult) {
-            LoadResult(LoadType.SEARCH_RESULT, audioPlaylist.tracks, null, null)
-        } else {
-            val selectedTrack = audioPlaylist.tracks.indexOf(audioPlaylist.selectedTrack)
-            LoadResult(LoadType.PLAYLIST_LOADED, audioPlaylist.tracks, audioPlaylist.name, selectedTrack)
-        }
+    override fun onCollectionLoad(collection: AudioTrackCollection) {
+        logger.info { "Loaded playlist: ${collection.name}" }
+        val result = LoadResult(
+            LoadType.TRACK_COLLECTION,
+            collection.tracks,
+            collection.name,
+            collection.type,
+            collection.selectedTrack?.let { collection.tracks.indexOf(it) }
+        )
 
         deferred.complete(result)
     }
 
     override fun noMatches() {
-        logger.info("No matches found")
+        logger.info { "No matches found." }
         deferred.complete(LoadResult())
     }
 
-    override fun loadFailed(e: FriendlyException) {
-        logger.error("Failed to load", e)
-        deferred.complete(LoadResult(e))
+    override fun onLoadFailed(exception: FriendlyException) {
+        logger.error(exception) { "Failed to load." }
+        deferred.complete(LoadResult(exception))
     }
-
 }

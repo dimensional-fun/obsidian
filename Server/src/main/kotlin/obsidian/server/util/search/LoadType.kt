@@ -17,9 +17,8 @@
 package obsidian.server.util.search
 
 enum class LoadType {
-    TRACK_LOADED,
-    PLAYLIST_LOADED,
-    SEARCH_RESULT,
-    NO_MATCHES,
-    LOAD_FAILED
+    TRACK,
+    TRACK_COLLECTION,
+    NONE,
+    FAILED
 }

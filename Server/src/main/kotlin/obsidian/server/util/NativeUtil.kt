@@ -20,13 +20,12 @@ import com.github.natanbc.lavadsp.natives.TimescaleNativeLibLoader
 import com.github.natanbc.nativeloader.NativeLibLoader
 import com.sedmelluq.discord.lavaplayer.natives.ConnectorNativeLibLoader
 import com.sedmelluq.discord.lavaplayer.udpqueue.natives.UdpQueueManagerLibrary
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
+import mu.KotlinLogging
 
 /**
  * Based on https://github.com/natanbc/andesite/blob/master/src/main/java/andesite/util/NativeUtils.java
  *
- * i want native stuff too :'(
+ * I want native stuff too :'(
  */
 
 object NativeUtil {
@@ -34,7 +33,7 @@ object NativeUtil {
     var udpQueueAvailable: Boolean = false
 
     /* private shit */
-    private val logger: Logger = LoggerFactory.getLogger(NativeUtil::class.java)
+    private val logger = KotlinLogging.logger {  }
 
     // loaders
     private val CONNECTOR_LOADER: NativeLibLoader = NativeLibLoader.create(NativeUtil::class.java, "connector")
@@ -87,7 +86,7 @@ object NativeUtil {
 
             for (i in 0 until 2) {
                 // wtf natan
-                markLoaded(java.lang.reflect.Array.get(loadersField.get(null), i))
+                markLoaded((loadersField.get(null) as List<Any>)[0])
             }
 
             logger.info("Connector loaded")

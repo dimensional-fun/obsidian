@@ -25,14 +25,12 @@ import moe.kyokobot.koe.codec.FramePollerFactory
 import moe.kyokobot.koe.codec.netty.NettyFramePollerFactory
 import moe.kyokobot.koe.codec.udpqueue.UdpQueueFramePollerFactory
 import moe.kyokobot.koe.gateway.GatewayVersion
+import mu.KotlinLogging
 import obsidian.server.Application.config
 import obsidian.server.config.spec.Obsidian
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 
 object KoeUtil {
-
-    private val log: Logger = LoggerFactory.getLogger(KoeUtil::class.java)
+    private val log = KotlinLogging.logger { }
 
     /**
      * The koe instance
@@ -55,7 +53,7 @@ object KoeUtil {
             5 -> GatewayVersion.V5
             4 -> GatewayVersion.V4
             else -> {
-                log.info("Invalid gateway version, defaulting to v5.")
+                log.info { "Invalid gateway version, defaulting to v5." }
                 GatewayVersion.V5
             }
         }
@@ -67,7 +65,7 @@ object KoeUtil {
     private val framePollerFactory: FramePollerFactory by lazy {
         when {
             NativeUtil.udpQueueAvailable && config[Obsidian.Koe.UdpQueue.enabled] -> {
-                log.info("Enabling udp-queue")
+                log.info { "Enabling udp-queue" }
                 UdpQueueFramePollerFactory(
                     config[Obsidian.Koe.UdpQueue.bufferDuration],
                     config[Obsidian.Koe.UdpQueue.poolSize]
@@ -76,10 +74,7 @@ object KoeUtil {
 
             else -> {
                 if (config[Obsidian.Koe.UdpQueue.enabled]) {
-                    log.warn(
-                        "This system and/or architecture appears to not support native audio sending, "
-                                + "GC pauses may cause your bot to stutter during playback."
-                    )
+                    log.warn { "This system and/or architecture appears to not support native audio sending, GC pauses may cause your bot to stutter during playback." }
                 }
 
                 NettyFramePollerFactory()
@@ -96,7 +91,7 @@ object KoeUtil {
             "netty-default" -> ByteBufAllocator.DEFAULT
             "unpooled" -> UnpooledByteBufAllocator.DEFAULT
             else -> {
-                log.warn("Unknown byte-buf allocator '${configured}', defaulting to 'pooled'.")
+                log.warn { "Unknown byte-buf allocator '${configured}', defaulting to 'pooled'." }
                 PooledByteBufAllocator.DEFAULT
             }
         }

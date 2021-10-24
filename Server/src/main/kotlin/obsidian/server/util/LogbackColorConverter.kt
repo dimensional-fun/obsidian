@@ -21,7 +21,6 @@ import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.pattern.CompositeConverter
 
 class LogbackColorConverter : CompositeConverter<ILoggingEvent>() {
-
     companion object {
         val Number.ansi: String
             get() = "\u001b[${this}m"
@@ -58,5 +57,4 @@ class LogbackColorConverter : CompositeConverter<ILoggingEvent>() {
     fun interface Convert {
         fun take(str: String): String
     }
-
 }

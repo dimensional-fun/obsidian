@@ -40,6 +40,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import mu.KotlinLogging
 import obsidian.server.config.spec.Logging
 import obsidian.server.config.spec.Obsidian
 import obsidian.server.io.Magma
@@ -69,7 +70,7 @@ object Application {
     /**
      * Logger
      */
-    val logger: org.slf4j.Logger = LoggerFactory.getLogger(Application::class.java)
+    val logger = KotlinLogging.logger {  }
 
     /**
      * Json parser used by ktor and us.
@@ -81,12 +82,11 @@ object Application {
     }
 
     init {
-        logger.info("Obsidian version: ${VersionInfo.VERSION}, commit: ${VersionInfo.GIT_REVISION}")
+        logger.info { "Obsidian version: ${VersionInfo.VERSION}, commit: ${VersionInfo.GIT_REVISION}" }
     }
 
     @JvmStatic
     fun main(args: Array<out String>) = runBlocking {
-
         /* setup logging */
         configureLogging()
 
@@ -94,22 +94,22 @@ object Application {
         try {
             val type = SystemType.detect(SystemNativeLibraryProperties(null, "nativeloader."))
 
-            logger.info("Detected System: type = ${type.osType()}, arch = ${type.architectureType()}")
-            logger.info("Processor Information: ${NativeLibLoader.loadSystemInfo()}")
+            logger.info { ("Detected System: type = ${type.osType()}, arch = ${type.architectureType()}") }
+            logger.info { ("Processor Information: ${NativeLibLoader.loadSystemInfo()}") }
         } catch (e: Exception) {
             val message =
                 "Unable to load system info" + if (e is UnsatisfiedLinkError || e is RuntimeException && e.cause is UnsatisfiedLinkError)
                     ", this isn't an error" else "."
 
-            logger.warn(message, e)
+            logger.warn(e) { message }
         }
 
         try {
-            logger.info("Loading Native Libraries")
+            logger.info { "Loading Native Libraries" }
             NativeUtil.timescaleAvailable = true
             NativeUtil.load()
         } catch (ex: Exception) {
-            logger.error("Fatal exception while loading native libraries.", ex)
+            logger.error(ex) { "Fatal exception while loading native libraries." }
             exitProcess(1)
         }
 
@@ -159,6 +159,7 @@ object Application {
                     magma()
                 }
             }
+
 
         server.start(wait = true)
         shutdown()

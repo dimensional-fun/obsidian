@@ -25,13 +25,10 @@ import obsidian.server.io.ws.WebSocketHandler
 import obsidian.server.io.ws.WebSocketOpenEvent
 import obsidian.server.player.Player
 import obsidian.server.util.KoeUtil
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import java.net.InetSocketAddress
 import java.util.concurrent.ConcurrentHashMap
 
-class MagmaClient(val userId: Long) {
-
+class MagmaClient(private val userId: Long) {
     /**
      * The name of this client.
      */
@@ -116,7 +113,7 @@ class MagmaClient(val userId: Long) {
         koe.close()
     }
 
-    inner class EventAdapterImpl(val connection: MediaConnection) : KoeEventAdapter() {
+    inner class EventAdapterImpl(private val connection: MediaConnection) : KoeEventAdapter() {
         override fun gatewayReady(target: InetSocketAddress, ssrc: Int) {
             websocket?.launch {
                 val event = WebSocketOpenEvent(
@@ -141,9 +138,5 @@ class MagmaClient(val userId: Long) {
                 websocket?.send(event)
             }
         }
-    }
-
-    companion object {
-        val log: Logger = LoggerFactory.getLogger(MagmaClient::class.java)
     }
 }

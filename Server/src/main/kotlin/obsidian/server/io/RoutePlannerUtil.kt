@@ -16,10 +16,7 @@
 
 package obsidian.server.io
 
-import com.sedmelluq.lava.extensions.youtuberotator.planner.AbstractRoutePlanner
-import com.sedmelluq.lava.extensions.youtuberotator.planner.NanoIpRoutePlanner
-import com.sedmelluq.lava.extensions.youtuberotator.planner.RotatingIpRoutePlanner
-import com.sedmelluq.lava.extensions.youtuberotator.planner.RotatingNanoIpRoutePlanner
+import com.sedmelluq.lava.extensions.iprotator.planner.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.util.*

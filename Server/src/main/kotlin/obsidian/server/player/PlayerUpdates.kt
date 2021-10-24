@@ -16,7 +16,7 @@
 
 package obsidian.server.player
 
-import com.sedmelluq.discord.lavaplayer.player.AudioPlayer
+import com.sedmelluq.discord.lavaplayer.manager.AudioPlayer
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason
 import kotlinx.coroutines.launch
@@ -92,9 +92,9 @@ class PlayerUpdates(val player: Player) : CoroutineAudioEventAdapter() {
          */
         fun currentTrackFor(player: Player): CurrentTrack =
             CurrentTrack(
-                track = TrackUtil.encode(player.audioPlayer.playingTrack),
+                track = TrackUtil.encode(player.audioPlayer.playingTrack!!),
                 paused = player.audioPlayer.isPaused,
-                position = player.audioPlayer.playingTrack.position
+                position = player.audioPlayer.playingTrack!!.position
             )
     }
 }

@@ -5,8 +5,8 @@ import java.io.ByteArrayOutputStream
 plugins {
     application
     id("com.github.johnrengelman.shadow") version "7.0.0"
-    kotlin("jvm") version "1.5.10"
-    kotlin("plugin.serialization") version "1.5.10"
+    kotlin("jvm") version "1.5.30"
+    kotlin("plugin.serialization") version "1.5.30"
 }
 
 apply(plugin = "kotlin")
@@ -19,25 +19,28 @@ application {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.5.21")              // standard library
-    implementation("org.jetbrains.kotlin:kotlin-reflect:1.5.21")             // reflection
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.0")    // core coroutine library
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.2.2") // json serialization
+    /* kotlin */
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.5.30")              // standard library
+    implementation("org.jetbrains.kotlin:kotlin-reflect:1.5.30")             // reflection
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2")    // core coroutine library
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.0") // json serialization
 
-    val ktorVersion = "1.6.1"
+    /* server */
+    val ktorVersion = "1.6.4"
     implementation("io.ktor:ktor-server-core:$ktorVersion")   // ktor server core
     implementation("io.ktor:ktor-server-cio:$ktorVersion")    // ktor cio engine
     implementation("io.ktor:ktor-locations:$ktorVersion")     // ktor locations
     implementation("io.ktor:ktor-serialization:$ktorVersion") // ktor serialization
     implementation("io.ktor:ktor-websockets:$ktorVersion")    // ktor websockets
 
+    /* audio */
     implementation("moe.kyokobot.koe:core:koe-v2-SNAPSHOT")   // discord send system
 
-    implementation("com.sedmelluq:lavaplayer:1.3.78") { // yes
+    implementation("com.sedmelluq:lavaplayer:1.5.2") { // yes
         exclude(group = "com.sedmelluq", module = "lavaplayer-natives")
     }
 
-    implementation("com.sedmelluq:lavaplayer-ext-youtube-rotator:0.2.3") { // ip rotation
+    implementation("com.sedmelluq:lavaplayer-ext-ip-rotator:0.3.0") { // ip rotation
         exclude(group = "com.sedmelluq", module = "lavaplayer")
     }
 
@@ -45,7 +48,12 @@ dependencies {
     implementation("com.github.natanbc:native-loader:0.7.2") // native loader
     implementation("com.github.natanbc:lp-cross:0.1.3-1")    // lp-cross natives
 
-    implementation("ch.qos.logback:logback-classic:1.2.5")   // slf4j logging backend
+    /* logging */
+    implementation("ch.qos.logback:logback-classic:1.2.6")           // slf4j logging backend
+    implementation("io.github.microutils:kotlin-logging-jvm:2.0.10") // logging
+
+    /* misc */
+    implementation("fun.dimensional:cuid:1.0.2")                     // CUIDs
 
     val konfVersion = "1.1.2"
     implementation("com.github.uchuhimo.konf:konf-core:$konfVersion") // konf core shit
@@ -59,7 +67,7 @@ tasks.withType<ShadowJar> {
 
 tasks.withType<KotlinCompile> {
     kotlinOptions {
-        jvmTarget = "13"
+        jvmTarget = "11"
         incremental = true
         freeCompilerArgs = listOf(
             "-Xopt-in=kotlin.ExperimentalStdlibApi",

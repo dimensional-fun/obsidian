@@ -49,7 +49,7 @@ object TrackUtil {
     fun decode(encodedTrack: String): AudioTrack {
         val inputStream = ByteArrayInputStream(decoder.decode(encodedTrack))
         return inputStream.use {
-            players.decodeTrack(MessageInput(it))!!.decodedTrack
+            players.decodeTrack(MessageInput(it))!!.decodedTrack!!
         }
     }
 

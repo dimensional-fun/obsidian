@@ -27,6 +27,7 @@ import io.ktor.routing.*
 import io.ktor.util.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.isActive
+import mu.KotlinLogging
 import obsidian.server.Application.config
 import obsidian.server.config.spec.Obsidian
 import obsidian.server.io.rest.Players.players
@@ -38,14 +39,11 @@ import obsidian.server.io.ws.CloseReasons
 import obsidian.server.io.ws.StatsTask
 import obsidian.server.io.ws.WebSocketHandler
 import obsidian.server.util.threadFactory
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 
 object Magma {
-
     val ClientName = AttributeKey<String>("ClientName")
 
     /**
@@ -57,9 +55,9 @@ object Magma {
      * Executor used for cleaning up un-resumed sessions.
      */
     val cleanupExecutor: ScheduledExecutorService =
-        Executors.newSingleThreadScheduledExecutor(threadFactory("Obsidian Magma-Cleanup"))
+        Executors.newSingleThreadScheduledExecutor(threadFactory("obsidian-client-cleanup"))
 
-    private val log: Logger = LoggerFactory.getLogger(Magma::class.java)
+    private val log = KotlinLogging.logger { }
 
     /**
      * Adds REST endpoint routes and websocket route
@@ -83,9 +81,11 @@ object Magma {
             val clientName = call.request.clientName()
 
             /* log out the request */
-            log.info(with(call.request) {
-                "${clientName ?: origin.remoteHost} ${Typography.ndash} ${httpMethod.value.padEnd(4, ' ')} $uri"
-            })
+            log.info {
+                with(call.request) {
+                    "${clientName ?: origin.remoteHost} ${Typography.ndash} ${httpMethod.value.padEnd(4, ' ')} $uri"
+                }
+            }
 
             /* check if a client name is required, if so check if there was a provided client name */
             if (clientName == null && config[Obsidian.requireClientName]) {
@@ -107,7 +107,7 @@ object Magma {
             /* check if client names are required, if so check if one was supplied */
             val clientName = request.clientName()
             if (config[Obsidian.requireClientName] && clientName.isNullOrBlank()) {
-                log.warn("${request.local.remoteHost} - missing 'Client-Name' header/query parameter.")
+                log.warn { "${request.local.remoteHost} - missing 'Client-Name' header/query parameter." }
                 return@webSocket close(CloseReasons.MISSING_CLIENT_NAME)
             }
 
@@ -119,11 +119,11 @@ object Magma {
                 ?: request.queryParameters["auth"]
 
             if (!Obsidian.Server.validateAuth(auth)) {
-                log.warn("$display - authentication failed")
+                log.warn { "$display - authentication failed" }
                 return@webSocket close(CloseReasons.INVALID_AUTHORIZATION)
             }
 
-            log.info("$display - incoming connection")
+            log.info { "$display - incoming connection" }
 
             /* check for user id */
             val userId = request.userId()
@@ -210,7 +210,7 @@ object Magma {
         try {
             wsh.listen()
         } catch (ex: Exception) {
-            log.error("${client.displayName} - An error occurred while listening for frames.", ex)
+            log.error(ex) { "${client.displayName} - An error occurred while listening for frames." }
             if (wss.isActive) {
                 wss.close(CloseReason(4006, ex.message ?: ex.cause?.message ?: "unknown error"))
             }

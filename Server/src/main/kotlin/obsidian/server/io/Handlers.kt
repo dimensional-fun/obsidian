@@ -18,15 +18,13 @@ package obsidian.server.io
 
 import com.sedmelluq.discord.lavaplayer.track.TrackMarker
 import moe.kyokobot.koe.VoiceServerInfo
+import mu.KotlinLogging
 import obsidian.server.player.TrackEndMarkerHandler
 import obsidian.server.player.filter.Filters
 import obsidian.server.util.TrackUtil
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 
 object Handlers {
-
-    private val log: Logger = LoggerFactory.getLogger(Handlers::class.java)
+    private val log = KotlinLogging.logger { }
 
     fun submitVoiceServer(client: MagmaClient, guildId: Long, vsi: VoiceServerInfo) {
         val connection = client.mediaConnectionFor(guildId)
@@ -55,7 +53,7 @@ object Handlers {
     ) {
         val player = client.playerFor(guildId)
         if (player.audioPlayer.playingTrack != null && noReplace) {
-            log.info("${client.displayName} - skipping PLAY_TRACK operation")
+            log.info { "${client.displayName} - skipping PLAY_TRACK operation" }
             return
         }
 
@@ -96,5 +94,4 @@ object Handlers {
         filters?.let { player.filters = it }
         sendPlayerUpdates?.let { player.updates.enabled = it }
     }
-
 }

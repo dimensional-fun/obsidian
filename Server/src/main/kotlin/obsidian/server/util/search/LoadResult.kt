@@ -18,19 +18,19 @@ package obsidian.server.util.search
 
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
+import com.sedmelluq.discord.lavaplayer.track.AudioTrackCollectionType
 
 class LoadResult(
-    val loadResultType: LoadType = LoadType.NO_MATCHES,
+    val loadResultType: LoadType = LoadType.NONE,
     val tracks: List<AudioTrack> = emptyList(),
-    val playlistName: String? = null,
+    val collectionName: String? = null,
+    val collectionType: AudioTrackCollectionType? = null,
     val selectedTrack: Int? = null,
 ) {
-
     var exception: FriendlyException? = null
         private set
 
-    constructor(exception: FriendlyException) : this(LoadType.LOAD_FAILED) {
+    constructor(exception: FriendlyException) : this(LoadType.FAILED) {
         this.exception = exception
     }
-
 }
