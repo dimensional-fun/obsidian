@@ -157,11 +157,11 @@ class Player(val guildId: Long, val client: MagmaClient) : AudioEventAdapter() {
     /**
      * Sends a track end player event to the websocket connection, if any.
      */
-    override fun onTrackEnd(player: AudioPlayer, track: AudioTrack, reason: AudioTrackEndReason) {
+    override fun onTrackEnd(player: AudioPlayer, track: AudioTrack, endReason: AudioTrackEndReason) {
         client.websocket?.let {
             val event = TrackEndEvent(
                 track = track,
-                endReason = reason,
+                endReason = endReason,
                 guildId = guildId
             )
 

@@ -75,7 +75,7 @@ object NativeUtil {
     }
 
     /**
-     * Loads the lp-cross version of lavaplayer's loader
+     * Loads the connector natives from lp-cross
      */
     private fun loadConnector() {
         try {
@@ -86,7 +86,7 @@ object NativeUtil {
 
             for (i in 0 until 2) {
                 // wtf natan
-                markLoaded((loadersField.get(null) as List<Any>)[0])
+                markLoaded((loadersField.get(null) as List<*>)[0])
             }
 
             logger.info("Connector loaded")
@@ -116,7 +116,9 @@ object NativeUtil {
         false
     }
 
-    private fun markLoaded(loader: Any) {
+    private fun markLoaded(loader: Any?) {
+        require (loader != null)
+
         val previousResultField = loader.javaClass.getDeclaredField("previousResult")
         previousResultField.isAccessible = true
         previousResultField[loader] = LOAD_RESULT

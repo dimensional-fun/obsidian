@@ -29,13 +29,13 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 sealed class Operation {
+    @OptIn(ExperimentalSerializationApi::class)
     companion object : DeserializationStrategy<Operation?> {
         override val descriptor: SerialDescriptor = buildClassSerialDescriptor("Operation") {
             element("op", Op.descriptor)
             element("d", JsonObject.serializer().descriptor, isOptional = true)
         }
 
-        @ExperimentalSerializationApi
         override fun deserialize(decoder: Decoder): Operation? {
             var op: Op? = null
             var data: Operation? = null
