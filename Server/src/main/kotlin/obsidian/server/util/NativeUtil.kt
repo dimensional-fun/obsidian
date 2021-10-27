@@ -36,7 +36,6 @@ object NativeUtil {
     private val logger = KotlinLogging.logger {  }
 
     // loaders
-    private val CONNECTOR_LOADER: NativeLibLoader = NativeLibLoader.create(NativeUtil::class.java, "connector")
     private val UDP_QUEUE_LOADER: NativeLibLoader = NativeLibLoader.create(NativeUtil::class.java, "udpqueue")
 
     // class names
@@ -57,7 +56,6 @@ object NativeUtil {
      * Loads native library shit
      */
     fun load() {
-        loadConnector()
         udpQueueAvailable = loadUdpQueue()
         timescaleAvailable = loadTimescale()
     }
@@ -72,27 +70,6 @@ object NativeUtil {
     } catch (ex: Exception) {
         logger.warn("Timescale failed to load", ex)
         false
-    }
-
-    /**
-     * Loads the connector natives from lp-cross
-     */
-    private fun loadConnector() {
-        try {
-            CONNECTOR_LOADER.load()
-
-            val loadersField = ConnectorNativeLibLoader::class.java.getDeclaredField("loaders")
-            loadersField.isAccessible = true
-
-            for (i in 0 until 2) {
-                // wtf natan
-                markLoaded((loadersField.get(null) as List<*>)[0])
-            }
-
-            logger.info("Connector loaded")
-        } catch (ex: Exception) {
-            logger.error("Connected failed to load", ex)
-        }
     }
 
     /**
