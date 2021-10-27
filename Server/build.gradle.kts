@@ -46,7 +46,7 @@ dependencies {
 
     implementation("com.github.natanbc:lavadsp:0.7.7")       // audio filters
     implementation("com.github.natanbc:native-loader:0.7.2") // native loader
-    implementation("com.github.natanbc:lp-cross:0.1.3-1")    // lp-cross natives
+    implementation("com.github.natanbc:lp-cross:0.2")    // lp-cross natives
 
     /* logging */
     implementation("ch.qos.logback:logback-classic:1.2.6")           // slf4j logging backend
