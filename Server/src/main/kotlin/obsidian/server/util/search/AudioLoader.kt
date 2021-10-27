@@ -34,6 +34,7 @@ class AudioLoader(private val deferred: CompletableDeferred<LoadResult>) : ItemL
                 itemLoader.resultHandler = AudioLoader(it)
                 itemLoader.load()
             }
+                .await()
     }
 
     override fun onTrackLoad(track: AudioTrack) {
