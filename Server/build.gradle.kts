@@ -36,21 +36,19 @@ dependencies {
     /* audio */
     implementation("moe.kyokobot.koe:core:koe-v2-SNAPSHOT")   // discord send system
 
-    implementation("com.sedmelluq:lavaplayer:1.5.2") { // yes
-        exclude(group = "com.sedmelluq", module = "lavaplayer-natives")
-    }
+    implementation("com.sedmelluq:lavaplayer:1.5.2")        // lavaplayer
+    implementation("com.sedmelluq:udp-queue-natives:2.0.0") // udp-queue natives
 
     implementation("com.sedmelluq:lavaplayer-ext-ip-rotator:0.3.0") { // ip rotation
         exclude(group = "com.sedmelluq", module = "lavaplayer")
     }
 
-    implementation("com.github.natanbc:lavadsp:0.7.7")       // audio filters
-    implementation("com.github.natanbc:native-loader:0.7.2") // native loader
-    implementation("com.github.natanbc:lp-cross:0.2")    // lp-cross natives
+    implementation("com.github.natanbc:lavadsp:0.7.7") // audio filters
+    implementation("com.github.natanbc:lp-cross:0.2")  // lp-cross natives
 
     /* logging */
     implementation("ch.qos.logback:logback-classic:1.2.6")           // slf4j logging backend
-    implementation("io.github.microutils:kotlin-logging-jvm:2.0.10") // logging
+    implementation("io.github.microutils:kotlin-logging-jvm:2.0.11") // logging
 
     /* misc */
     implementation("fun.dimensional:cuid:1.0.2")                     // CUIDs
@@ -67,7 +65,7 @@ tasks.withType<ShadowJar> {
 
 tasks.withType<KotlinCompile> {
     kotlinOptions {
-        jvmTarget = "11"
+        jvmTarget = "16"
         incremental = true
         freeCompilerArgs = listOf(
             "-Xopt-in=kotlin.ExperimentalStdlibApi",
