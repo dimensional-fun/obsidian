@@ -13,6 +13,7 @@ obsidian:
         non-allocating: false
         enabled-sources: [ "youtube", "yarn", "bandcamp", "twitch", "vimeo", "nico", "soundcloud", "local", "http" ]
         allow-scsearch: true
+        search-timeout: 15000
         rate-limit:
             ip-blocks: [ ]
             excluded-ips: [ ]

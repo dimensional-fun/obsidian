@@ -25,6 +25,7 @@ import io.ktor.locations.*
 import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.*
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
@@ -37,6 +38,8 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonTransformingSerializer
 import obsidian.server.Application
+import obsidian.server.Application.config
+import obsidian.server.config.spec.Obsidian
 import obsidian.server.util.TrackUtil
 import obsidian.server.util.kxs.AudioTrackSerializer
 import obsidian.server.util.search.AudioLoader
@@ -45,11 +48,12 @@ import kotlin.reflect.jvm.jvmName
 
 fun Routing.tracks() = authenticate {
     get<LoadTracks> { data ->
-        val result = AudioLoader
-            .load(data.identifier, Application.players)
-            .await()
+        val result = withTimeoutOrNull(config[Obsidian.Lavaplayer.searchTimeout]) {
+            AudioLoader.load(data.identifier, Application.players)
+        }
+            ?: return@get context.respond(LoadTracks.Response(LoadType.NONE))
 
-        val collection = if (result.loadResultType != LoadType.FAILED) {
+        val collection = if (result.loadResultType == LoadType.TRACK_COLLECTION) {
             LoadTracks.Response.CollectionInfo(
                 name = result.collectionName!!,
                 selectedTrack = result.selectedTrack,
@@ -134,9 +138,9 @@ data class LoadTracks(val identifier: String) {
         @SerialName("load_type")
         val type: LoadType,
         @SerialName("collection_info")
-        val collectionInfo: CollectionInfo?,
-        val tracks: List<Track>,
-        val exception: Exception?
+        val collectionInfo: CollectionInfo? = null,
+        val tracks: List<Track> = emptyList(),
+        val exception: Exception? = null
     ) {
         @Serializable
         data class Exception(val message: String, val severity: FriendlyException.Severity)
@@ -184,9 +188,14 @@ object AudioTrackCollectionTypeSerializer : KSerializer<AudioTrackCollectionType
 
     @OptIn(InternalSerializationApi::class)
     override fun serialize(encoder: Encoder, value: AudioTrackCollectionType) {
-        with (encoder.beginStructure(descriptor)) {
+        with(encoder.beginStructure(descriptor)) {
             encodeStringElement(descriptor, 0, value::class.simpleName ?: value::class.jvmName)
-            encodeSerializableElement(descriptor, 1, value::class.serializer() as SerializationStrategy<AudioTrackCollectionType>, value)
+            encodeSerializableElement(
+                descriptor,
+                1,
+                value::class.serializer() as SerializationStrategy<AudioTrackCollectionType>,
+                value
+            )
             endStructure(descriptor)
         }
     }

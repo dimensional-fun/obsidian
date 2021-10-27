@@ -120,6 +120,11 @@ object Obsidian : ConfigSpec() {
         val nonAllocating by optional(false, "non-allocating")
 
         /**
+         * Timeout (in milliseconds) for track searching.
+         */
+        val searchTimeout by optional(10_000L, "search-timeout")
+
+        /**
          * Names of sources that will be enabled.
          */
         val enabledSources by optional(
