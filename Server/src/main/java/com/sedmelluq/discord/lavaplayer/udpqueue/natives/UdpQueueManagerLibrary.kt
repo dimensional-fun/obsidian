@@ -14,43 +14,35 @@
  * limitations under the License.
  */
 
-package com.sedmelluq.discord.lavaplayer.udpqueue.natives;
+package com.sedmelluq.discord.lavaplayer.udpqueue.natives
 
+import com.sedmelluq.lava.common.natives.NativeLibraryLoader
+import java.nio.ByteBuffer
 
-import com.sedmelluq.lava.common.natives.NativeLibraryLoader;
+class UdpQueueManagerLibrary private constructor() {
+    external fun create(bufferCapacity: Int, packetInterval: Long): Long
+    external fun deleteQueue(instance: Long, key: Long): Boolean
+    external fun destroy(instance: Long)
 
-import java.nio.ByteBuffer;
+    external fun getRemainingCapacity(instance: Long, key: Long): Int
 
-public class UdpQueueManagerLibrary {
-    private static final NativeLibraryLoader nativeLoader =
-        NativeLibraryLoader.create(UdpQueueManagerLibrary.class, "udpqueue");
+    external fun queuePacket(instance: Long, key: Long, address: String?, port: Int, dataDirectBuffer: ByteBuffer?, dataLength: Int): Boolean
+    external fun queuePacketWithSocket(instance: Long, key: Long, address: String?, port: Int, dataDirectBuffer: ByteBuffer?, dataLength: Int, explicitSocket: Long): Boolean
 
-    private UdpQueueManagerLibrary() {
+    external fun process(instance: Long)
+    external fun processWithSocket(instance: Long, ipv4Handle: Long, ipv6Handle: Long)
 
+    companion object {
+        private val nativeLoader = NativeLibraryLoader.create(UdpQueueManagerLibrary::class.java, "udpqueue")
+
+        @JvmStatic
+        val instance: UdpQueueManagerLibrary
+            get() {
+                nativeLoader.load()
+                return UdpQueueManagerLibrary()
+            }
+
+        @JvmStatic
+        external fun pauseDemo(length: Int)
     }
-
-    public static UdpQueueManagerLibrary getInstance() {
-        nativeLoader.load();
-        return new UdpQueueManagerLibrary();
-    }
-
-    public native long create(int bufferCapacity, long packetInterval);
-
-    public native void destroy(long instance);
-
-    public native int getRemainingCapacity(long instance, long key);
-
-    public native boolean queuePacket(long instance, long key, String address, int port, ByteBuffer dataDirectBuffer,
-                                      int dataLength);
-
-    public native boolean queuePacketWithSocket(long instance, long key, String address, int port,
-                                                ByteBuffer dataDirectBuffer, int dataLength, long explicitSocket);
-
-    public native boolean deleteQueue(long instance, long key);
-
-    public native void process(long instance);
-
-    public native void processWithSocket(long instance, long ipv4Handle, long ipv6Handle);
-
-    public static native void pauseDemo(int length);
 }
