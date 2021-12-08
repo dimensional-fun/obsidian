@@ -113,7 +113,8 @@ private fun getTrackInfo(audioTrack: AudioTrack): Track.Info =
         isSeekable = audioTrack.isSeekable,
         isStream = audioTrack.info.isStream,
         position = audioTrack.position,
-        sourceName = audioTrack.sourceManager?.sourceName ?: "unknown"
+        sourceName = audioTrack.sourceManager?.sourceName ?: "unknown",
+        artworkUrl = audioTrack.info.artworkUrl,
     )
 
 /**
@@ -176,7 +177,9 @@ data class Track(
         @SerialName("is_seekable")
         val isSeekable: Boolean,
         @SerialName("source_name")
-        val sourceName: String
+        val sourceName: String,
+        @SerialName("artwork_url")
+        val artworkUrl: String?
     )
 }
 

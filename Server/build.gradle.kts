@@ -36,7 +36,7 @@ dependencies {
     /* audio */
     implementation("moe.kyokobot.koe:core:koe-v2-SNAPSHOT")   // discord send system
 
-    implementation("com.sedmelluq:lavaplayer:1.5.2")        // lavaplayer
+    implementation("com.sedmelluq:lavaplayer:1.5.10")        // lavaplayer
     implementation("com.sedmelluq:udp-queue-natives:2.0.0") // udp-queue natives
 
     implementation("com.sedmelluq:lavaplayer-ext-ip-rotator:0.3.0") { // ip rotation
