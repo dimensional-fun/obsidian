@@ -33,7 +33,7 @@ class UdpQueueManagerLibrary private constructor() {
     external fun processWithSocket(instance: Long, ipv4Handle: Long, ipv6Handle: Long)
 
     companion object {
-        private val nativeLoader = NativeLibraryLoader.create(UdpQueueManagerLibrary::class.java, "udpqueue")
+        private val nativeLoader = NativeLibraryLoader.create("udpqueue", UdpQueueManagerLibrary::class.java)
 
         @JvmStatic
         val instance: UdpQueueManagerLibrary
