@@ -16,7 +16,7 @@
 
 package obsidian.server.io
 
-import com.sedmelluq.discord.lavaplayer.track.TrackMarker
+import com.sedmelluq.discord.lavaplayer.track.marker.TrackMarker
 import moe.kyokobot.koe.VoiceServerInfo
 import mu.KotlinLogging
 import obsidian.server.player.TrackEndMarkerHandler
@@ -43,7 +43,7 @@ object Handlers {
         client.koe.destroyConnection(guildId)
     }
 
-    fun playTrack(
+    suspend fun playTrack(
         client: MagmaClient,
         guildId: Long,
         track: String,

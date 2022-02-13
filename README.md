@@ -11,7 +11,7 @@
 For obsidian to work correctly you must use **Java 11** or above.
 
 - Goto the [releases page](/releases).
-- Download the **Latest Jar File**
+- Download the **The Latest Jar File**
 - Make an [`obsidian.yml`](/obsidian.yml) file in the same directory as the jar file
 - Open a prompt in the same directory as the jar file.
 
@@ -28,7 +28,6 @@ Now go make a bot with the language and client of your choice!
 ###### v2
 
 - [slate](https://github.com/Axelancerr/Slate), discord.py (Python 3.7+)
-- [obsidian.py](https://github.com/cloudwithax/obsidian.py), discord.py (Python 3.8+)
 
 ###### v1
 

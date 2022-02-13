@@ -20,11 +20,11 @@ import com.sedmelluq.discord.lavaplayer.format.StandardAudioDataFormats
 import com.sedmelluq.discord.lavaplayer.manager.AudioPlayer
 import com.sedmelluq.discord.lavaplayer.manager.event.AudioEventAdapter
 import com.sedmelluq.discord.lavaplayer.manager.event.AudioEventListener
-import com.sedmelluq.discord.lavaplayer.tools.FriendlyException
 import com.sedmelluq.discord.lavaplayer.tools.extensions.addListener
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason
 import com.sedmelluq.discord.lavaplayer.track.playback.MutableAudioFrame
+import com.sedmelluq.lava.common.tools.exception.FriendlyException
 import io.netty.buffer.ByteBuf
 import moe.kyokobot.koe.MediaConnection
 import moe.kyokobot.koe.media.OpusAudioFrameProvider
@@ -79,7 +79,7 @@ class Player(val guildId: Long, val client: MagmaClient) : AudioEventAdapter() {
     /**
      * Plays the provided [track] and dispatches a Player Update
      */
-    fun play(track: AudioTrack) {
+    suspend fun play(track: AudioTrack) {
         audioPlayer.playTrack(track)
         updates.sendUpdate()
     }

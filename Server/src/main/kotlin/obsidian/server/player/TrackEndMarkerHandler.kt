@@ -16,7 +16,7 @@
 
 package obsidian.server.player
 
-import com.sedmelluq.discord.lavaplayer.track.TrackMarkerHandler
+import com.sedmelluq.discord.lavaplayer.track.marker.TrackMarkerHandler
 
 class TrackEndMarkerHandler(private val player: Player) : TrackMarkerHandler {
     override fun handle(state: TrackMarkerHandler.MarkerState) {

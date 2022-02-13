@@ -16,7 +16,7 @@ subprojects {
         }
 
         dependencies {
-            classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.5.20")
+            classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.6.10")
         }
     }
 
@@ -24,6 +24,11 @@ subprojects {
         maven {
             url = uri("https://dimensional.jfrog.io/artifactory/maven")
             name = "Jfrog Dimensional"
+        }
+
+        maven {
+            url = uri("https://maven.dimensional.fun/releases")
+            name = "Dimensional Fun"
         }
 
         maven {

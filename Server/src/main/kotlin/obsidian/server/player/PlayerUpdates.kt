@@ -61,7 +61,12 @@ class PlayerUpdates(val player: Player) : CoroutineAudioEventAdapter() {
         }
     }
 
-    fun sendUpdate() {
+    suspend fun sendUpdate() {
+        if (player.audioPlayer.playingTrack == null) {
+            stop()
+            return
+        }
+
         player.client.websocket?.let {
             val update = PlayerUpdate(
                 guildId = player.guildId,

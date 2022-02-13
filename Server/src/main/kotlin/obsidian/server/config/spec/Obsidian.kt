@@ -85,7 +85,7 @@ object Obsidian : ConfigSpec() {
         /**
          * The voice server version to use, defaults to v5
          */
-        val gatewayVersion by optional(5, "gateway-version")
+        val gatewayVersion by optional(4, "gateway-version")
 
         object UdpQueue : ConfigSpec("udp-queue") {
             /**

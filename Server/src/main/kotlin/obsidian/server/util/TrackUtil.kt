@@ -16,9 +16,9 @@
 
 package obsidian.server.util
 
-import com.sedmelluq.discord.lavaplayer.tools.io.MessageInput
-import com.sedmelluq.discord.lavaplayer.tools.io.MessageOutput
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
+import com.sedmelluq.lava.common.tools.io.MessageInput
+import com.sedmelluq.lava.common.tools.io.MessageOutput
 import obsidian.server.Application.players
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream

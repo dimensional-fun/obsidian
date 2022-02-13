@@ -17,51 +17,61 @@
 package obsidian.server.util.search
 
 import com.sedmelluq.discord.lavaplayer.manager.AudioPlayerManager
-import com.sedmelluq.discord.lavaplayer.tools.FriendlyException
-import com.sedmelluq.discord.lavaplayer.track.AudioTrack
-import com.sedmelluq.discord.lavaplayer.track.AudioTrackCollection
-import com.sedmelluq.discord.lavaplayer.track.loader.ItemLoadResultAdapter
-import kotlinx.coroutines.CompletableDeferred
+import com.sedmelluq.discord.lavaplayer.track.collection.Playlist
+import com.sedmelluq.discord.lavaplayer.track.collection.SearchResult
+import com.sedmelluq.discord.lavaplayer.track.loader.ItemLoadResult
+import com.sedmelluq.lava.common.tools.exception.FriendlyException
 import mu.KotlinLogging
+import kotlin.reflect.jvm.jvmName
 
-class AudioLoader(private val deferred: CompletableDeferred<LoadResult>) : ItemLoadResultAdapter() {
-    companion object {
-        private val logger = KotlinLogging.logger { }
+object AudioLoader {
+    private val logger = KotlinLogging.logger { }
 
-        suspend fun load(identifier: String, playerManager: AudioPlayerManager) =
-            CompletableDeferred<LoadResult>().also {
-                val itemLoader = playerManager.items.createItemLoader(identifier)
-                itemLoader.resultHandler = AudioLoader(it)
-                itemLoader.load()
+    suspend fun load(identifier: String, playerManager: AudioPlayerManager): LoadResult {
+        val item = playerManager.items
+            .createItemLoader(identifier)
+            .load()
+
+        return when (item) {
+            is ItemLoadResult.TrackLoaded -> {
+                logger.info { "Loaded track ${item.track.info.title}" }
+                LoadResult(LoadType.TRACK, listOf(item.track), null, null)
             }
-                .await()
-    }
 
-    override fun onTrackLoad(track: AudioTrack) {
-        logger.info { "Loaded track ${track.info.title}" }
-        deferred.complete(LoadResult(LoadType.TRACK, listOf(track), null, null))
-    }
+            is ItemLoadResult.CollectionLoaded -> {
+                logger.info { "Loaded playlist: ${item.collection.name}" }
+                LoadResult(
+                    LoadType.TRACK_COLLECTION,
+                    item.collection.tracks,
+                    item.collection.name,
+                    when (item.collection) {
+                        is Playlist -> if ((item.collection as Playlist).isAlbum) CollectionType.Album else CollectionType.Playlist
+                        is SearchResult -> CollectionType.SearchResult
+                        else -> CollectionType.Unknown(item.collection::class.let { it.simpleName ?: it.jvmName })
+                    },
+                    item.collection.selectedTrack?.let { item.collection.tracks.indexOf(it) }
+                )
+            }
 
-    override fun onCollectionLoad(collection: AudioTrackCollection) {
-        logger.info { "Loaded playlist: ${collection.name}" }
-        val result = LoadResult(
-            LoadType.TRACK_COLLECTION,
-            collection.tracks,
-            collection.name,
-            collection.type,
-            collection.selectedTrack?.let { collection.tracks.indexOf(it) }
-        )
+            is ItemLoadResult.LoadFailed -> {
+                logger.error(item.exception) { "Failed to load." }
+                LoadResult(item.exception)
+            }
 
-        deferred.complete(result)
-    }
+            is ItemLoadResult.NoMatches -> {
+                logger.info { "No matches found." }
+                LoadResult()
+            }
 
-    override fun noMatches() {
-        logger.info { "No matches found." }
-        deferred.complete(LoadResult())
-    }
+            else -> {
+                val excp = FriendlyException(
+                    friendlyMessage = "Unknown load result type: ${item::class.qualifiedName}",
+                    severity = FriendlyException.Severity.SUSPICIOUS,
+                    cause = null
+                )
 
-    override fun onLoadFailed(exception: FriendlyException) {
-        logger.error(exception) { "Failed to load." }
-        deferred.complete(LoadResult(exception))
+                LoadResult(excp)
+            }
+        }
     }
 }

@@ -5,8 +5,8 @@ import java.io.ByteArrayOutputStream
 plugins {
     application
     id("com.github.johnrengelman.shadow") version "7.0.0"
-    kotlin("jvm") version "1.5.30"
-    kotlin("plugin.serialization") version "1.5.30"
+    kotlin("jvm") version "1.6.10"
+    kotlin("plugin.serialization") version "1.6.10"
 }
 
 apply(plugin = "kotlin")
@@ -20,13 +20,13 @@ application {
 
 dependencies {
     /* kotlin */
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.5.30")              // standard library
-    implementation("org.jetbrains.kotlin:kotlin-reflect:1.5.30")             // reflection
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2")    // core coroutine library
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.0") // json serialization
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.6.10")              // standard library
+    implementation("org.jetbrains.kotlin:kotlin-reflect:1.6.10")             // reflection
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.0")    // core coroutine library
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.2") // json serialization
 
     /* server */
-    val ktorVersion = "1.6.4"
+    val ktorVersion = "1.6.7"
     implementation("io.ktor:ktor-server-core:$ktorVersion")   // ktor server core
     implementation("io.ktor:ktor-server-cio:$ktorVersion")    // ktor cio engine
     implementation("io.ktor:ktor-locations:$ktorVersion")     // ktor locations
@@ -36,10 +36,10 @@ dependencies {
     /* audio */
     implementation("moe.kyokobot.koe:core:koe-v2-SNAPSHOT")   // discord send system
 
-    implementation("com.sedmelluq:lavaplayer:1.5.10")        // lavaplayer
-    implementation("com.sedmelluq:udp-queue-natives:2.0.0") // udp-queue natives
-
-    implementation("com.sedmelluq:lavaplayer-ext-ip-rotator:0.3.0") { // ip rotation
+    implementation("com.sedmelluq:lavaplayer:1.6.1")        // lavaplayer
+//    implementation("com.sedmelluq:udp-queue-natives:2.0.0") // udp-queue natives
+    implementation(group = "com.sedmelluq", name = "udp-queue-natives", version = "2.0.0")
+    implementation("com.sedmelluq:lavaplayer-ext-ip-rotator:0.3.1") { // ip rotation
         exclude(group = "com.sedmelluq", module = "lavaplayer")
     }
 
@@ -49,9 +49,6 @@ dependencies {
     /* logging */
     implementation("ch.qos.logback:logback-classic:1.2.6")           // slf4j logging backend
     implementation("io.github.microutils:kotlin-logging-jvm:2.0.11") // logging
-
-    /* misc */
-    implementation("fun.dimensional:cuid:1.0.2")                     // CUIDs
 
     val konfVersion = "1.1.2"
     implementation("com.github.uchuhimo.konf:konf-core:$konfVersion") // konf core shit

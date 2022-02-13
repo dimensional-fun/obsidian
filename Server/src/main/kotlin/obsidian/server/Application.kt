@@ -96,7 +96,7 @@ object Application {
 
             logger.info { ("Detected System: type = ${type.osType()}, arch = ${type.architectureType()}") }
             logger.info { ("Processor Information: ${NativeLibLoader.loadSystemInfo()}") }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             val message =
                 "Unable to load system info" + if (e is UnsatisfiedLinkError || e is RuntimeException && e.cause is UnsatisfiedLinkError)
                     ", this isn't an error" else "."
@@ -189,12 +189,12 @@ object Application {
 data class ExceptionResponse(
     val error: Error,
     @SerialName("stack_trace") val stackTrace: String,
-    val success: Boolean = false
+    val success: Boolean = false,
 ) {
     @Serializable
     data class Error(
         val message: String?,
         val cause: Error? = null,
-        @SerialName("class_name") val className: String
+        @SerialName("class_name") val className: String,
     )
 }

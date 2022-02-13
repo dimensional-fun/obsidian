@@ -16,15 +16,14 @@
 
 package obsidian.server.util.search
 
-import com.sedmelluq.discord.lavaplayer.tools.FriendlyException
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
-import com.sedmelluq.discord.lavaplayer.track.AudioTrackCollectionType
+import com.sedmelluq.lava.common.tools.exception.FriendlyException
 
 class LoadResult(
     val loadResultType: LoadType = LoadType.NONE,
     val tracks: List<AudioTrack> = emptyList(),
     val collectionName: String? = null,
-    val collectionType: AudioTrackCollectionType? = null,
+    val collectionType: CollectionType? = null,
     val selectedTrack: Int? = null,
 ) {
     var exception: FriendlyException? = null
