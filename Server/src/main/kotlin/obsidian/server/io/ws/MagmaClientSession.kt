@@ -285,8 +285,15 @@ class MagmaClientSession(val client: MagmaClient, private var wss: WebSocketServ
         val data = frame.data.toString(Charset.defaultCharset())
 
         try {
-            log.info { "${client.displayName} >>> $data" }
-            json.decodeFromString(Operation, data)?.let { events.tryEmit(it) }
+            val event = json.decodeFromString(Operation, data)
+            log.info { "${client.displayName} >>> ${event
+                ?.let { it::class.simpleName }
+                ?.let { "$it " } 
+                ?: ""}$data" }
+
+            if (event != null) {
+                scope.launch { events.emit(event) }
+            }
         } catch (ex: Exception) {
             log.error(ex) { "${client.displayName} - An exception occurred while handling an incoming frame" }
         }
