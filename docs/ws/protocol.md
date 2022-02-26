@@ -23,7 +23,7 @@ Resume-Key: The resume key (like lavalink), however this is only needed if the s
 | ~~4005~~   | ~~A session for the supplied user already exists.~~  |
 | 4006       | An error occurred while handling a received payload. |
 
-* 4006 has been deprecated with commit `a116fbc1`
+* 4005 has been deprecated with commit [`fac699d`](https://github.com/mixtape-bot/obsidian/commit/fac699db5930034067adf9d36c9726277e77b627)
 
 ## Payload Structure
 
