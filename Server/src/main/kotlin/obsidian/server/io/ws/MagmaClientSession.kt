@@ -33,10 +33,9 @@ import obsidian.server.util.threadFactory
 import java.lang.Runnable
 import java.util.concurrent.*
 import java.util.concurrent.CancellationException
-import kotlin.coroutines.CoroutineContext
 import kotlin.time.ExperimentalTime
 
-class WebSocketHandler(val client: MagmaClient, private var session: WebSocketServerSession) : CoroutineScope {
+class MagmaClientSession(val client: MagmaClient, private var wss: WebSocketServerSession) {
     companion object {
         fun <T> ReceiveChannel<T>.asFlow() = flow {
             try {
@@ -48,6 +47,8 @@ class WebSocketHandler(val client: MagmaClient, private var session: WebSocketSe
 
         private val log = KotlinLogging.logger { }
     }
+
+    val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     /**
      * Resume key
@@ -90,38 +91,35 @@ class WebSocketHandler(val client: MagmaClient, private var session: WebSocketSe
      */
     private val events = MutableSharedFlow<Operation>(extraBufferCapacity = Int.MAX_VALUE)
 
-    override val coroutineContext: CoroutineContext
-        get() = Dispatchers.IO + SupervisorJob()
-
     init {
         /* websocket and rest operations */
         on<SubmitVoiceUpdate> {
             val vsi = VoiceServerInfo(sessionId, endpoint, token)
-            Handlers.submitVoiceServer(client, guildId, vsi)
+            Handlers.submitVoiceServer(client, guildId, vsi, this@MagmaClientSession)
         }
 
         on<Filters> {
-            Handlers.configure(client, guildId, filters = filters)
+            Handlers.configure(client, guildId, filters = filters, session = this@MagmaClientSession)
         }
 
         on<Pause> {
-            Handlers.configure(client, guildId, pause = state)
+            Handlers.configure(client, guildId, pause = state, session = this@MagmaClientSession)
         }
 
         on<Configure> {
-            Handlers.configure(client, guildId, filters, pause, sendPlayerUpdates)
+            Handlers.configure(client, guildId, filters, pause, sendPlayerUpdates, this@MagmaClientSession)
         }
 
         on<Seek> {
-            Handlers.seek(client, guildId, position)
+            Handlers.seek(client, guildId, position, this@MagmaClientSession)
         }
 
         on<PlayTrack> {
-            Handlers.playTrack(client, guildId, track, startTime, endTime, noReplace)
+            Handlers.playTrack(client, guildId, track, startTime, endTime, noReplace, this@MagmaClientSession)
         }
 
         on<StopTrack> {
-            Handlers.stopTrack(client, guildId)
+            Handlers.stopTrack(client, guildId, this@MagmaClientSession)
         }
 
         on<Destroy> {
@@ -140,7 +138,6 @@ class WebSocketHandler(val client: MagmaClient, private var session: WebSocketSe
             bufferTimeout = timeout
             log.debug { "${client.displayName} - Dispatch buffer timeout: $timeout" }
         }
-
     }
 
     /**
@@ -155,14 +152,13 @@ class WebSocketHandler(val client: MagmaClient, private var session: WebSocketSe
         stats.scheduleAtFixedRate(statsRunnable, 0, 1, TimeUnit.MINUTES)
 
         /* listen for incoming frames. */
-        session.incoming
+        wss.incoming
             .asFlow()
             .buffer(Channel.UNLIMITED)
             .collect {
                 when (it) {
                     is Frame.Binary, is Frame.Text -> handleIncomingFrame(it)
-                    else -> { // no-op
-                    }
+                    else -> { /* no-op */ }
                 }
             }
 
@@ -192,6 +188,7 @@ class WebSocketHandler(val client: MagmaClient, private var session: WebSocketSe
             return
         }
 
+        client.sessions.remove(this)
         client.shutdown()
     }
 
@@ -201,7 +198,7 @@ class WebSocketHandler(val client: MagmaClient, private var session: WebSocketSe
     suspend fun resume(session: WebSocketServerSession) {
         log.info { "${client.displayName} - session has been resumed" }
 
-        this.session = session
+        this.wss = session
         this.active = true
         this.resumeTimeoutFuture?.cancel(false)
 
@@ -221,7 +218,7 @@ class WebSocketHandler(val client: MagmaClient, private var session: WebSocketSe
      */
     fun send(dispatch: Dispatch) {
         val json = json.encodeToString(Dispatch.Companion, dispatch)
-        if (!session.isActive) {
+        if (!wss.isActive) {
             dispatchBuffer?.offer(json)
             return
         }
@@ -237,15 +234,14 @@ class WebSocketHandler(val client: MagmaClient, private var session: WebSocketSe
 
         /* cancel this coroutine context */
         try {
-            currentCoroutineContext().cancelChildren()
-            currentCoroutineContext().cancel()
+            scope.cancel()
         } catch (ex: Exception) {
             log.warn { "${client.displayName} - Error occurred while cancelling this coroutine scope" }
         }
 
         /* close the websocket session, if not already */
         if (active) {
-            session.close(CloseReason(1000, "shutting down"))
+            wss.close(CloseReason(1000, "shutting down"))
         }
     }
 
@@ -257,7 +253,7 @@ class WebSocketHandler(val client: MagmaClient, private var session: WebSocketSe
     private fun send(json: String, payloadName: String? = null) {
         try {
             log.trace { "${client.displayName} ${payloadName?.let { "$it " } ?: ""}<<< $json" }
-            session.outgoing.trySend(Frame.Text(json))
+            wss.outgoing.trySend(Frame.Text(json))
         } catch (ex: Exception) {
             log.error(ex) { "${client.displayName} - An exception occurred while sending a json payload" }
         }
@@ -269,7 +265,7 @@ class WebSocketHandler(val client: MagmaClient, private var session: WebSocketSe
     private inline fun <reified T : Operation> on(crossinline block: suspend T.() -> Unit) {
         events.filterIsInstance<T>()
             .onEach {
-                launch {
+                scope.launch {
                     try {
                         block.invoke(it)
                     } catch (ex: Exception) {
@@ -277,7 +273,7 @@ class WebSocketHandler(val client: MagmaClient, private var session: WebSocketSe
                     }
                 }
             }
-            .launchIn(this)
+            .launchIn(scope)
     }
 
     /**

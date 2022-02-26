@@ -30,14 +30,15 @@ import moe.kyokobot.koe.MediaConnection
 import moe.kyokobot.koe.media.OpusAudioFrameProvider
 import obsidian.server.Application.players
 import obsidian.server.io.MagmaClient
-import obsidian.server.io.ws.TrackEndEvent
-import obsidian.server.io.ws.TrackExceptionEvent
-import obsidian.server.io.ws.TrackStartEvent
-import obsidian.server.io.ws.TrackStuckEvent
+import obsidian.server.io.ws.*
 import obsidian.server.player.filter.Filters
 import java.nio.ByteBuffer
 
-class Player(val guildId: Long, val client: MagmaClient) : AudioEventAdapter() {
+class Player(
+    val guildId: Long,
+    val client: MagmaClient,
+    val session: MagmaClientSession? = null
+) : AudioEventAdapter() {
 
     /**
      * Handles all updates for this player.
@@ -114,7 +115,7 @@ class Player(val guildId: Long, val client: MagmaClient) : AudioEventAdapter() {
      *
      */
     override fun onTrackStuck(player: AudioPlayer, track: AudioTrack, thresholdMs: Long) {
-        client.websocket?.let {
+        session?.let {
             val event = TrackStuckEvent(
                 guildId = guildId,
                 thresholdMs = thresholdMs,
@@ -129,7 +130,7 @@ class Player(val guildId: Long, val client: MagmaClient) : AudioEventAdapter() {
      *
      */
     override fun onTrackException(player: AudioPlayer, track: AudioTrack, exception: FriendlyException) {
-        client.websocket?.let {
+        session?.let {
             val event = TrackExceptionEvent(
                 guildId = guildId,
                 track = track,
@@ -144,7 +145,7 @@ class Player(val guildId: Long, val client: MagmaClient) : AudioEventAdapter() {
      *
      */
     override fun onTrackStart(player: AudioPlayer, track: AudioTrack) {
-        client.websocket?.let {
+        session?.let {
             val event = TrackStartEvent(
                 guildId = guildId,
                 track = track
@@ -158,7 +159,7 @@ class Player(val guildId: Long, val client: MagmaClient) : AudioEventAdapter() {
      * Sends a track end player event to the websocket connection, if any.
      */
     override fun onTrackEnd(player: AudioPlayer, track: AudioTrack, endReason: AudioTrackEndReason) {
-        client.websocket?.let {
+        session?.let {
             val event = TrackEndEvent(
                 track = track,
                 endReason = endReason,

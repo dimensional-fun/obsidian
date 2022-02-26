@@ -16,12 +16,12 @@
 
 package obsidian.server.io
 
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import moe.kyokobot.koe.KoeClient
 import moe.kyokobot.koe.KoeEventAdapter
 import moe.kyokobot.koe.MediaConnection
 import obsidian.server.io.ws.WebSocketClosedEvent
-import obsidian.server.io.ws.WebSocketHandler
+import obsidian.server.io.ws.MagmaClientSession
 import obsidian.server.io.ws.WebSocketOpenEvent
 import obsidian.server.player.Player
 import obsidian.server.util.KoeUtil
@@ -29,15 +29,17 @@ import java.net.InetSocketAddress
 import java.util.concurrent.ConcurrentHashMap
 
 class MagmaClient(private val userId: Long) {
+    val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+
     /**
      * The name of this client.
      */
     var name: String? = null
 
     /**
-     * The websocket handler for this client, or null if one hasn't been initialized.
+     * The websocket sessions for this client, may be empty.
      */
-    var websocket: WebSocketHandler? = null
+    var sessions: MutableList<MagmaClientSession> = mutableListOf()
 
     /**
      * The display name for this client.
@@ -64,9 +66,9 @@ class MagmaClient(private val userId: Long) {
      *
      * @param guildId ID of the guild.
      */
-    fun playerFor(guildId: Long): Player {
+    fun playerFor(guildId: Long, session: MagmaClientSession? = null): Player {
         return players.computeIfAbsent(guildId) {
-            Player(guildId, this)
+            Player(guildId, this, session)
         }
     }
 
@@ -92,9 +94,11 @@ class MagmaClient(private val userId: Long) {
      *   Whether we should be cautious about shutting down.
      */
     suspend fun shutdown(safe: Boolean = true) {
-        websocket?.shutdown()
-        websocket = null
+        if (sessions.isNotEmpty()) {
+            return
+        }
 
+        sessions.onEach { it.shutdown() }.clear()
         val activePlayers = players.count { (_, player) ->
             player.audioPlayer.playingTrack != null
         }
@@ -103,7 +107,7 @@ class MagmaClient(private val userId: Long) {
             return
         }
 
-        /* no players are active so it's safe to remove the client. */
+        /* no players are active, so it's safe to remove the client. */
 
         for ((id, player) in players) {
             player.destroy()
@@ -111,23 +115,30 @@ class MagmaClient(private val userId: Long) {
         }
 
         koe.close()
+        scope.cancel()
     }
 
     inner class EventAdapterImpl(private val connection: MediaConnection) : KoeEventAdapter() {
         override fun gatewayReady(target: InetSocketAddress, ssrc: Int) {
-            websocket?.launch {
+            val session = players[connection.guildId]?.session
+                ?: return
+
+            session.scope.launch {
                 val event = WebSocketOpenEvent(
                     guildId = connection.guildId,
                     ssrc = ssrc,
                     target = target.toString(),
                 )
 
-                websocket?.send(event)
+                session.send(event)
             }
         }
 
         override fun gatewayClosed(code: Int, reason: String?, byRemote: Boolean) {
-            websocket?.launch {
+            val session = players[connection.guildId]?.session
+                ?: return
+
+            session.scope.launch {
                 val event = WebSocketClosedEvent(
                     guildId = connection.guildId,
                     code = code,
@@ -135,7 +146,7 @@ class MagmaClient(private val userId: Long) {
                     byRemote = byRemote
                 )
 
-                websocket?.send(event)
+                session.send(event)
             }
         }
     }

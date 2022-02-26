@@ -19,6 +19,7 @@ package obsidian.server.io
 import com.sedmelluq.discord.lavaplayer.track.marker.TrackMarker
 import moe.kyokobot.koe.VoiceServerInfo
 import mu.KotlinLogging
+import obsidian.server.io.ws.MagmaClientSession
 import obsidian.server.player.TrackEndMarkerHandler
 import obsidian.server.player.filter.Filters
 import obsidian.server.util.TrackUtil
@@ -26,14 +27,14 @@ import obsidian.server.util.TrackUtil
 object Handlers {
     private val log = KotlinLogging.logger { }
 
-    fun submitVoiceServer(client: MagmaClient, guildId: Long, vsi: VoiceServerInfo) {
+    fun submitVoiceServer(client: MagmaClient, guildId: Long, vsi: VoiceServerInfo, session: MagmaClientSession? = null) {
         val connection = client.mediaConnectionFor(guildId)
         connection.connect(vsi)
-        client.playerFor(guildId).provideTo(connection)
+        client.playerFor(guildId, session).provideTo(connection)
     }
 
-    fun seek(client: MagmaClient, guildId: Long, position: Long) {
-        val player = client.playerFor(guildId)
+    fun seek(client: MagmaClient, guildId: Long, position: Long, session: MagmaClientSession? = null) {
+        val player = client.playerFor(guildId, session)
         player.seekTo(position)
     }
 
@@ -49,9 +50,10 @@ object Handlers {
         track: String,
         startTime: Long?,
         endTime: Long?,
-        noReplace: Boolean = false
+        noReplace: Boolean = false,
+        session: MagmaClientSession? = null
     ) {
-        val player = client.playerFor(guildId)
+        val player = client.playerFor(guildId, session)
         if (player.audioPlayer.playingTrack != null && noReplace) {
             log.info { "${client.displayName} - skipping PLAY_TRACK operation" }
             return
@@ -73,8 +75,8 @@ object Handlers {
         player.play(audioTrack)
     }
 
-    fun stopTrack(client: MagmaClient, guildId: Long) {
-        val player = client.playerFor(guildId)
+    fun stopTrack(client: MagmaClient, guildId: Long, session: MagmaClientSession? = null) {
+        val player = client.playerFor(guildId, session)
         player.audioPlayer.stopTrack()
     }
 
@@ -83,13 +85,14 @@ object Handlers {
         guildId: Long,
         filters: Filters? = null,
         pause: Boolean? = null,
-        sendPlayerUpdates: Boolean? = null
+        sendPlayerUpdates: Boolean? = null,
+        session: MagmaClientSession? = null
     ) {
         if (filters == null && pause == null && sendPlayerUpdates == null) {
             return
         }
 
-        val player = client.playerFor(guildId)
+        val player = client.playerFor(guildId, session)
         pause?.let { player.audioPlayer.isPaused = it }
         filters?.let { player.filters = it }
         sendPlayerUpdates?.let { player.updates.enabled = it }

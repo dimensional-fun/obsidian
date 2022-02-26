@@ -36,7 +36,7 @@ class PlayerUpdates(val player: Player) : CoroutineAudioEventAdapter() {
         set(value) {
             field = value
 
-            player.client.websocket?.launch {
+            player.session?.scope?.launch {
                 if (value) start() else stop()
             }
         }
@@ -67,7 +67,7 @@ class PlayerUpdates(val player: Player) : CoroutineAudioEventAdapter() {
             return
         }
 
-        player.client.websocket?.let {
+        player.session?.let {
             val update = PlayerUpdate(
                 guildId = player.guildId,
                 currentTrack = currentTrackFor(player),

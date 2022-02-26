@@ -37,7 +37,7 @@ import obsidian.server.io.rest.respondAndFinish
 import obsidian.server.io.rest.tracks
 import obsidian.server.io.ws.CloseReasons
 import obsidian.server.io.ws.StatsTask
-import obsidian.server.io.ws.WebSocketHandler
+import obsidian.server.io.ws.MagmaClientSession
 import obsidian.server.util.threadFactory
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
@@ -87,7 +87,7 @@ object Magma {
                 }
             }
 
-            /* check if a client name is required, if so check if there was a provided client name */
+            /* check if a client name is required, if so check for a provided client name */
             if (clientName == null && config[Obsidian.requireClientName]) {
                 return@intercept respondAndFinish(
                     HttpStatusCode.BadRequest,
@@ -133,20 +133,17 @@ object Magma {
                 return@webSocket close(CloseReasons.MISSING_USER_ID)
             }
 
-            val client = clients[userId]
-                ?: createClient(userId, clientName)
+            val client = clients[userId] ?: createClient(userId, clientName)
 
-            val wsh = client.websocket
-            if (wsh != null) {
-                /* check for a resume key, if one was given check if the client has the same resume key/ */
-                val resumeKey: String? = request.headers["Resume-Key"]
-                if (resumeKey != null && wsh.resumeKey == resumeKey) {
+            /* check for a resume key, if one was given check if the client has the same resume key/ */
+            val resumeKey: String? = request.headers["Resume-Key"]
+            if (resumeKey != null) {
+                val session = client.sessions.find { it.resumeKey == resumeKey }
+                if (session != null) {
                     /* resume the client session */
-                    wsh.resume(this)
+                    session.resume(this)
                     return@webSocket
                 }
-
-                return@webSocket close(CloseReasons.DUPLICATE_SESSION)
             }
 
             handleWebsocket(client, this)
@@ -202,13 +199,12 @@ object Magma {
      * Handles a [WebSocketServerSession] for the supplied [client]
      */
     private suspend fun handleWebsocket(client: MagmaClient, wss: WebSocketServerSession) {
-        val wsh = WebSocketHandler(client, wss).also {
-            client.websocket = it
-        }
+        val session = MagmaClientSession(client, wss)
+        client.sessions.add(session)
 
         /* listen for incoming messages. */
         try {
-            wsh.listen()
+            session.listen()
         } catch (ex: Exception) {
             log.error(ex) { "${client.displayName} - An error occurred while listening for frames." }
             if (wss.isActive) {
@@ -216,6 +212,6 @@ object Magma {
             }
         }
 
-        wsh.handleClose()
+        session.handleClose()
     }
 }

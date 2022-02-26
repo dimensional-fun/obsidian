@@ -34,11 +34,11 @@ object StatsTask {
         }
     }
 
-    fun getRunnable(wsh: WebSocketHandler): Runnable {
+    fun getRunnable(session: MagmaClientSession): Runnable {
         return Runnable {
-            wsh.launch {
-                val stats = build(wsh.client)
-                wsh.send(stats)
+            session.scope.launch {
+                val stats = build(session.client)
+                session.send(stats)
             }
         }
     }
