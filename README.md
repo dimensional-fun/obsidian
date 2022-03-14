@@ -1,3 +1,5 @@
+# Warning: Obsidian is not being actively developed, PRs are welcomed.
+
 # Obsidian
 
 > A performant standalone audio sending node meant for Discord Bots.
