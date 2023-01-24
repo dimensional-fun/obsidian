@@ -1,50 +1,13 @@
-# Warning: Obsidian is not being actively developed, PRs are welcomed.
+# 📡 Obsidian 
 
-# Obsidian
+> **Warning**  
+> This is alpha software! Make sure to report any issues to this repository.
 
-> A performant standalone audio sending node meant for Discord Bots.
+An audio node made for [Discord](https://discord.com) and [Revolt](https://revolt.chat)
 
-- Built using [**Ktor**](https://ktor.io)
-- Uses [**Lavaplayer**](https://github.com/sedmelluq/lavaplayer)
-- Performant, low memory and cpu footprint.
-
-## Usage.
-
-For obsidian to work correctly you must use **Java 11** or above. 
-
-- Goto the [releases page](/releases).
-- Download the **Latest Jar File**
-- Make an [`obsidian.yml`](/obsidian.yml) file in the same directory as the jar file
-- Open a prompt in the same directory as the jar file.
-
-```sh
-java -jar Obsidian.jar
-```
-
-Now go make a bot with the language and client of your choice!
-
-## Clients
-
-> Clients are used to interface with Magma, Obsidian's WebSocket and REST API.
-
-- [obby.js](https://github.com/Sxmurai/obby.js), NodeJS (v14+)
-
-**Want to make your own? Read our [API Docs](/API.md)**
+- **Performant** - Obsidian makes use of [coroutines](https://kotlinlang.org/docs/coroutines-basics.html) and coroutine-based libraries.
+- **Lightweight** - Most of our dependencies are Kotlin Standard Libraries or libraries for networking.
 
 ---
 
-> Made by the Mixtape Team.
-
-- [GitHub](https://github.com/mixtape-bot)
-- [Discord](https://discord.gg/TUYc4nn)
-
-###### Credits
-
-- [**Koe**](https://github.com/kyokobot/koe)
-
-###### Contributors
-
-- [@Sxmurai](https://github.com/Sxmurai)
-- [@SerenModz21](https://github.com/SerenModz21)
-
-<h5 align="center">Mixtape Bot &bull; 2021</h5>
+[Dimensional Fun](https://dimensional.fun) &copy; 2020 - Current Year
